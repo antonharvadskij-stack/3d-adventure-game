@@ -61,7 +61,7 @@ async function refreshAION(){
   document.getElementById('ep').textContent=epoch;
  }catch{}
 }
-await loadAION();
+setTimeout(()=>loadAION(),800);
 function persist(){return Promise.resolve()}
 function reproduce(){let L=live().filter(a=>a.age>18&&a.food>55);if(L.length<2||L.length>=20)return;if(Math.random()<.12){let p=L[Math.floor(Math.random()*L.length)],q=L[Math.floor(Math.random()*L.length)];if(p!==q&&p.g.position.distanceTo(q.g.position)<4){const c=agent();c.g.position.copy(p.g.position);c.home=p.home? p.home.clone():null;p.partner=q.name;p.children++;q.children++;log(p.name+' и '+q.name+' создали семью. Родилось новое поколение.')}}}
 function evolve(){let p=live().length,s=settlements.length;let n=p>15&&s>3?'Цивилизация':p>9&&s>1?'Развитие общества':p>4?'Зарождение':'Пробуждение';if(n!==epoch){epoch=n;document.getElementById('ep').textContent=n;log('AION: наступила новая эпоха — '+n)}}
