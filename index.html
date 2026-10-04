@@ -41,35 +41,17 @@ async function loadAION(){
   const r=await fetch(AION_SERVER+'/world',{cache:'no-store'});
   if(!r.ok) throw new Error('AION '+r.status);
   serverState=await r.json();
-  const local=readClient();
-  const newer=!!local && (local.savedAt||0)>0;
-  if(newer){
-    age=(local.worldAge||0)+Math.max(0,(Date.now()-(local.savedAt||Date.now()))/1000); cycle=(local.cycle||0)+Math.floor(Math.max(0,(Date.now()-(local.savedAt||Date.now()))/1000)/2); epoch=local.epoch||serverState.epoch||'Большой взрыв'; births=Math.max(local.births||0,serverState.births||0); deaths=Math.max(local.deaths||0,serverState.deaths||0);
-  }else{
-    age=serverState.worldAge||0; cycle=serverState.cycle||0; epoch=serverState.epoch||'Большой взрыв'; births=serverState.births||0; deaths=serverState.deaths||0;
-  }
+  age=serverState.worldAge||0; cycle=serverState.cycle||0; epoch=serverState.epoch||'Большой взрыв'; births=serverState.births||0; deaths=serverState.deaths||0;
   document.getElementById('ep').textContent=epoch;
   for(const a of [...agents]){a.g.removeFromParent();a.alive=false}
   agents.length=0;settlements.length=0;
-  const sourcePop=(newer && local.population?.length ? local.population : (serverState.population||[])).slice(0,20);
-  sourcePop.forEach(x=>{const a=agent();a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0});
-  if(newer && (local.settlements||0)>0){for(let i=0;i<local.settlements;i++){const a=agents[i%Math.max(1,agents.length)];if(a)house(a)}} else {(serverState.settlements||[]).forEach((x,i)=>{const a=agents[i%Math.max(1,agents.length)];if(a)house(a)})}
-  (serverState.history||[]).slice(-6).forEach(x=>log(typeof x==='string'?x:(x.event||'Событие AION')));
-  log('AION подключён к каноническому серверному миру.');
- }catch(e){
-  log('AION Server пока недоступен. Игра не создаёт новую серверную вселенную.');
- }
-}
-async function refreshAION(){
- try{
-  const r=await fetch(AION_SERVER+'/world',{cache:'no-store'}); if(!r.ok)return;
-  serverState=await r.json();
-  age=serverState.worldAge||age;cycle=serverState.cycle||cycle;epoch=serverState.epoch||epoch;births=serverState.births||births;deaths=serverState.deaths||deaths;
-  document.getElementById('ep').textContent=epoch;
- }catch{}
+  (serverState.population||[]).slice(0,20).forEach(x=>{const a=agent();a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0});
+  (serverState.settlements||[]).forEach((x,i)=>{const a=agents[i%Math.max(1,agents.length)];if(a)house(a)});
+  log('AION подключён к постоянному серверному миру.');
+ }catch(e){log('AION Server недоступен. Новая серверная вселенная не создаётся.')}
 }
 setTimeout(()=>loadAION(),1200);
-function persist(){saveClient();return Promise.resolve()}
+function persist(){return Promise.resolve()}
 function reproduce(){let L=live().filter(a=>a.age>18&&a.food>55);if(L.length<2||L.length>=20)return;if(Math.random()<.12){let p=L[Math.floor(Math.random()*L.length)],q=L[Math.floor(Math.random()*L.length)];if(p!==q&&p.g.position.distanceTo(q.g.position)<4){const c=agent();c.g.position.copy(p.g.position);c.home=p.home? p.home.clone():null;p.partner=q.name;p.children++;q.children++;log(p.name+' и '+q.name+' создали семью. Родилось новое поколение.')}}}
 function evolve(){let p=live().length,s=settlements.length;let n=p>15&&s>3?'Цивилизация':p>9&&s>1?'Развитие общества':p>4?'Зарождение':'Пробуждение';if(n!==epoch){epoch=n;document.getElementById('ep').textContent=n;log('AION: наступила новая эпоха — '+n)}}
 function tick(dt){age+=dt;for(const a of agents)if(a.alive)act(a,dt);acc+=dt;if(acc>2){acc=0;cycle++;if(live().length<3)agent();else if(live().length<12&&Math.random()<.7)agent();reproduce();evolve();if(cycle%4===0){let a=live()[Math.floor(Math.random()*live().length)];if(a)log(a.name+' '+a.job+' самостоятельно принимает решение и продолжает свой путь')}if(cycle%8===0)log('AION анализирует '+live().length+' жителей, '+settlements.length+' поселений и '+resources.filter(r=>r.g.visible).length+' источников ресурсов')}}
