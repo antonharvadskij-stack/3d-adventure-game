@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import time, threading, os
 from database import init, load, save
@@ -28,7 +29,7 @@ def advance():
 
 @app.get("/")
 def root():
-    return {"service":"AION","status":"online","endpoints":["/health","/world","/world/tick"]}
+    return FileResponse("/app/index.html", media_type="text/html")
 
 @app.get("/health")
 def health():
