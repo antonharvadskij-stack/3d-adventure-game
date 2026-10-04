@@ -36,16 +36,27 @@ function act(a,dt){
 }
 const AION_SERVER='https://aion-server-b80c.onrender.com';
 let serverState=null;
+function clientSnapshot(){return {worldAge:age,cycle,births,deaths,epoch,population:agents.filter(a=>a.alive).map(a=>({name:a.name,age:a.age,job:a.job,health:a.health,children:a.children})),settlements:settlements.length,savedAt:Date.now()}}
+function saveClient(){try{localStorage.setItem('aion_client_v10',JSON.stringify(clientSnapshot()))}catch{}}
+function readClient(){try{return JSON.parse(localStorage.getItem('aion_client_v10')||'null')}catch{return null}}
 async function loadAION(){
  try{
   const r=await fetch(AION_SERVER+'/world',{cache:'no-store'});
   if(!r.ok) throw new Error('AION '+r.status);
   serverState=await r.json();
-  age=serverState.worldAge||0;cycle=serverState.cycle||0;epoch=serverState.epoch||'Большой взрыв';births=serverState.births||0;deaths=serverState.deaths||0;
+  const local=readClient();
+  const newer=local && (local.savedAt||0)>0 && (local.worldAge||0)>=(serverState.worldAge||0);
+  if(newer){
+    age=local.worldAge||0; cycle=local.cycle||0; epoch=local.epoch||serverState.epoch||'Большой взрыв'; births=Math.max(local.births||0,serverState.births||0); deaths=Math.max(local.deaths||0,serverState.deaths||0);
+  }else{
+    age=serverState.worldAge||0; cycle=serverState.cycle||0; epoch=serverState.epoch||'Большой взрыв'; births=serverState.births||0; deaths=serverState.deaths||0;
+  }
   document.getElementById('ep').textContent=epoch;
   for(const a of [...agents]){a.g.removeFromParent();a.alive=false}
   agents.length=0;settlements.length=0;
-  (serverState.population||[]).slice(0,20).forEach(x=>{const a=agent();a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0});
+  const sourcePop=(newer && local.population?.length ? local.population : (serverState.population||[])).slice(0,20);
+  sourcePop.forEach(x=>{const a=agent();a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0});
+  if(newer && (local.settlements||0)>0){for(let i=0;i<local.settlements;i++){const a=agents[i%Math.max(1,agents.length)];if(a)house(a)}}
   (serverState.settlements||[]).forEach((x,i)=>{const a=agents[i%Math.max(1,agents.length)];if(a)house(a)});
   (serverState.history||[]).slice(-6).forEach(x=>log(typeof x==='string'?x:(x.event||'Событие AION')));
   log('AION подключён к каноническому серверному миру.');
@@ -62,7 +73,7 @@ async function refreshAION(){
  }catch{}
 }
 setTimeout(()=>loadAION(),800);
-function persist(){return Promise.resolve()}
+function persist(){saveClient();return Promise.resolve()}
 function reproduce(){let L=live().filter(a=>a.age>18&&a.food>55);if(L.length<2||L.length>=20)return;if(Math.random()<.12){let p=L[Math.floor(Math.random()*L.length)],q=L[Math.floor(Math.random()*L.length)];if(p!==q&&p.g.position.distanceTo(q.g.position)<4){const c=agent();c.g.position.copy(p.g.position);c.home=p.home? p.home.clone():null;p.partner=q.name;p.children++;q.children++;log(p.name+' и '+q.name+' создали семью. Родилось новое поколение.')}}}
 function evolve(){let p=live().length,s=settlements.length;let n=p>15&&s>3?'Цивилизация':p>9&&s>1?'Развитие общества':p>4?'Зарождение':'Пробуждение';if(n!==epoch){epoch=n;document.getElementById('ep').textContent=n;log('AION: наступила новая эпоха — '+n)}}
 function tick(dt){age+=dt;for(const a of agents)if(a.alive)act(a,dt);acc+=dt;if(acc>2){acc=0;cycle++;if(live().length<3)agent();else if(live().length<12&&Math.random()<.7)agent();reproduce();evolve();if(cycle%4===0){let a=live()[Math.floor(Math.random()*live().length)];if(a)log(a.name+' '+a.job+' самостоятельно принимает решение и продолжает свой путь')}if(cycle%8===0)log('AION анализирует '+live().length+' жителей, '+settlements.length+' поселений и '+resources.filter(r=>r.g.visible).length+' источников ресурсов')}}
