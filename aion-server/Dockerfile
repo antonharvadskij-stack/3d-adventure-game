@@ -2,5 +2,6 @@ FROM python:3.12-slim
 WORKDIR /app
 COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
+WORKDIR /app/aion-server
 EXPOSE 8000
-CMD ["sh","-c","cd /app/aion-server && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh","-c","uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
