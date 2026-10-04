@@ -2,7 +2,7 @@ import random,time
 NAMES=["Ари","Нова","Тар","Лум","Кай","Сел","Ори","Вен","Мира","Рен","Лио","Эна"]
 JOBS=["охотник","собиратель","строитель","исследователь"]
 def seed():
- return {"version":1,"worldAge":0,"cycle":0,"epoch":"Большой взрыв","population":[],"settlements":[],"births":0,"deaths":0,"history":["Большой взрыв. Вселенная начала своё существование."],"lastTick":time.time()}
+ return {"version":1,"worldAge":0,"cycle":0,"epoch":"Большой взрыв","population":[],"settlements":[],"births":0,"deaths":0,"history":["Большой взрыв. Вселенная начала своё существование."],"lastTick":time.time(),"worldVersion":1,"updatedAt":time.time()}
 def tick(w,seconds):
  seconds=max(0,min(seconds,86400*30)); w["worldAge"]+=seconds; w["cycle"]+=max(1,int(seconds/5))
  p=w["population"]
@@ -22,5 +22,5 @@ def tick(w,seconds):
  for s in w["settlements"]: s["age"]+=seconds/31557600
  score=len(p)*.7+len(w["settlements"])*5
  w["epoch"]="Цивилизация" if score>=30 else "Развитие общества" if score>=14 else "Зарождение" if score>=5 else "Пробуждение"
- w["lastTick"]=time.time();w["history"]=w["history"][-100:]
+ w["lastTick"]=time.time();w["updatedAt"]=time.time();w["worldVersion"]=w.get("worldVersion",0)+1;w["history"]=w["history"][-100:]
  return w
