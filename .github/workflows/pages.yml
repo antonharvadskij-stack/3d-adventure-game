@@ -3,10 +3,12 @@ name: Deploy Frontier Echo Test
 on:
   push:
     branches: ["main"]
+  schedule:
+    - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -15,20 +17,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  evolve:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Evolve AION while world is closed
+        run: python3 simulate_world.py
+      - name: Save world memory
+        run: |
+          git config user.name "AION"
+          git config user.email "aion@users.noreply.github.com"
+          git add state.json
+          git diff --cached --quiet || git commit -m "AION: evolve world while closed"
+          git push
+
   deploy:
+    needs: evolve
+    if: always() && (github.event_name != 'schedule' || needs.evolve.result == 'success')
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: .
-      - name: Deploy
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4
