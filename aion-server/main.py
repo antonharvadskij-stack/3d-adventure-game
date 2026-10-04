@@ -25,7 +25,7 @@ def root():
 @app.get("/health")
 def health():
     w=load()
-    return {"ok":True,"service":"AION","worldCycle":w.get("cycle",0),"epoch":w.get("epoch")}
+    return {"ok":True,"service":"AION","worldCycle":w.get("cycle",0),"epoch":w.get("epoch"),"worldVersion":w.get("worldVersion",0),"updatedAt":w.get("updatedAt",0)}
 
 @app.get("/debug/world")
 def debug_world():
@@ -37,7 +37,7 @@ def debug_world():
         "population": len(w.get("population", [])) if w else 0,
         "epoch": w.get("epoch") if w else None,
         "lastTick": w.get("lastTick") if w else None,
-        "database": "postgresql" if os.getenv("DATABASE_URL") else "sqlite"
+        "database": "postgresql" if os.getenv("DATABASE_URL") else "sqlite", "worldVersion": w.get("worldVersion",0), "updatedAt": w.get("updatedAt",0)
     }
 
 @app.get("/world")
