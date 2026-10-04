@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import time, threading
+import time, threading, os
 from database import init, load, save
 from simulation import seed, tick
 
@@ -26,6 +26,19 @@ def root():
 def health():
     w=load()
     return {"ok":True,"service":"AION","worldCycle":w.get("cycle",0),"epoch":w.get("epoch")}
+
+@app.get("/debug/world")
+def debug_world():
+    w=load()
+    return {
+        "ok": w is not None,
+        "worldAge": w.get("worldAge", 0) if w else 0,
+        "cycle": w.get("cycle", 0) if w else 0,
+        "population": len(w.get("population", [])) if w else 0,
+        "epoch": w.get("epoch") if w else None,
+        "lastTick": w.get("lastTick") if w else None,
+        "database": "postgresql" if os.getenv("DATABASE_URL") else "sqlite"
+    }
 
 @app.get("/world")
 def world():
