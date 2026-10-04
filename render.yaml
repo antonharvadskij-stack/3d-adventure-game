@@ -5,7 +5,7 @@ services:
     plan: free
     region: singapore
     dockerfilePath: ./aion-server/Dockerfile
-    dockerContext: ./aion-server
+    dockerContext: .
     healthCheckPath: /health
     autoDeploy: true
     envVars:
