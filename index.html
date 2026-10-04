@@ -45,9 +45,9 @@ async function loadAION(){
   if(!r.ok) throw new Error('AION '+r.status);
   serverState=await r.json();
   const local=readClient();
-  const newer=local && (local.savedAt||0)>0 && (local.worldAge||0)>=(serverState.worldAge||0);
+  const newer=!!local && (local.savedAt||0)>0;
   if(newer){
-    age=local.worldAge||0; cycle=local.cycle||0; epoch=local.epoch||serverState.epoch||'Большой взрыв'; births=Math.max(local.births||0,serverState.births||0); deaths=Math.max(local.deaths||0,serverState.deaths||0);
+    age=(local.worldAge||0)+Math.max(0,(Date.now()-(local.savedAt||Date.now()))/1000); cycle=(local.cycle||0)+Math.floor(Math.max(0,(Date.now()-(local.savedAt||Date.now()))/1000)/2); epoch=local.epoch||serverState.epoch||'Большой взрыв'; births=Math.max(local.births||0,serverState.births||0); deaths=Math.max(local.deaths||0,serverState.deaths||0);
   }else{
     age=serverState.worldAge||0; cycle=serverState.cycle||0; epoch=serverState.epoch||'Большой взрыв'; births=serverState.births||0; deaths=serverState.deaths||0;
   }
@@ -56,8 +56,7 @@ async function loadAION(){
   agents.length=0;settlements.length=0;
   const sourcePop=(newer && local.population?.length ? local.population : (serverState.population||[])).slice(0,20);
   sourcePop.forEach(x=>{const a=agent();a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0});
-  if(newer && (local.settlements||0)>0){for(let i=0;i<local.settlements;i++){const a=agents[i%Math.max(1,agents.length)];if(a)house(a)}}
-  (serverState.settlements||[]).forEach((x,i)=>{const a=agents[i%Math.max(1,agents.length)];if(a)house(a)});
+  if(newer && (local.settlements||0)>0){for(let i=0;i<local.settlements;i++){const a=agents[i%Math.max(1,agents.length)];if(a)house(a)}} else {(serverState.settlements||[]).forEach((x,i)=>{const a=agents[i%Math.max(1,agents.length)];if(a)house(a)})}
   (serverState.history||[]).slice(-6).forEach(x=>log(typeof x==='string'?x:(x.event||'Событие AION')));
   log('AION подключён к каноническому серверному миру.');
  }catch(e){
