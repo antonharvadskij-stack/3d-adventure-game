@@ -6,9 +6,18 @@ const C=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,160);C.position
 const R=new THREE.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,1.6));document.body.appendChild(R.domElement);
 S.add(new THREE.HemisphereLight(0x9db9ff,0x101810,1.8));const sun=new THREE.DirectionalLight(0xffffff,2.2);sun.position.set(15,25,10);S.add(sun);
 const W=new THREE.Group();S.add(W);const ground=new THREE.Mesh(new THREE.CylinderGeometry(27,30,1,64),new THREE.MeshStandardMaterial({color:0x14261c,roughness:1}));ground.position.y=-.5;W.add(ground);
-const agents=[],settlements=[],resources=[],events=[];let age=0,cycle=0,acc=0,epoch='Большой взрыв',deaths=0,births=0;
+const agents=[],settlements=[],resources=[],events=[];let age=0,cycle=0,acc=0,epoch='Большой взрыв',deaths=0,births=0;let evolution={visualQuality:1,terrainScale:1,lightIntensity:1,fogDistance:90,colorMood:'natural',generation:1};
 const names=['Ари','Нова','Тар','Лум','Кай','Сел','Ори','Вен','Мира','Рен','Лио','Эна'];
 function log(t){events.unshift(t);if(events.length>10)events.pop();document.getElementById('log').innerHTML=events.map(e=>'<div class="event">• '+e+'</div>').join('')}
+function applyEvolutionVisuals(){
+ const q=Math.max(.7,Math.min(1.5,evolution.visualQuality||1));
+ S.fog.far=Math.max(60,evolution.fogDistance||90);
+ sun.intensity=2.2*(evolution.lightIntensity||1)*q;
+ ground.scale.set(evolution.terrainScale||1,1,evolution.terrainScale||1);
+ R.setPixelRatio(Math.min(devicePixelRatio,Math.min(2,1.25+q*.35)));
+ if(evolution.colorMood==='civilization'){S.background.setHex(0x07101a);S.fog.color.setHex(0x07101a);}
+}
+
 function M(c){return new THREE.MeshStandardMaterial({color:c,roughness:.85})}
 function resource(){let g=new THREE.Mesh(new THREE.OctahedronGeometry(.35),M(0x44c9df));let a=Math.random()*6.28,d=3+Math.random()*22;g.position.set(Math.cos(a)*d,.35,Math.sin(a)*d);W.add(g);resources.push({g,amount:100})}
 for(let i=0;i<24;i++)resource();
@@ -41,13 +50,15 @@ async function loadAION(){
   const r=await fetch(AION_SERVER+'/world',{cache:'no-store'});
   if(!r.ok) throw new Error('AION '+r.status);
   serverState=await r.json();
+  evolution=serverState.evolution||evolution;
+  applyEvolutionVisuals();
   age=serverState.worldAge||0; cycle=serverState.cycle||0; epoch=serverState.epoch||'Большой взрыв'; births=serverState.births||0; deaths=serverState.deaths||0;
   document.getElementById('ep').textContent=epoch;
   for(const a of [...agents]){a.g.removeFromParent();a.alive=false}
   agents.length=0;settlements.length=0;
   (serverState.population||[]).slice(0,20).forEach(x=>{const a=agent();a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0});
   (serverState.settlements||[]).forEach((x,i)=>{const a=agents[i%Math.max(1,agents.length)];if(a)house(a)});
-  log('AION подключён к постоянному серверному миру.');
+  log('AION подключён к постоянному серверному миру. Поколение автономии: '+(evolution.generation||1)+'.');
  }catch(e){log('AION Server недоступен. Новая серверная вселенная не создаётся.')}
 }
 setTimeout(()=>loadAION(),1200);
