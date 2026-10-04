@@ -1,22 +1,26 @@
 # Frontier Echo
 
-A mobile-first 3D adventure prototype built with Godot 4.
+Mobile-first 3D adventure prototype built with Godot 4.
 
 ## Current vertical slice
-- Third-person character controller
-- Procedural stylized 3D world
+- Third-person exploration
 - Collectible energy crystals
-- Roaming sentry enemies
-- Camera follow
-- HUD with health and resources
-- Local save/load of progression
-- Landscape-first presentation
-- Architecture ready for future ads, rewarded ads, cosmetics and IAP
+- Enemy encounters and melee attack
+- XP and level progression
+- Health and respawn
+- Persistent local save
+- Landscape-first HUD
+- Procedural environment for rapid iteration
 
-## Design direction
-Stylized-realistic 3D adventure with exploration, collection, upgrades and changing world events.
+## Commercial roadmap
+- Replace prototype geometry with optimized stylized-realistic art
+- Mobile virtual joystick and action controls
+- Quests, inventory, equipment and upgrades
+- Multiple biomes and dynamic events
+- Daily missions and retention systems
+- Rewarded ads and optional ad placements
+- Cosmetics and optional IAP
+- Analytics and economy balancing
+- Web and Android builds
 
-## Run
-Open the project in Godot 4.x and press Play.
-
-The first milestone intentionally uses procedural geometry so gameplay can be tested before importing a large art pack.
+Core gameplay remains free; monetization is planned around optional convenience, cosmetics, rewarded ads and later seasonal content.
