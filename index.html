@@ -36,9 +36,6 @@ function act(a,dt){
 }
 const AION_SERVER='https://aion-server-b80c.onrender.com';
 let serverState=null;
-function clientSnapshot(){return {worldAge:age,cycle,births,deaths,epoch,population:agents.filter(a=>a.alive).map(a=>({name:a.name,age:a.age,job:a.job,health:a.health,children:a.children})),settlements:settlements.length,savedAt:Date.now()}}
-function saveClient(){try{localStorage.setItem('aion_client_v10',JSON.stringify(clientSnapshot()))}catch{}}
-function readClient(){try{return JSON.parse(localStorage.getItem('aion_client_v10')||'null')}catch{return null}}
 async function loadAION(){
  try{
   const r=await fetch(AION_SERVER+'/world',{cache:'no-store'});
