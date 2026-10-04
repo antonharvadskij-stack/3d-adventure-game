@@ -3,6 +3,7 @@ services:
     name: aion-server
     runtime: docker
     plan: free
+    numInstances: 1
     region: singapore
     dockerfilePath: ./aion-server/Dockerfile
     dockerContext: .
