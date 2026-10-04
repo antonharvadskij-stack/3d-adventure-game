@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import time, threading, os
-from database import init, load, save
+from database import init, load, save, atomic_update
 from simulation import seed, tick
 WORLD_LOCK=threading.Lock()
 
@@ -16,16 +16,15 @@ if load() is None:
 
 def advance():
     with WORLD_LOCK:
-        w=load()
-        now=time.time()
-        if w is None:
-            w=seed()
-        elapsed=max(0, now-w.get("lastTick", now))
-        # Не ускоряем мир при каждом запросе клиента: только реальное прошедшее время.
-        if elapsed >= 0.25:
-            w=tick(w, elapsed)
-            save(w, now)
-        return w
+        def update(w):
+            now=time.time()
+            if w is None:
+                return seed()
+            elapsed=max(0, now-w.get("lastTick", now))
+            if elapsed >= 0.25:
+                w=tick(w, elapsed)
+            return w
+        return atomic_update(update)
 
 @app.get("/")
 def root():
@@ -55,10 +54,11 @@ def world():
 
 @app.post("/world/tick")
 def manual_tick(seconds:int=60):
-    w=load()
-    w=tick(w, max(1,min(seconds,2592000)))
-    save(w,time.time())
-    return w
+    def update(w):
+        if w is None:
+            w=seed()
+        return tick(w, max(1,min(seconds,2592000)))
+    return atomic_update(update)
 
 def loop():
     while True:
