@@ -48,6 +48,11 @@ def debug_world():
         "database": "postgresql" if os.getenv("DATABASE_URL") else "sqlite", "worldVersion": w.get("worldVersion",0), "updatedAt": w.get("updatedAt",0)
     }
 
+@app.get("/ai/status")
+def ai_status():
+    w=load() or seed()
+    return {"autonomous":True,"scope":"game-world-and-persistent-game-config","generation":w.get("evolution",{}).get("generation",1),"strategy":w.get("evolution",{}).get("strategy"),"visuals":w.get("evolution",{}),"lastReason":w.get("evolution",{}).get("lastReason")}
+
 @app.get("/world")
 def world():
     return advance()
