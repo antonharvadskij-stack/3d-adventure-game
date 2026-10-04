@@ -8,3 +8,12 @@ services:
     dockerContext: ./aion-server
     healthCheckPath: /health
     autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: aion-world-db
+          property: connectionString
+databases:
+  - name: aion-world-db
+    plan: free
+    region: singapore
