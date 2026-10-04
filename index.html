@@ -34,9 +34,18 @@ function act(a,dt){
  move(a,a.goal,dt,a.job==='исследователь'?1.45:1.15);
  if(Math.random()<dt*.012)a.memory.push({cycle,message:'исследовал новую область'});
 }
+const saved=await fetch('./state.json?v='+Date.now()).then(r=>r.ok?r.json():null).catch(()=>null);
+if(saved){
+ age=saved.worldAge||0;cycle=saved.cycle||0;epoch=saved.epoch||'Большой взрыв';births=saved.births||0;deaths=saved.deaths||0;
+ document.getElementById('ep').textContent=epoch;
+ (saved.population||[]).slice(0,20).forEach((x,i)=>{const a=agent();a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0});
+ (saved.settlements||[]).forEach((x,i)=>{const a=agents[Math.min(i,agents.length-1)];if(a)house(a)});
+ (saved.history||[]).slice(-5).forEach(x=>log('Память AION: '+x));
+ log('Сохранённая вселенная восстановлена. AION продолжает развитие с прошлого состояния.');
+}
 function reproduce(){let L=live().filter(a=>a.age>18&&a.food>55);if(L.length<2||L.length>=20)return;if(Math.random()<.12){let p=L[Math.floor(Math.random()*L.length)],q=L[Math.floor(Math.random()*L.length)];if(p!==q&&p.g.position.distanceTo(q.g.position)<4){const c=agent();c.g.position.copy(p.g.position);c.home=p.home? p.home.clone():null;p.partner=q.name;p.children++;q.children++;log(p.name+' и '+q.name+' создали семью. Родилось новое поколение.')}}}
 function evolve(){let p=live().length,s=settlements.length;let n=p>15&&s>3?'Цивилизация':p>9&&s>1?'Развитие общества':p>4?'Зарождение':'Пробуждение';if(n!==epoch){epoch=n;document.getElementById('ep').textContent=n;log('AION: наступила новая эпоха — '+n)}}
 function tick(dt){age+=dt;for(const a of agents)if(a.alive)act(a,dt);acc+=dt;if(acc>2){acc=0;cycle++;if(live().length<3)agent();else if(live().length<12&&Math.random()<.7)agent();reproduce();evolve();if(cycle%4===0){let a=live()[Math.floor(Math.random()*live().length)];if(a)log(a.name+' '+a.job+' самостоятельно принимает решение и продолжает свой путь')}if(cycle%8===0)log('AION анализирует '+live().length+' жителей, '+settlements.length+' поселений и '+resources.filter(r=>r.g.visible).length+' источников ресурсов')}}
 function loop(){requestAnimationFrame(loop);let n=performance.now();let dt=Math.min(.05,(n-(loop.last||n))/1000);loop.last=n;tick(dt);document.getElementById('state').innerHTML='Возраст: '+age.toFixed(0)+' с<br>Цикл: '+cycle+'<br>Жители: '+live().length+' / '+agents.length+'<br>Поселения: '+settlements.length+'<br>Рождений: '+births+' · Смертей: '+deaths+'<br>Ресурсов: '+resources.filter(r=>r.g.visible).length+'<br>Память: '+events.length+' событий';W.rotation.y+=dt*.006;C.lookAt(0,0,0);R.render(S,C)}
-log('Большой взрыв. Вселенная начинает своё существование.');setTimeout(()=>{epoch='Формирование мира';document.getElementById('ep').textContent=epoch;log('Формируются первые условия для жизни')},1800);setTimeout(()=>{epoch='Появление жизни';document.getElementById('ep').textContent=epoch;log('AION запускает автономную биологическую систему')},4000);setTimeout(()=>{for(let i=0;i<2;i++)agent();log('Первые разумные существа получили свободу действий')},5200);
+log('Большой взрыв. Вселенная начинает своё существование.');setTimeout(()=>{epoch='Формирование мира';document.getElementById('ep').textContent=epoch;log('Формируются первые условия для жизни')},1800);setTimeout(()=>{epoch='Появление жизни';document.getElementById('ep').textContent=epoch;log('AION запускает автономную биологическую систему')},4000);if(!saved)setTimeout(()=>{for(let i=0;i<2;i++)agent();log('Первые разумные существа получили свободу действий')},5200);
 addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)});loop();</script></body></html>
