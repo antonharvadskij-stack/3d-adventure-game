@@ -1,10 +1,10 @@
 services:
   - type: web
     name: aion-server
-    runtime: python
+    runtime: docker
     plan: free
     region: singapore
-    rootDir: aion-server
-    buildCommand: pip install -r aion-server/requirements.txt
-    startCommand: cd aion-server && uvicorn main:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./aion-server/Dockerfile
+    dockerContext: ./aion-server
     healthCheckPath: /health
+    autoDeploy: true
