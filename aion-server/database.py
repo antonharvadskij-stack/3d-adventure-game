@@ -3,8 +3,8 @@ LOCK=threading.Lock()
 DATABASE_URL=os.getenv("DATABASE_URL")
 
 def _pg():
-    import psycopg2
-    return psycopg2.connect(DATABASE_URL)
+    import psycopg
+    return psycopg.connect(DATABASE_URL)
 
 def init():
     if DATABASE_URL:
