@@ -8,6 +8,8 @@ WORLD_LOCK=threading.Lock()
 app=FastAPI(title="AION Persistent Universe", version="1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 init()
+if not os.getenv("DATABASE_URL"):
+    raise RuntimeError("DATABASE_URL is required for persistent AION world")
 if load() is None:
     save(seed(), time.time())
 
