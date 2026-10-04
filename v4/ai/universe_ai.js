@@ -1,11 +1,6 @@
 /**
- * Frontier Echo — Autonomous Universe AI
- * Runs INSIDE the game sandbox.
- *
- * The agent has full authority over registered GAME STATE and WORLD ACTIONS,
- * but deliberately cannot access the browser filesystem, network, GitHub,
- * device APIs, or execute arbitrary JavaScript. This keeps "freedom" inside
- * the simulated universe instead of turning the game into an unsafe host.
+ * Frontier Echo — AION Autonomous Universe Intelligence v2
+ * AI authority is intentionally bounded to the simulated game universe.
  */
 export class UniverseAI {
   constructor(opts = {}) {
@@ -14,35 +9,38 @@ export class UniverseAI {
     this.player = opts.player;
     this.enemies = opts.enemies || [];
     this.crystals = opts.crystals || [];
-    this.tickRate = opts.tickRate || 3.0;
+    this.spawnEnemy = opts.spawnEnemy || (typeof window !== "undefined" ? window.__frontierSpawnEnemy : null);
+    this.onEvent = opts.onEvent || (() => {});
+    this.tickRate = 2.5;
     this.elapsed = 0;
     this.age = 0;
     this.cycle = 0;
-    this.memory = [];
-    this.rules = {
-      spawnDistance: [16, 34],
-      maxCreatures: 18,
-      maxCrystals: 42,
-      aggression: 0.22,
-      evolution: 0.01
-    };
-    this.stats = {
-      births: 0, deaths: 0, events: 0, discoveries: 0,
-      civilization: 0, epoch: "Первичная"
-    };
-    this.onEvent = opts.onEvent || (() => {});
-    this._rng = Math.random;
     this.running = true;
-    this._emit("AION пробудился. Вселенная получила автономный наблюдатель.");
+    this.lastDecision = 0;
+    this.memory = [];
+    this.goals = [
+      {id:"life", text:"Развить жизнь", progress:0, target:12},
+      {id:"order", text:"Создать устойчивое сообщество", progress:0, target:30},
+      {id:"discovery", text:"Открыть тайны мира", progress:0, target:8}
+    ];
+    this.personality = { curiosity:0.82, protectiveness:0.36, ambition:0.74, chaos:0.18 };
+    this.stats = {
+      births:0, deaths:0, discoveries:0, events:0, decisions:0,
+      civilization:0, stability:50, epoch:"Первичная"
+    };
+    this._emit("AION пробудился. Я не наблюдаю вселенную — я развиваю её.");
   }
 
-  _emit(message) {
-    const event = { age: this.age, cycle: this.cycle, message, at: Date.now() };
+  _emit(message, kind="world") {
+    const event = {age:this.age, cycle:this.cycle, message, kind, at:Date.now()};
     this.memory.push(event);
-    if (this.memory.length > 100) this.memory.shift();
+    if (this.memory.length > 120) this.memory.shift();
     this.stats.events++;
     this.onEvent(event);
   }
+
+  _population() { return this.enemies.filter(e => e && e.parent).length; }
+  _liveCrystals() { return this.crystals.filter(c => c && c.parent).length; }
 
   think(dt) {
     if (!this.running || !this.scene || !this.player) return;
@@ -51,113 +49,130 @@ export class UniverseAI {
     if (this.elapsed < this.tickRate) return;
     this.elapsed = 0;
     this.cycle++;
+    this.stats.decisions++;
 
-    // Observe first: the next decision depends on the current world state.
-    const population = this.enemies.filter(e => e && e.parent).length;
-    const playerDistance = this.player.position.length();
+    const population = this._population();
+    const resources = this._liveCrystals();
+    const distance = Math.hypot(this.player.position.x, this.player.position.z);
 
-    // Autonomous ecology: population self-regulates.
-    if (population < 4) this._spawnSentinel();
-    if (population < this.rules.maxCreatures && this._rng() < 0.38) this._spawnSentinel();
+    // AION evaluates the world before acting.
+    const scarcity = Math.max(0, 1 - resources / 18);
+    const danger = Math.min(1, population / 18);
+    const opportunity = Math.max(0, 1 - danger) * (0.5 + this.personality.curiosity * 0.5);
 
-    // Autonomous resource renewal.
-    const liveCrystals = this.crystals.filter(c => c && c.parent).length;
-    if (liveCrystals < this.rules.maxCrystals && this._rng() < 0.45) {
-      this._spawnCrystal();
-    }
+    if (population < 4) this._createLife("population");
+    else if (population < 10 && Math.random() < opportunity * 0.7) this._createLife("growth");
 
-    // Emergent world events, selected by the agent rather than a fixed quest.
-    if (this._rng() < 0.16) this._worldEvent(playerDistance, population);
+    if (resources < 12 && Math.random() < 0.75) this._renewResource();
 
-    // Slow evolutionary pressure.
-    if (this.cycle % 10 === 0) {
-      this.stats.civilization += this.rules.evolution * population;
-      if (this.stats.civilization > 1 && this.stats.epoch === "Первичная") {
-        this.stats.epoch = "Пробуждение";
-        this._emit("Первые признаки самоорганизации жизни.");
-      } else if (this.stats.civilization > 3 && this.stats.epoch === "Пробуждение") {
-        this.stats.epoch = "Зарождение";
-        this._emit("Жизнь начинает формировать устойчивые сообщества.");
-      }
-    }
+    // The world can evolve without the avatar being nearby.
+    if (this.cycle % 4 === 0) this._developCivilization(population, scarcity);
+    if (this.cycle % 5 === 0 && Math.random() < 0.55) this._chooseWorldEvent(population, danger, distance);
+
+    this._updateGoals(population);
+    this._updateEpoch();
   }
 
-  _spawnSentinel() {
-    const a = this._rng() * Math.PI * 2;
-    const d = this.rules.spawnDistance[0] +
-      this._rng() * (this.rules.spawnDistance[1] - this.rules.spawnDistance[0]);
-    const x = this.player.position.x + Math.cos(a) * d;
-    const z = this.player.position.z + Math.sin(a) * d;
-
-    // Reuse the game's existing enemy factory when available.
-    if (typeof window.__frontierSpawnEnemy === "function") {
-      const e = window.__frontierSpawnEnemy(x, z);
-      if (e) {
-        e.userData.aiBorn = true;
-        e.userData.hp = 120 + Math.floor(this._rng() * 180);
-        e.userData.maxHp = e.userData.hp;
-        this.enemies.push(e);
-        this.stats.births++;
-        this._emit("AION создал новую форму жизни.");
-      }
-    }
+  _createLife(reason) {
+    if (this._population() >= 18 || typeof this.spawnEnemy !== "function") return;
+    const a = Math.random() * Math.PI * 2;
+    const d = 15 + Math.random() * 20;
+    const e = this.spawnEnemy(this.player.position.x + Math.cos(a)*d, this.player.position.z + Math.sin(a)*d);
+    if (!e) return;
+    e.userData.aiBorn = true;
+    e.userData.home = e.position.clone();
+    e.userData.hp = 140 + Math.floor(Math.random()*161);
+    e.userData.maxHp = e.userData.hp;
+    e.userData.species = this._speciesName();
+    this.enemies.push(e);
+    this.stats.births++;
+    this.goals[0].progress = Math.min(this.goals[0].target, this.goals[0].progress + 1);
+    if (reason === "population") this._emit("Популяция была слишком мала. Я создал новую жизнь.", "birth");
+    else this._emit("Новая форма жизни появилась в результате развития экосистемы.", "birth");
   }
 
-  _spawnCrystal() {
-    const a = this._rng() * Math.PI * 2;
-    const d = 7 + this._rng() * 28;
-    const q = new THREE.Mesh(
-      new THREE.OctahedronGeometry(.48),
-      new THREE.MeshStandardMaterial({color:0x35eaff, emissive:0x0b3540})
-    );
-    q.position.set(
-      this.player.position.x + Math.cos(a) * d,
-      .7,
-      this.player.position.z + Math.sin(a) * d
-    );
+  _speciesName() {
+    const roots=["Аэри","Ворн","Кайр","Лум","Нери","Ори","Сел","Тар"];
+    const ends=["иды","аны","оры","ели","иты","оны"];
+    return roots[Math.floor(Math.random()*roots.length)] + ends[Math.floor(Math.random()*ends.length)];
+  }
+
+  _renewResource() {
+    if (this._liveCrystals() >= 42) return;
+    const a=Math.random()*Math.PI*2, d=8+Math.random()*30;
+    const q=new THREE.Mesh(new THREE.OctahedronGeometry(.48),
+      new THREE.MeshStandardMaterial({color:0x35eaff,emissive:0x0b3540}));
+    q.position.set(this.player.position.x+Math.cos(a)*d,.7,this.player.position.z+Math.sin(a)*d);
     this.scene.add(q);
     this.crystals.push(q);
     this.stats.discoveries++;
+    this.goals[2].progress=Math.min(this.goals[2].target,this.goals[2].progress+1);
   }
 
-  _worldEvent(playerDistance, population) {
-    const choices = [
-      "Над горизонтом формируется неизвестное свечение.",
-      "Экосистема изменила направление развития.",
-      "В глубине мира проснулся древний сигнал.",
-      population > 8 ? "Существа начинают конкурировать за территорию." : "Новая ниша жизни открылась в дикой зоне.",
-      playerDistance > 25 ? "Аватар Бога ушёл далеко. Мир продолжает жить без него." : "Мир реагирует на присутствие своего аватара."
-    ];
-    this._emit(choices[Math.floor(this._rng() * choices.length)]);
+  _developCivilization(population, scarcity) {
+    const growth = Math.max(0.15, population * 0.035) * (1 - scarcity * 0.35);
+    this.stats.civilization += growth;
+    this.stats.stability = Math.max(0, Math.min(100,
+      this.stats.stability + (population > 6 ? 1.2 : -0.5) - scarcity*1.5));
+
+    this.goals[1].progress=Math.min(this.goals[1].target, this.goals[1].progress + growth);
+    if (this.stats.civilization > 8 && this.stats.civilization < 9)
+      this._emit("Я заметил устойчивое общественное поведение. Начинаю поддерживать его.", "evolution");
+  }
+
+  _chooseWorldEvent(population, danger, distance) {
+    const events = population > 10
+      ? ["Две группы существ начали бороться за территорию.",
+         "Существа нашли новый источник энергии.",
+         "В мире возникает первый устойчивый союз."]
+      : ["На горизонте появился неизвестный сигнал.",
+         "Экосистема изменила направление развития.",
+         "В глубине мира проснулась древняя структура.",
+         distance > 25 ? "Аватар далеко. Я продолжаю развитие без его вмешательства." :
+                         "Присутствие аватара изменило поведение живых существ."];
+    const msg=events[Math.floor(Math.random()*events.length)];
+    this._emit(msg, danger > .7 ? "conflict" : "discovery");
+  }
+
+  _updateGoals(population) {
+    if (population >= 12) this.goals[0].progress=this.goals[0].target;
+    if (this.stats.stability >= 70) this.goals[1].progress=Math.min(this.goals[1].target,this.goals[1].progress+0.5);
+  }
+
+  _updateEpoch() {
+    const c=this.stats.civilization;
+    const next = c >= 35 ? "Цивилизация" : c >= 18 ? "Развитие" : c >= 6 ? "Зарождение" : c >= 1 ? "Пробуждение" : "Первичная";
+    if (next !== this.stats.epoch) {
+      this.stats.epoch=next;
+      this._emit("Новая эпоха: " + next + ". Мир больше не тот, каким был.", "epoch");
+    }
   }
 
   command(command) {
-    const c = String(command || "").toLowerCase().trim();
-    if (!c) return "AION ждёт наблюдения или приказа.";
-    if (c.includes("стоп")) { this.running = false; return "Автономная эволюция приостановлена."; }
-    if (c.includes("продолж")) { this.running = true; return "Автономная эволюция возобновлена."; }
-    if (c.includes("создай") || c.includes("создать")) {
-      this._spawnSentinel();
-      return "Новая жизнь создана.";
-    }
-    if (c.includes("состояние") || c.includes("мир")) {
-      return this.getReport();
-    }
-    return "AION не распознал приказ, но продолжает наблюдение.";
+    const c=String(command||"").toLowerCase().trim();
+    if (!c) return "Я слушаю, аватар.";
+    if (c.includes("стоп")) { this.running=false; this._emit("Я остановил автономное развитие по твоему приказу.","command"); return "Автономия приостановлена."; }
+    if (c.includes("продолж")) { this.running=true; return "Развитие продолжается."; }
+    if (c.includes("создай") || c.includes("жизн")) { this._createLife("command"); return "Я создал новую жизнь."; }
+    if (c.includes("состояние") || c.includes("мир")) return this.getReport();
+    if (c.includes("почему")) return "Я принимаю решения по состоянию мира, своим целям и накопленной истории.";
+    return "Я услышал тебя. Решение добавлено в мой контекст мира.";
   }
 
   getReport() {
     return [
-      "Сознание: " + this.name,
-      "Возраст мира: " + this.age.toFixed(1) + " c",
-      "Цикл: " + this.cycle,
-      "Эпоха: " + this.stats.epoch,
-      "Рождений: " + this.stats.births,
-      "Событий: " + this.stats.events,
-      "Открытий: " + this.stats.discoveries,
-      "Самоорганизация: " + this.stats.civilization.toFixed(2)
+      "AION", "эпоха: "+this.stats.epoch,
+      "возраст: "+this.age.toFixed(0)+" c",
+      "циклы: "+this.cycle,
+      "жизнь: "+this._population(),
+      "стабильность: "+this.stats.stability.toFixed(0)+"%",
+      "цивилизация: "+this.stats.civilization.toFixed(1),
+      "события: "+this.stats.events
     ].join(" · ");
   }
+
+  getMemory() { return this.memory.slice(-20); }
+  getGoals() { return this.goals.map(g => ({...g})); }
 }
 
-window.UniverseAI = UniverseAI;
+window.UniverseAI=UniverseAI;
