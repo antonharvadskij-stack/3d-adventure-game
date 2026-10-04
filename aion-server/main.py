@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import time, threading, os
 from database import init, load, save
 from simulation import seed, tick
+WORLD_LOCK=threading.Lock()
 
 app=FastAPI(title="AION Persistent Universe", version="1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -11,12 +12,17 @@ if load() is None:
     save(seed(), time.time())
 
 def advance():
-    w=load()
-    now=time.time()
-    elapsed=max(0, now-w.get("lastTick", now))
-    w=tick(w, elapsed)
-    save(w, now)
-    return w
+    with WORLD_LOCK:
+        w=load()
+        now=time.time()
+        if w is None:
+            w=seed()
+        elapsed=max(0, now-w.get("lastTick", now))
+        # Не ускоряем мир при каждом запросе клиента: только реальное прошедшее время.
+        if elapsed >= 0.25:
+            w=tick(w, elapsed)
+            save(w, now)
+        return w
 
 @app.get("/")
 def root():
@@ -55,6 +61,6 @@ def loop():
     while True:
         try: advance()
         except Exception: pass
-        time.sleep(30)
+        time.sleep(10)
 
 threading.Thread(target=loop,daemon=True).start()
