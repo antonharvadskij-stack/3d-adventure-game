@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import time, threading, os
 from database import init, load, save, atomic_update
-from simulation import seed, tick, diagnose, propose_repair, self_repair
+from simulation import seed, tick, diagnose, propose_repair, self_repair, run_experiment
 WORLD_LOCK=threading.Lock()
 
 app=FastAPI(title="AION Persistent Universe", version="1.0")
@@ -52,6 +52,15 @@ def debug_world():
 def ai_status():
     w=load() or seed()
     return {"autonomous":True,"scope":"game-world-and-persistent-game-config","generation":w.get("evolution",{}).get("generation",1),"strategy":w.get("evolution",{}).get("strategy"),"visuals":w.get("evolution",{}),"lastReason":w.get("evolution",{}).get("lastReason"),"diagnostics":w.get("aiDiagnostics",{})}
+
+@app.post("/ai/experiment")
+def ai_experiment():
+    def update(w):
+        if w is None: w=seed()
+        self_repair(w)
+        return run_experiment(w)
+    w=atomic_update(update)
+    return {"ok":True,"experiment":w.get("aiDiagnostics",{}).get("lastExperiment"),"evolution":w.get("evolution",{})}
 
 @app.post("/ai/self-repair")
 def ai_self_repair():
