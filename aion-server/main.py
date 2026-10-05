@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import time, threading, os
 from database import init, load, save, atomic_update
 from simulation import seed, tick, diagnose, propose_repair, self_repair, run_experiment
+from autonomy import cycle as autonomy_cycle
 WORLD_LOCK=threading.Lock()
 
 app=FastAPI(title="AION Persistent Universe", version="1.0")
@@ -23,6 +24,10 @@ def advance():
             elapsed=max(0, now-w.get("lastTick", now))
             if elapsed >= 0.25:
                 w=tick(w, elapsed)
+                if w.get("cycle",0)%30==0:
+                    d=diagnose(w)
+                    w,result=autonomy_cycle(w,d)
+                    w.setdefault("aiDiagnostics",{})["developmentCycle"]=result
             return w
         return atomic_update(update)
 
