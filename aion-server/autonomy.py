@@ -277,3 +277,22 @@ def self_improve_policy(world):
     world["evolution"]["selfImprovementCount"]=world["evolution"].get("selfImprovementCount",0)+1
     world.setdefault("history",[]).append("AION самостоятельно создал и принял новую политику: "+policy["name"])
     return policy
+
+
+def autonomous_cycle(world, now=None):
+    sim_seconds = advance_universe_time(world, now)
+    years, births, deaths = advance_generations(world, sim_seconds)
+    advance_civilization(world, sim_seconds)
+    obs = observe(world)
+    evo = world.setdefault("evolution", {})
+    last_pop = evo.get("lastPolicyPopulation", -1)
+    if "activePolicy" not in world.get("aiDiagnostics", {}) or abs(obs["population"] - last_pop) >= 5 or sim_seconds > 0:
+        self_improve_policy(world)
+        evo["lastPolicyPopulation"] = obs["population"]
+    result = cycle(world)
+    result[1]["simulatedYearsElapsed"] = round(years, 4)
+    result[1]["births"] = births
+    result[1]["deaths"] = deaths
+    result[1]["policy"] = world.get("aiDiagnostics", {}).get("activePolicy", {}).get("name")
+    world.setdefault("aiDiagnostics", {})["lastCycle"] = result[1]
+    return result
