@@ -8,6 +8,7 @@ world database so decisions continue across runs.
 """
 from __future__ import annotations
 import copy, hashlib, random, time
+from simulation import tick
 
 MAX_POPULATION=100000
 MAX_SETTLEMENTS=1000
