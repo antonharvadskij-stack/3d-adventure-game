@@ -38,7 +38,7 @@ for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,d=18+Math.random()*82,x=Ma
 // Wildlife layer: simple low-poly animals distributed over habitable land.
 const animals=[];
 function animal(x,z,type){
- const g=new THREE.Group(),mat=M(type==='deer'?0x8b6545:0x596b43);
+ const g=new THREE.Group(),mat=new THREE.MeshStandardMaterial({color:type==='deer'?0x8b6545:0x596b43,roughness:1});
  const body=new THREE.Mesh(new THREE.BoxGeometry(.9,.45,.42),mat),head=new THREE.Mesh(new THREE.SphereGeometry(.27,8,6),mat);
  body.position.y=.48;head.position.set(.52,.7,0);g.add(body,head);g.position.set(x,.05,z);W.add(g);animals.push({g,phase:Math.random()*6.28,speed:.15+Math.random()*.3});
 }
