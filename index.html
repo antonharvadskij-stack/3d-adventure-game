@@ -55,19 +55,36 @@ function act(a,dt){
 const AION_SERVER='https://aion-server-b80c.onrender.com';
 let serverState=null;
 async function bigBang(){
- if(!confirm('Начать новую вселенную? Все жители, поселения и история текущего мира будут сброшены.')) return;
- const b=document.getElementById('resetBtn'); b.disabled=true; b.textContent='💥 Создание Земли…';
+ const b=document.getElementById('resetBtn');
+ if(!confirm('Начать новую вселенную? Текущий мир будет полностью сброшен.')) return;
+ b.disabled=true;
  try{
-  const r=await fetch(AION_SERVER+'/world/reset?confirm=BIG_BANG',{method:'POST',cache:'no-store'});
-  if(!r.ok) throw new Error('reset '+r.status);
-  const data=await r.json();
-  if(!data.ok) throw new Error(data.message||'reset failed');
-  log('💥 БОЛЬШОЙ ВЗРЫВ. Старая вселенная завершена.');
-  log('🌑 Пустота. AION начинает создавать Землю с нуля.');
-  W.visible=false; await new Promise(x=>setTimeout(x,900)); W.visible=true;
+  b.textContent='💥 Большой взрыв…';
+  log('💥 БОЛЬШОЙ ВЗРЫВ. Текущая вселенная завершена.');
+  W.visible=false;
+  await new Promise(r=>setTimeout(r,1200));
+  b.textContent='🌑 Пустота…';
+  log('🌑 Пустота. Пространство готово к созданию.');
+  await new Promise(r=>setTimeout(r,1200));
+  b.textContent='🌍 Создание Земли…';
+  const r=await fetch(AION_SERVER+'/world/reset?confirm=BIG_BANG',{
+   method:'POST',headers:{'Accept':'application/json'},cache:'no-store'
+  });
+  const raw=await r.text();
+  let data;
+  try{data=JSON.parse(raw)}catch(e){throw new Error('сервер вернул некорректный ответ: '+raw.slice(0,120))}
+  if(!r.ok||data.ok===false) throw new Error(data.message||('HTTP '+r.status));
+  await new Promise(r=>setTimeout(r,1000));
   await loadAION();
-  log('🌍 Новая Земля создана. AION начинает заселение и развитие.');
- }catch(e){log('❌ Не удалось перезапустить вселенную: '+e.message)}finally{b.disabled=false;b.textContent='💥 Большой взрыв'}
+  W.visible=true;
+  b.textContent='🌍 Новая Земля создана';
+  log('🌍 Новая Земля создана. AION начинает развитие мира.');
+  setTimeout(()=>{b.textContent='💥 Большой взрыв'},2500);
+ }catch(e){
+  W.visible=true;
+  b.textContent='💥 Повторить Большой взрыв';
+  log('❌ Перерождение не завершено: '+e.message);
+ }finally{b.disabled=false}
 }
 async function loadAION(){
  try{
