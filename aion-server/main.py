@@ -7,7 +7,10 @@ from simulation import seed, tick, diagnose, propose_repair, self_repair, run_ex
 from autonomy import autonomous_cycle
 WORLD_LOCK=threading.Lock()
 
-logging.basicConfig(level=logging.INFO)\nlog=logging.getLogger("aion")\n\napp=FastAPI(title="AION Persistent Universe", version="1.0")
+logging.basicConfig(level=logging.INFO)
+log=logging.getLogger("aion")
+
+app=FastAPI(title="AION Persistent Universe", version="1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 init()
 if not os.getenv("DATABASE_URL"):
@@ -91,7 +94,8 @@ def manual_tick(seconds:int=60):
 def loop():
     while True:
         try: advance()
-        except Exception as exc:\n            log.exception("AION autonomous loop failed: %s", exc)
+        except Exception as exc:
+            log.exception("AION autonomous loop failed: %s", exc)
         time.sleep(10)
 
 threading.Thread(target=loop,daemon=True).start()
