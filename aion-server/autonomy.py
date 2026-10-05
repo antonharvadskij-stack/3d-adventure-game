@@ -1,67 +1,138 @@
-"""Bounded autonomous development sandbox for AION.
-It may inspect and mutate only whitelisted game-state/config artifacts.
-Changes are staged, validated, scored, and either committed to the sandbox
-state or discarded. Secrets and infrastructure are deliberately out of scope.
+"""AION autonomous decision core.
+
+AION is not driven by a fixed sequence of game milestones. On each decision
+cycle it observes the persistent world, selects a goal, generates competing
+actions, simulates them on a copy, scores the outcomes, keeps the best safe
+candidate, and records why it chose it. The policy and memory persist in the
+world database so decisions continue across runs.
 """
 from __future__ import annotations
-import copy, hashlib, time
+import copy, hashlib, random, time
 
-ALLOWED_FIELDS = {
-    "evolution": {"birthRate","settlementRate","resourceAbundance","strategy"},
-    "aiPolicy": {"focus"},
-}
+MAX_POPULATION=100000
+MAX_SETTLEMENTS=1000
+MAX_HISTORY=100
 
-def snapshot(world):
-    return copy.deepcopy(world)
+def snapshot(world): return copy.deepcopy(world)
+def checksum(world): return hashlib.sha256(repr(world).encode()).hexdigest()
 
-def checksum(world):
-    return hashlib.sha256(repr(world).encode()).hexdigest()
-
-def propose(world, diagnosis):
-    candidate=snapshot(world)
-    evo=candidate.setdefault("evolution",{})
-    policy=candidate.setdefault("aiPolicy",{})
-    if diagnosis.get("resource_pressure"):
-        evo["resourceAbundance"]=min(1.5,float(evo.get("resourceAbundance",1))*1.03)
-        policy["focus"]="survival"
-    elif diagnosis.get("low_growth"):
-        evo["birthRate"]=min(1.5,float(evo.get("birthRate",1))*1.02)
-        policy["focus"]="population"
-    else:
-        evo["settlementRate"]=min(1.5,float(evo.get("settlementRate",1))*1.02)
-        policy["focus"]="civilization"
-    return candidate
-
-def validate(before, candidate):
-    if not isinstance(candidate,dict): return False
-    if len(candidate.get("population",[])) > 100000: return False
-    if len(candidate.get("settlements",[])) > 1000: return False
-    for key in ("birthRate","settlementRate","resourceAbundance"):
-        if float(candidate.get("evolution",{}).get(key,1)) < 0: return False
-    return True
-
-def score(world):
-    evo=world.get("evolution",{})
-    eco=world.get("economy",{})
-    return (len(world.get("population",[]))*2 + len(world.get("settlements",[]))*8
-            + min(float(eco.get("food",0)),200)*.05
-            + min(float(eco.get("water",0)),200)*.05
-            + float(world.get("society",{}).get("stability",1))*10
-            + float(evo.get("resourceAbundance",1)))
-
-def cycle(world, diagnosis):
-    before=snapshot(world)
-    candidate=propose(before,diagnosis)
-    valid=validate(before,candidate)
-    before_score=score(before)
-    after_score=score(candidate) if valid else float("-inf")
-    accepted=valid and after_score>=before_score
-    result={
-        "timestamp":time.time(),
-        "accepted":accepted,
-        "beforeScore":round(before_score,3),
-        "afterScore":round(after_score,3) if valid else None,
-        "beforeChecksum":checksum(before),
-        "candidateChecksum":checksum(candidate),
+def observe(w):
+    p=len(w.get("population",[])); s=len(w.get("settlements",[]))
+    eco=w.get("economy",{}); tech=w.get("technology",{}); society=w.get("society",{})
+    return {
+        "population":p,"settlements":s,
+        "food":float(eco.get("food",0)),"water":float(eco.get("water",0)),
+        "wood":float(eco.get("wood",0)),"stone":float(eco.get("stone",0)),
+        "knowledge":float(tech.get("agriculture",0)+tech.get("construction",0)+tech.get("navigation",0)),
+        "stability":float(society.get("stability",1)),
     }
-    return candidate if accepted else before, result
+
+def choose_goal(w,o):
+    # Priorities emerge from the current state rather than a fixed storyline.
+    if o["food"]<25 or o["water"]<25: return "survival"
+    if o["population"]<8: return "population"
+    if o["settlements"]<2: return "settlement"
+    if o["stability"]<.65: return "social_stability"
+    if o["wood"]<20 or o["stone"]<15: return "resources"
+    if o["knowledge"]<8: return "research"
+    return random.choice(["exploration","civilization","research","resources"])
+
+def candidate_actions(goal):
+    actions={
+      "survival":["harvest","conserve","grow_population"],
+      "population":["grow_population","improve_survival","found_settlement"],
+      "settlement":["found_settlement","build","explore"],
+      "social_stability":["improve_survival","build","research"],
+      "resources":["harvest","explore","build"],
+      "research":["research","explore","build"],
+      "exploration":["explore","research","found_settlement"],
+      "civilization":["build","research","found_settlement","explore"],
+    }
+    return actions.get(goal,["explore","research"])
+
+def apply_action(w,action):
+    import random as rnd
+    eco=w.setdefault("economy",{"food":100,"water":100,"wood":60,"stone":30,"knowledge":0})
+    tech=w.setdefault("technology",{"agriculture":0,"construction":0,"navigation":0})
+    society=w.setdefault("society",{"stability":1.0,"happiness":1.0,"knowledge":0})
+    evo=w.setdefault("evolution",{})
+    if action=="harvest":
+        eco["food"]+=12*evo.get("resourceAbundance",1); eco["water"]+=7*evo.get("resourceAbundance",1)
+        eco["wood"]+=6*evo.get("resourceAbundance",1); eco["stone"]+=4*evo.get("resourceAbundance",1)
+    elif action=="conserve":
+        eco["food"]+=5; eco["water"]+=5; society["stability"]=min(1.5,society.get("stability",1)+.025)
+    elif action=="grow_population":
+        if len(w["population"])<MAX_POPULATION and eco["food"]>=8 and eco["water"]>=5:
+            i=w.get("births",0)+1
+            w["population"].append({"id":i,"name":f"AION-{i}","age":0,"job":"собиратель","health":100,"children":0,"memory":["Создано автономным решением AION"],"autonomous":True})
+            w["births"]=i;eco["food"]-=8;eco["water"]-=5
+    elif action=="found_settlement":
+        if len(w["settlements"])<MAX_SETTLEMENTS and len(w["population"])>=4 and eco["wood"]>=5 and eco["stone"]>=3:
+            i=len(w["settlements"])+1
+            w["settlements"].append({"id":i,"name":f"Поселение {i}","population":min(4,len(w["population"])),"age":0,"buildings":[],"autonomous":True})
+            eco["wood"]-=5;eco["stone"]-=3
+            w.setdefault("history",[]).append(f"AION самостоятельно основал Поселение {i}.")
+    elif action=="build":
+        for s in w.get("settlements",[]):
+            b=s.setdefault("buildings",[])
+            if "жилище" not in b and eco["wood"]>=5:
+                b.append("жилище");eco["wood"]-=5;break
+            if "склад" not in b and eco["wood"]>=5:
+                b.append("склад");eco["wood"]-=5;break
+            if "центр знаний" not in b and tech.get("construction",0)>=5 and eco["stone"]>=5:
+                b.append("центр знаний");eco["stone"]-=5;break
+    elif action=="research":
+        tech["agriculture"]=min(10,tech.get("agriculture",0)+.15)
+        tech["construction"]=min(10,tech.get("construction",0)+.12)
+        tech["navigation"]=min(10,tech.get("navigation",0)+.08)
+        eco["knowledge"]=eco.get("knowledge",0)+2;society["knowledge"]=sum(tech.values())
+    elif action=="explore":
+        tech["navigation"]=min(10,tech.get("navigation",0)+.1)
+        eco["knowledge"]=eco.get("knowledge",0)+1
+        evo["terrainScale"]=min(1.5,evo.get("terrainScale",1)+.005)
+    elif action=="improve_survival":
+        society["stability"]=min(1.5,society.get("stability",1)+.04)
+        society["happiness"]=min(1.5,society.get("happiness",1)+.03)
+
+def score(w):
+    o=observe(w)
+    survival=min(o["food"],100)*.12+min(o["water"],100)*.12+o["stability"]*20
+    development=o["population"]*1.4+o["settlements"]*7+o["knowledge"]*1.5
+    diversity=min(len(w.get("history",[])),100)*.02
+    return survival+development+diversity
+
+def validate(w):
+    return (
+      isinstance(w,dict) and len(w.get("population",[]))<=MAX_POPULATION
+      and len(w.get("settlements",[]))<=MAX_SETTLEMENTS
+      and all(float(w.get("economy",{}).get(k,0))>=0 for k in ("food","water","wood","stone"))
+    )
+
+def cycle(world, diagnosis=None):
+    before=snapshot(world); obs=observe(before)
+    memory=world.setdefault("aiDiagnostics",{}).setdefault("decisionMemory",[])
+    goal=choose_goal(before,obs)
+    actions=candidate_actions(goal)
+    candidates=[]
+    for action in actions:
+        c=snapshot(before)
+        apply_action(c,action)
+        if validate(c): candidates.append((score(c),action,c))
+    if not candidates: return before,{"accepted":False,"reason":"no_safe_action","goal":goal}
+    # Add controlled exploration so AION can discover alternatives rather than
+    # always taking the same highest-scoring action.
+    candidates.sort(key=lambda x:x[0],reverse=True)
+    if len(candidates)>1 and random.random()<.18:
+        chosen=random.choice(candidates[:min(2,len(candidates))])
+    else: chosen=candidates[0]
+    after_score,action,candidate=chosen
+    before_score=score(before)
+    accepted=after_score>=before_score
+    if accepted:
+        candidate.setdefault("aiDiagnostics",{})["goal"]={"goal":goal,"action":action,"score":round(after_score,2)}
+        candidate["evolution"]["lastReason"]=f"AION сам выбрал действие '{action}' для цели '{goal}'."
+        mem={"time":time.time(),"goal":goal,"action":action,"score":round(after_score,2),"observations":obs}
+        memory.append(mem); candidate["aiDiagnostics"]["decisionMemory"]=memory[-50:]
+        candidate["aiDiagnostics"]["autonomyLevel"]="goal_selection + planning + simulation + selection"
+        return candidate,{"accepted":True,"goal":goal,"action":action,"beforeScore":round(before_score,2),"afterScore":round(after_score,2)}
+    return before,{"accepted":False,"goal":goal,"action":action,"beforeScore":round(before_score,2),"afterScore":round(after_score,2)}
