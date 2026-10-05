@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import time, threading, os
 from database import init, load, save, atomic_update
 from simulation import seed, tick, diagnose, propose_repair, self_repair, run_experiment
-from autonomy import cycle as legacy_autonomy_cycle, advance_universe_time, advance_generations, advance_civilization, self_improve_policy
+from autonomy import autonomous_cycle
 WORLD_LOCK=threading.Lock()
 
 app=FastAPI(title="AION Persistent Universe", version="1.0")
@@ -17,31 +17,7 @@ if load() is None:
 
 def advance():
     with WORLD_LOCK:
-        def update(w):
-            now=time.time()
-            if w is None:
-                return seed()
-            elapsed=max(0, now-w.get("lastTick", now))
-            if elapsed >= 0.25:
-                # Universe clock: 24 real hours = 100 simulated years.
-                clock=advance_universe_time(w, now)
-                sim_seconds=clock
-                # Process long offline gaps safely in bounded simulation chunks.
-                chunk=30*86400
-                while sim_seconds>0:
-                    step=min(chunk,sim_seconds)
-                    w=tick(w, step)
-                    advance_generations(w, step)
-                    advance_civilization(w, step)
-                    sim_seconds-=step
-                if w.get("cycle",0)%30==0:
-                    d=diagnose(w)
-                    self_improve_policy(w)
-                    w,result=legacy_autonomy_cycle(w,d)
-                    w.setdefault("aiDiagnostics",{})["developmentCycle"]=result
-                w["lastTick"]=now
-            return w
-        return atomic_update(update)
+        return atomic_update(lambda w: autonomous_cycle(w, time.time())[0] if w is not None else seed())
 
 @app.get("/")
 def root():
