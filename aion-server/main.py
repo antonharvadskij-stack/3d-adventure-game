@@ -1,13 +1,13 @@
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-import time, threading, os
+import time, threading, os, logging
 from database import init, load, save, atomic_update
 from simulation import seed, tick, diagnose, propose_repair, self_repair, run_experiment
 from autonomy import autonomous_cycle
 WORLD_LOCK=threading.Lock()
 
-app=FastAPI(title="AION Persistent Universe", version="1.0")
+logging.basicConfig(level=logging.INFO)\nlog=logging.getLogger("aion")\n\napp=FastAPI(title="AION Persistent Universe", version="1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 init()
 if not os.getenv("DATABASE_URL"):
@@ -26,7 +26,7 @@ def root():
 @app.get("/health")
 def health():
     w=load()
-    return {"ok":True,"service":"AION","worldCycle":w.get("cycle",0),"epoch":w.get("epoch"),"worldVersion":w.get("worldVersion",0),"updatedAt":w.get("updatedAt",0)}
+    return {"ok":True,"service":"AION","worldCycle":w.get("cycle",0),"epoch":w.get("epoch"),"worldVersion":w.get("worldVersion",0),"updatedAt":w.get("updatedAt",0),"universeClock":w.get("universeClock",{})}
 
 @app.get("/debug/world")
 def debug_world():
@@ -91,7 +91,7 @@ def manual_tick(seconds:int=60):
 def loop():
     while True:
         try: advance()
-        except Exception: pass
+        except Exception as exc:\n            log.exception("AION autonomous loop failed: %s", exc)
         time.sleep(10)
 
 threading.Thread(target=loop,daemon=True).start()
