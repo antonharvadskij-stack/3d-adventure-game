@@ -76,8 +76,10 @@ def ai_self_repair():
     w=atomic_update(update)
     return {"ok":True,"diagnostics":w.get("aiDiagnostics",{}),"generation":w.get("evolution",{}).get("generation",1)}
 
-@app.post("/world/reset")
-def reset_world():
+@app.api_route("/world/reset", methods=["GET","POST"])
+def reset_world(confirm: str = ""):
+    if confirm != "BIG_BANG":
+        return {"ok":False,"message":"Для перезапуска требуется confirm=BIG_BANG"}
     def reset(_w):
         w=seed()
         w["history"].append("Большой взрыв. Пустота. AION начинает создавать новую Землю с нуля.")
