@@ -58,6 +58,43 @@ def _evolve_config(w):
   e["generation"]=int(e.get("generation",1))+1
  return e
 
+def evaluate_world(w):
+ p=len(w.get("population",[])); settlements=len(w.get("settlements",[]))
+ eco=w.get("economy",{})
+ society=w.get("society",{})
+ food=float(eco.get("food",0)); water=float(eco.get("water",0))
+ stability=float(society.get("stability",1))
+ # Higher is better; survival is weighted above growth.
+ return p*2.0 + settlements*8.0 + min(food,200)*0.05 + min(water,200)*0.05 + stability*10.0
+
+def clone_world(w):
+ import copy
+ return copy.deepcopy(w)
+
+def run_experiment(w):
+ base_score=evaluate_world(w)
+ candidate=clone_world(w)
+ e=candidate.setdefault("evolution",dict(DEFAULT_EVOLUTION))
+ old=(e.get("birthRate",1),e.get("settlementRate",1),e.get("resourceAbundance",1))
+ variants=[
+  ("growth", {"birthRate":min(1.5,old[0]*1.06),"settlementRate":min(1.5,old[1]*1.04),"resourceAbundance":old[2]}),
+  ("resources", {"birthRate":old[0],"settlementRate":old[1],"resourceAbundance":min(1.5,old[2]*1.06)}),
+  ("balanced", {"birthRate":min(1.5,old[0]*1.025),"settlementRate":min(1.5,old[1]*1.025),"resourceAbundance":min(1.5,old[2]*1.025)})
+ ]
+ name,changes=random.choice(variants)
+ for k,v in changes.items(): e[k]=v
+ # Simulate only the copy; the main PostgreSQL world is untouched.
+ simulated=tick(candidate, min(3600, max(60, int((candidate.get("cycle",0)%10+1)*120))))
+ score=evaluate_world(simulated)
+ accepted=score>base_score
+ if accepted:
+  w["evolution"].update(changes)
+  w["evolution"]["generation"]=int(w["evolution"].get("generation",1))+1
+  w["evolution"]["lastReason"]=f"AION принял эксперимент '{name}': {base_score:.1f} -> {score:.1f}"
+ result={"experiment":name,"accepted":accepted,"before":round(base_score,2),"after":round(score,2)}
+ w["aiDiagnostics"]["lastExperiment"]=result
+ return w
+
 def diagnose(w):
  issues=[]
  p=len(w.get("population",[])); settlements=w.get("settlements",[])
@@ -129,6 +166,8 @@ def tick(w,seconds):
  score=len(p)*.7+len(w["settlements"])*5
  w["epoch"]="Цивилизация" if score>=30 else "Развитие общества" if score>=14 else "Зарождение" if score>=5 else "Пробуждение"
  if w["cycle"]%12==0: _evolve_config(w)
- if w["cycle"]%6==0: self_repair(w)
+ if w["cycle"]%6==0:
+  self_repair(w)
+  if w["cycle"]%30==0: run_experiment(w)
  w["lastTick"]=time.time();w["updatedAt"]=time.time();w["worldVersion"]=w.get("worldVersion",0)+1;w["history"]=w["history"][-100:]
  return w
