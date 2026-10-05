@@ -2,10 +2,19 @@
 html,body{margin:0;height:100%;overflow:hidden;background:#02040a;color:#fff;font-family:system-ui}canvas{display:block}#ui{position:fixed;inset:0;pointer-events:none}#panel{position:absolute;left:14px;top:14px;background:#050810e8;border:1px solid #ffffff22;border-radius:16px;padding:14px;min-width:275px;backdrop-filter:blur(8px)}#panel b{font-size:20px}#epoch{position:absolute;right:14px;top:14px;background:#050810e8;border:1px solid #ffffff22;border-radius:16px;padding:13px;min-width:180px}#log{position:absolute;left:14px;bottom:14px;width:min(92vw,470px);max-height:180px;overflow:hidden;background:#050810dd;border:1px solid #ffffff18;border-radius:14px;padding:10px;font-size:12px}.event{margin:4px 0;color:#c7d5e5}#god{position:absolute;right:14px;bottom:14px;background:#050810dd;border:1px solid #ffffff22;border-radius:14px;padding:12px;max-width:250px}.meter{height:5px;background:#222;border-radius:9px;margin-top:3px}.fill{height:100%;background:#65e7ff;border-radius:9px}</style></head><body><div id="ui"><div id="panel"><b>🤖 AION</b><div id="state"></div></div><div id="epoch"><small>ЭПОХА</small><br><strong id="ep">Большой взрыв</strong></div><div id="god">👁️ <b>Аватар Бога</b><br><small>Мир развивается самостоятельно. Наблюдай.</small></div><div id="log"></div></div>
 <script type="module">import*as THREE from'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
 const S=new THREE.Scene();S.background=new THREE.Color(0x02040a);S.fog=new THREE.Fog(0x02040a,30,90);
-const C=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,160);C.position.set(0,20,27);
+const C=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,160);C.position.set(0,34,42);
 const R=new THREE.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,1.6));document.body.appendChild(R.domElement);
 S.add(new THREE.HemisphereLight(0x9db9ff,0x101810,1.8));const sun=new THREE.DirectionalLight(0xffffff,2.2);sun.position.set(15,25,10);S.add(sun);
-const W=new THREE.Group();S.add(W);const ground=new THREE.Mesh(new THREE.CylinderGeometry(27,30,1,64),new THREE.MeshStandardMaterial({color:0x14261c,roughness:1}));ground.position.y=-.5;W.add(ground);
+const W=new THREE.Group();S.add(W);
+const ocean=new THREE.Mesh(new THREE.PlaneGeometry(260,260,1,1),new THREE.MeshStandardMaterial({color:0x071a2c,roughness:.75,metalness:.05}));
+ocean.rotation.x=-Math.PI/2;ocean.position.y=-1.15;W.add(ocean);
+const geo=new THREE.PlaneGeometry(210,210,96,96), pos=geo.attributes.position;
+for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getY(i);const edge=Math.min(1,Math.hypot(x,z)/105);let h=(Math.sin(x*.075)*1.7+Math.cos(z*.065)*1.4+Math.sin((x+z)*.12)*.8)*(1-edge*.55);h+=Math.max(0,Math.sin(x*.18+z*.11))*1.2;pos.setZ(i,Math.max(-.35,h));}
+geo.computeVertexNormals();
+const ground=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:0x345f3a,roughness:.96,metalness:.02}));ground.rotation.x=-Math.PI/2;ground.position.y=-.1;W.add(ground);
+const mountainGeo=new THREE.ConeGeometry(3.5,7,8),mountainMat=new THREE.MeshStandardMaterial({color:0x65716a,roughness:1});
+for(let i=0;i<18;i++){const m=new THREE.Mesh(mountainGeo,mountainMat);let a=i*2.399,d=18+(i%6)*11;m.position.set(Math.cos(a)*d,3.2,Math.sin(a)*d);m.scale.y=.6+(i%4)*.25;W.add(m);}
+
 const agents=[],settlements=[],resources=[],events=[];let age=0,cycle=0,acc=0,epoch='Большой взрыв',deaths=0,births=0;let evolution={visualQuality:1,terrainScale:1,lightIntensity:1,fogDistance:90,colorMood:'natural',generation:1};
 const names=['Ари','Нова','Тар','Лум','Кай','Сел','Ори','Вен','Мира','Рен','Лио','Эна'];
 function log(t){events.unshift(t);if(events.length>10)events.pop();document.getElementById('log').innerHTML=events.map(e=>'<div class="event">• '+e+'</div>').join('')}
