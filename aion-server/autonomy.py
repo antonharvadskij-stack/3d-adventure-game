@@ -113,11 +113,17 @@ def cycle(world, diagnosis=None):
     memory=world.setdefault("aiDiagnostics",{}).setdefault("decisionMemory",[])
     goal=choose_goal(before,obs)
     actions=candidate_actions(goal)
+    actions += world.get("aiDiagnostics",{}).get("discoveredActions",[])
     candidates=[]
+    policy=world.get("aiDiagnostics",{}).get("activePolicy",{})
     for action in actions:
         c=snapshot(before)
-        apply_action(c,action)
-        if validate(c): candidates.append((score(c),action,c))
+        if isinstance(action,str) and action in {"harvest","conserve","grow_population","found_settlement","build","research","explore","improve_survival"}:
+            apply_action(c,action)
+        elif isinstance(action,str):
+            apply_discovered_action(c,action)
+        if validate(c):
+            candidates.append((score(c)+policy_score_action(policy,goal,action),action,c))
     if not candidates: return before,{"accepted":False,"reason":"no_safe_action","goal":goal}
     # Add controlled exploration so AION can discover alternatives rather than
     # always taking the same highest-scoring action.
