@@ -86,10 +86,18 @@ def world():
 
 @app.post("/world/tick")
 def manual_tick(seconds:int=60):
+    # Manual time advancement uses the same autonomous pipeline as the normal world loop.
+    seconds=max(1,min(seconds,2592000))
     def update(w):
         if w is None:
             w=seed()
-        return tick(w, max(1,min(seconds,2592000)))
+        now=time.time()
+        w["manualTimeAdvanceSeconds"]=seconds
+        # Move the persistent universe clock forward by the requested simulated amount.
+        clock=w.setdefault("universeClock",{})
+        clock["manualAdvanceSeconds"]=clock.get("manualAdvanceSeconds",0)+seconds
+        w["lastTick"]=now
+        return autonomous_cycle(w, now)[0]
     return atomic_update(update)
 
 def loop():
