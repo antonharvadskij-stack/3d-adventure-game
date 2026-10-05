@@ -146,7 +146,10 @@ def propose_repair(w,issues):
 
 def self_repair(w):
  issues=diagnose(w); repairs=propose_repair(w,issues) if issues else []
- w["aiDiagnostics"]={"checkedAt":time.time(),"issues":issues,"repairs":repairs}
+ d=w.setdefault("aiDiagnostics",{})
+ d["checkedAt"]=time.time()
+ d["issues"]=issues
+ d["repairs"]=repairs
  return w
 
 def adapt_society(w, seconds):
