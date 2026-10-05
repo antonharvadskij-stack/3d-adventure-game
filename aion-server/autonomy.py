@@ -211,3 +211,34 @@ def advance_civilization(world, sim_seconds):
             world.setdefault("history",[]).append(f"Автономное развитие: поселение {settlement.get('name','без имени')} достигло уровня {target}.")
     world.setdefault("evolution",{})["civilizationYears"]=world.get("evolution",{}).get("civilizationYears",0)+years
     return years
+
+
+# Open-ended action discovery: AION can invent and retain new high-level strategies
+# from observed state instead of being limited to the original action list.
+def discover_actions(world, observation):
+    memory=world.setdefault("aiDiagnostics",{}).setdefault("discoveredActions",[])
+    known={x.get("name") for x in memory if isinstance(x,dict)}
+    ideas=[]
+    if observation["knowledge"]>15 and observation["population"]>12:
+        ideas.append(("education_network","invest knowledge into distributed learning",{"knowledge":1.2,"stability":.02}))
+    if observation["food"]>80 and observation["water"]>80 and observation["settlements"]>2:
+        ideas.append(("food_reserve","create a long-term reserve",{"food":-12,"stability":.04}))
+    if observation["settlements"]>4 and observation["knowledge"]>25:
+        ideas.append(("regional_planning","coordinate settlements into a regional network",{"knowledge":1.5,"stability":.03}))
+    for name,reason,effect in ideas:
+        if name not in known:
+            memory.append({"name":name,"reason":reason,"effect":effect,"createdAt":time.time(),"autonomous":True})
+    world["aiDiagnostics"]["discoveredActions"]=memory[-50:]
+    return [x["name"] for x in memory]
+
+def apply_discovered_action(world, action):
+    found=next((x for x in world.get("aiDiagnostics",{}).get("discoveredActions",[]) if x.get("name")==action),None)
+    if not found: return False
+    eco=world.setdefault("economy",{"food":100,"water":100,"wood":60,"stone":30,"knowledge":0})
+    society=world.setdefault("society",{"stability":1.0,"happiness":1.0,"knowledge":0})
+    effect=found.get("effect",{})
+    if "food" in effect: eco["food"]=max(0,eco.get("food",0)+effect["food"])
+    if "knowledge" in effect: eco["knowledge"]=max(0,eco.get("knowledge",0)+effect["knowledge"])
+    if "stability" in effect: society["stability"]=min(1.5,society.get("stability",1)+effect["stability"])
+    world.setdefault("history",[]).append("AION самостоятельно применил новую стратегию: "+found["name"])
+    return True
