@@ -183,3 +183,31 @@ def advance_generations(world, sim_seconds):
     world["deaths"]=world.get("deaths",0)+deaths
     world["history"]=world.get("history",[])[-90:]+[f"Прошло {years:.2f} лет: рождений {births}, смертей {deaths}."]
     return years,births,deaths
+
+
+def advance_civilization(world, sim_seconds):
+    """Let technology and settlement complexity progress from elapsed simulated years."""
+    years=sim_seconds/(365.25*86400)
+    tech=world.setdefault("technology",{"agriculture":0.0,"construction":0.0,"navigation":0.0})
+    eco=world.setdefault("economy",{"food":100,"water":100,"wood":60,"stone":30,"knowledge":0})
+    society=world.setdefault("society",{"stability":1.0,"happiness":1.0,"knowledge":0})
+    # Progress is state-dependent, not a fixed historical script.
+    learning=max(0.0,min(50.0,years))*0.018*(1+len(world.get("population",[]))/1000)
+    for k in tech: tech[k]=min(100.0,tech.get(k,0)+learning)
+    society["knowledge"]=sum(tech.values())
+    eco["knowledge"]=eco.get("knowledge",0)+learning*2
+    for settlement in world.get("settlements",[]):
+        settlement["age"]=settlement.get("age",0)+years
+        buildings=settlement.setdefault("buildings",[])
+        level=settlement.get("level",1)
+        target=1+(1 if settlement.get("population",0)>=8 else 0)+(1 if settlement.get("population",0)>=25 else 0)+(1 if settlement.get("population",0)>=80 else 0)
+        if tech.get("construction",0)>=10: target+=1
+        if tech.get("agriculture",0)>=15: target+=1
+        target=min(6,target)
+        if target>level:
+            settlement["level"]=target
+            for b in (["жилища","хранилище"] if target==2 else ["мастерская"] if target==3 else ["дороги"] if target==4 else ["центр знаний"] if target==5 else ["городской центр"]):
+                if b not in buildings: buildings.append(b)
+            world.setdefault("history",[]).append(f"Автономное развитие: поселение {settlement.get('name','без имени')} достигло уровня {target}.")
+    world.setdefault("evolution",{})["civilizationYears"]=world.get("evolution",{}).get("civilizationYears",0)+years
+    return years
