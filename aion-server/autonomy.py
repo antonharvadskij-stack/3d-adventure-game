@@ -280,19 +280,23 @@ def self_improve_policy(world):
 
 
 def autonomous_cycle(world, now=None):
+    """Advance the persistent universe and let AION observe, adapt, experiment and decide."""
     sim_seconds = advance_universe_time(world, now)
-    years, births, deaths = advance_generations(world, sim_seconds)
-    advance_civilization(world, sim_seconds)
+    chunk = 30 * 86400
+    remaining = sim_seconds
+    while remaining > 0:
+        step = min(chunk, remaining)
+        world = tick(world, step)
+        remaining -= step
     obs = observe(world)
     evo = world.setdefault("evolution", {})
     last_pop = evo.get("lastPolicyPopulation", -1)
     if "activePolicy" not in world.get("aiDiagnostics", {}) or abs(obs["population"] - last_pop) >= 5 or sim_seconds > 0:
         self_improve_policy(world)
+        discover_actions(world, obs)
         evo["lastPolicyPopulation"] = obs["population"]
     result = cycle(world)
-    result[1]["simulatedYearsElapsed"] = round(years, 4)
-    result[1]["births"] = births
-    result[1]["deaths"] = deaths
+    result[1]["simulatedYearsElapsed"] = round(sim_seconds / (365.25 * 86400), 4)
     result[1]["policy"] = world.get("aiDiagnostics", {}).get("activePolicy", {}).get("name")
     world.setdefault("aiDiagnostics", {})["lastCycle"] = result[1]
-    return result
+    return world, result[1]
