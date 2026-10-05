@@ -97,7 +97,7 @@ def manual_tick(seconds:int=60):
         clock=w.setdefault("universeClock",{})
         clock["manualAdvanceSeconds"]=clock.get("manualAdvanceSeconds",0)+seconds
         w["lastTick"]=now
-        return autonomous_cycle(w, now)[0]
+        return autonomous_cycle(w, now, forced_seconds=seconds)[0]
     return atomic_update(update)
 
 def loop():
