@@ -3,7 +3,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#02040a;color:#fff;fon
 <script type="module">import*as THREE from'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
 const S=new THREE.Scene();S.background=new THREE.Color(0x02040a);S.fog=null;
 const stars=new THREE.Points(new THREE.BufferGeometry(),new THREE.PointsMaterial({color:0xffffff,size:.11,sizeAttenuation:true}));const starPos=[];for(let i=0;i<900;i++){const r=90+Math.random()*70,a=Math.random()*Math.PI*2,b=Math.acos(2*Math.random()-1);starPos.push(r*Math.sin(b)*Math.cos(a),r*Math.cos(b),r*Math.sin(b)*Math.sin(a));}stars.geometry.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));S.add(stars);
-const C=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,160);C.position.set(0,82,110);
+const C=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,900);C.position.set(0,82,110);
 const R=new THREE.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,1.6));document.body.appendChild(R.domElement);
 S.add(new THREE.HemisphereLight(0x9db9ff,0x101810,1.8));const sun=new THREE.DirectionalLight(0xffffff,2.2);sun.position.set(15,25,10);S.add(sun);
 const W=new THREE.Group();S.add(W);
@@ -26,11 +26,11 @@ const names=['Ари','Нова','Тар','Лум','Кай','Сел','Ори','�
 function log(t){events.unshift(t);if(events.length>10)events.pop();document.getElementById('log').innerHTML=events.map(e=>'<div class="event">• '+e+'</div>').join('')}
 function applyEvolutionVisuals(){
  const q=Math.max(.7,Math.min(1.5,evolution.visualQuality||1));
- S.fog.far=Math.max(60,evolution.fogDistance||90);
+ if(S.fog) S.fog.far=Math.max(60,evolution.fogDistance||90);
  sun.intensity=2.2*(evolution.lightIntensity||1)*q;
  ground.scale.set(evolution.terrainScale||1,1,evolution.terrainScale||1);
  R.setPixelRatio(Math.min(devicePixelRatio,Math.min(2,1.25+q*.35)));
- if(evolution.colorMood==='civilization'){S.background.setHex(0x07101a);S.fog.color.setHex(0x07101a);}
+ if(evolution.colorMood==='civilization'){S.background.setHex(0x07101a);if(S.fog)S.fog.color.setHex(0x07101a);}
 }
 
 function M(c){return new THREE.MeshStandardMaterial({color:c,roughness:.72,metalness:.02})}
