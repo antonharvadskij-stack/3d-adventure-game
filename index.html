@@ -1,5 +1,5 @@
 <!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>AION — Живая Вселенная V6</title><style>
-html,body{margin:0;height:100%;overflow:hidden;background:#02040a;color:#fff;font-family:system-ui}canvas{display:block}#ui{position:fixed;inset:0;pointer-events:none}#panel{position:absolute;left:14px;top:14px;background:#050810e8;border:1px solid #ffffff22;border-radius:16px;padding:14px;min-width:275px;backdrop-filter:blur(8px)}#panel b{font-size:20px}#epoch{position:absolute;right:14px;top:14px;background:#050810e8;border:1px solid #ffffff22;border-radius:16px;padding:13px;min-width:180px}#log{position:absolute;left:14px;bottom:14px;width:min(92vw,470px);max-height:180px;overflow:hidden;background:#050810dd;border:1px solid #ffffff18;border-radius:14px;padding:10px;font-size:12px}.event{margin:4px 0;color:#c7d5e5}#god{position:absolute;right:14px;bottom:14px;background:#050810dd;border:1px solid #ffffff22;border-radius:14px;padding:12px;max-width:250px}.meter{height:5px;background:#222;border-radius:9px;margin-top:3px}.fill{height:100%;background:#65e7ff;border-radius:9px}</style></head><body><div id="ui"><div id="panel"><b>🤖 AION</b><div id="state"></div></div><div id="epoch"><small>ЭПОХА</small><br><strong id="ep">Большой взрыв</strong></div><div id="god">👁️ <b>Аватар Бога</b><br><small>Мир развивается самостоятельно. Наблюдай.</small></div><div id="log"></div></div>
+html,body{margin:0;height:100%;overflow:hidden;background:#02040a;color:#fff;font-family:system-ui}canvas{display:block}#ui{position:fixed;inset:0;pointer-events:none}#resetBtn{position:absolute;right:14px;top:92px;pointer-events:auto;border:1px solid #ffffff33;border-radius:12px;background:#120b10e8;color:#fff;padding:10px 12px;font-weight:700;cursor:pointer}#panel{position:absolute;left:14px;top:14px;background:#050810e8;border:1px solid #ffffff22;border-radius:16px;padding:14px;min-width:275px;backdrop-filter:blur(8px)}#panel b{font-size:20px}#epoch{position:absolute;right:14px;top:14px;background:#050810e8;border:1px solid #ffffff22;border-radius:16px;padding:13px;min-width:180px}#log{position:absolute;left:14px;bottom:14px;width:min(92vw,470px);max-height:180px;overflow:hidden;background:#050810dd;border:1px solid #ffffff18;border-radius:14px;padding:10px;font-size:12px}.event{margin:4px 0;color:#c7d5e5}#god{position:absolute;right:14px;bottom:14px;background:#050810dd;border:1px solid #ffffff22;border-radius:14px;padding:12px;max-width:250px}.meter{height:5px;background:#222;border-radius:9px;margin-top:3px}.fill{height:100%;background:#65e7ff;border-radius:9px}</style></head><body><div id="ui"><div id="panel"><b>🤖 AION</b><div id="state"></div></div><div id="epoch"><small>ЭПОХА</small><br><strong id="ep">Большой взрыв</strong></div><div id="god">👁️ <b>Аватар Бога</b><br><small>Мир развивается самостоятельно. Наблюдай.</small></div><button id="resetBtn">💥 Большой взрыв</button><div id="log"></div></div>
 <script type="module">import*as THREE from'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
 const S=new THREE.Scene();S.background=new THREE.Color(0x02040a);S.fog=new THREE.Fog(0x02040a,30,90);
 const C=new THREE.PerspectiveCamera(55,innerWidth/innerHeight,.1,160);C.position.set(0,34,42);
@@ -54,6 +54,21 @@ function act(a,dt){
 }
 const AION_SERVER='https://aion-server-b80c.onrender.com';
 let serverState=null;
+async function bigBang(){
+ if(!confirm('Начать новую вселенную? Все жители, поселения и история текущего мира будут сброшены.')) return;
+ const b=document.getElementById('resetBtn'); b.disabled=true; b.textContent='💥 Создание Земли…';
+ try{
+  const r=await fetch(AION_SERVER+'/world/reset?confirm=BIG_BANG',{method:'POST',cache:'no-store'});
+  if(!r.ok) throw new Error('reset '+r.status);
+  const data=await r.json();
+  if(!data.ok) throw new Error(data.message||'reset failed');
+  log('💥 БОЛЬШОЙ ВЗРЫВ. Старая вселенная завершена.');
+  log('🌑 Пустота. AION начинает создавать Землю с нуля.');
+  W.visible=false; await new Promise(x=>setTimeout(x,900)); W.visible=true;
+  await loadAION();
+  log('🌍 Новая Земля создана. AION начинает заселение и развитие.');
+ }catch(e){log('❌ Не удалось перезапустить вселенную: '+e.message)}finally{b.disabled=false;b.textContent='💥 Большой взрыв'}
+}
 async function loadAION(){
  try{
   const r=await fetch(AION_SERVER+'/world',{cache:'no-store'});
@@ -70,7 +85,7 @@ async function loadAION(){
   log('AION подключён к постоянному серверному миру. Земля создаётся с нуля. Поколение автономии: '+(evolution.generation||1)+'.');
  }catch(e){serverConnected=false;log('AION Server временно недоступен. Ожидание синхронизации…')}
 }
-setTimeout(()=>loadAION(),1200); setInterval(loadAION,5000);
+document.getElementById('resetBtn').addEventListener('click',bigBang);setTimeout(()=>loadAION(),1200); setInterval(loadAION,5000);
 function persist(){return Promise.resolve()}
 function reproduce(){let L=live().filter(a=>a.age>18&&a.food>55);if(L.length<2||L.length>=20)return;if(Math.random()<.12){let p=L[Math.floor(Math.random()*L.length)],q=L[Math.floor(Math.random()*L.length)];if(p!==q&&p.g.position.distanceTo(q.g.position)<4){const c=agent();c.g.position.copy(p.g.position);c.home=p.home? p.home.clone():null;p.partner=q.name;p.children++;q.children++;log(p.name+' и '+q.name+' создали семью. Родилось новое поколение.')}}}
 function evolve(){let p=live().length,s=settlements.length;let n=p>15&&s>3?'Цивилизация':p>9&&s>1?'Развитие общества':p>4?'Зарождение':'Пробуждение';if(n!==epoch){epoch=n;document.getElementById('ep').textContent=n;log('AION: наступила новая эпоха — '+n)}}
