@@ -32,6 +32,49 @@ def health():
     w=load()
     return {"ok":True,"service":"AION","worldCycle":w.get("cycle",0),"epoch":w.get("epoch"),"worldVersion":w.get("worldVersion",0),"updatedAt":w.get("updatedAt",0),"universeClock":w.get("universeClock",{})}
 
+@app.post("/debug/persistence-test")
+def persistence_test(seconds:int=60):
+    """Verify one autonomous advance is persisted and can be reloaded."""
+    seconds=max(1,min(seconds,2592000))
+    before=load()
+    if before is None:
+        before=seed()
+        save(before)
+    before_snapshot={
+        "cycle":before.get("cycle",0),
+        "worldVersion":before.get("worldVersion",0),
+        "worldAge":before.get("worldAge",0),
+        "population":len(before.get("population",[])),
+        "updatedAt":before.get("updatedAt",0),
+    }
+    def update(w):
+        if w is None:
+            w=before
+        return autonomous_cycle(w,time.time(),forced_seconds=seconds)[0]
+    advanced=atomic_update(update)
+    persisted=load()
+    after_snapshot={
+        "cycle":advanced.get("cycle",0),
+        "worldVersion":advanced.get("worldVersion",0),
+        "worldAge":advanced.get("worldAge",0),
+        "population":len(advanced.get("population",[])),
+        "updatedAt":advanced.get("updatedAt",0),
+    }
+    persisted_snapshot={
+        "cycle":persisted.get("cycle",0) if persisted else None,
+        "worldVersion":persisted.get("worldVersion",0) if persisted else None,
+        "worldAge":persisted.get("worldAge",0) if persisted else None,
+        "population":len(persisted.get("population",[])) if persisted else None,
+        "updatedAt":persisted.get("updatedAt",0) if persisted else None,
+    }
+    return {
+        "ok":persisted is not None and persisted_snapshot["worldVersion"]==after_snapshot["worldVersion"],
+        "simulatedSeconds":seconds,
+        "before":before_snapshot,
+        "after":after_snapshot,
+        "persisted":persisted_snapshot,
+    }
+
 @app.get("/debug/world")
 def debug_world():
     w=load()
