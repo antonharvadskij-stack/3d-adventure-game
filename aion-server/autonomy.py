@@ -242,3 +242,38 @@ def apply_discovered_action(world, action):
     if "stability" in effect: society["stability"]=min(1.5,society.get("stability",1)+effect["stability"])
     world.setdefault("history",[]).append("AION самостоятельно применил новую стратегию: "+found["name"])
     return True
+
+
+# Self-modifying policy inside the simulation sandbox.
+# AION may create, test, version and adopt its own decision heuristics.
+def propose_policy(world, observation):
+    evo=world.setdefault("evolution",{})
+    policies=world.setdefault("aiDiagnostics",{}).setdefault("policies",[])
+    version=len(policies)+1
+    candidates=[]
+    if observation["stability"]<0.8:
+        candidates.append({"name":"stability_first","weights":{"survival":1.4,"social_stability":1.6,"research":0.7}})
+    if observation["knowledge"]>20:
+        candidates.append({"name":"knowledge_first","weights":{"research":1.7,"exploration":1.3,"resources":0.8}})
+    if observation["population"]>30 and observation["settlements"]>3:
+        candidates.append({"name":"expansion_first","weights":{"settlement":1.6,"exploration":1.5,"build":1.3}})
+    if not candidates:
+        candidates.append({"name":"balanced_adaptation","weights":{"survival":1.1,"research":1.1,"exploration":1.1,"resources":1.1}})
+    candidate=candidates[int(hashlib.sha256(repr(observation).encode()).hexdigest(),16)%len(candidates)]
+    policy={"version":version,"name":candidate["name"],"weights":candidate["weights"],"createdAt":time.time(),"autonomous":True,"sandboxOnly":True}
+    policies.append(policy)
+    evo["policyVersion"]=version
+    evo["policyName"]=candidate["name"]
+    return policy
+
+def policy_score_action(policy, goal, action):
+    w=policy.get("weights",{})
+    return float(w.get(goal,1.0))*float(w.get(action,1.0))
+
+def self_improve_policy(world):
+    obs=observe(world)
+    policy=propose_policy(world,obs)
+    world.setdefault("aiDiagnostics",{})["activePolicy"]=policy
+    world["evolution"]["selfImprovementCount"]=world["evolution"].get("selfImprovementCount",0)+1
+    world.setdefault("history",[]).append("AION самостоятельно создал и принял новую политику: "+policy["name"])
+    return policy
