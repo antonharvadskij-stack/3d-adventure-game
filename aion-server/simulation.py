@@ -81,7 +81,9 @@ def run_experiment(w):
   ("resources", {"birthRate":old[0],"settlementRate":old[1],"resourceAbundance":min(1.5,old[2]*1.06)}),
   ("balanced", {"birthRate":min(1.5,old[0]*1.025),"settlementRate":min(1.5,old[1]*1.025),"resourceAbundance":min(1.5,old[2]*1.025)})
  ]
- name,changes=random.choice(variants)
+ memory=w.setdefault("aiDiagnostics",{}).setdefault("experimentMemory",{})
+ ranked=[v for v in variants if memory.get(v[0],{}).get("rejected",0)<3]
+ name,changes=random.choice(ranked or variants)
  for k,v in changes.items(): e[k]=v
  # Simulate only the copy; the main PostgreSQL world is untouched.
  simulated=tick(candidate, min(3600, max(60, int((candidate.get("cycle",0)%10+1)*120))))
@@ -91,7 +93,13 @@ def run_experiment(w):
   w["evolution"].update(changes)
   w["evolution"]["generation"]=int(w["evolution"].get("generation",1))+1
   w["evolution"]["lastReason"]=f"AION принял эксперимент '{name}': {base_score:.1f} -> {score:.1f}"
- result={"experiment":name,"accepted":accepted,"before":round(base_score,2),"after":round(score,2)}
+ rec=w.setdefault("aiDiagnostics",{}).setdefault("experimentMemory",{}).setdefault(name,{"trials":0,"accepted":0,"rejected":0,"bestScore":base_score})
+ rec["trials"]+=1
+ if accepted:
+  rec["accepted"]+=1; rec["bestScore"]=max(rec["bestScore"],score)
+ else:
+  rec["rejected"]+=1
+ result={"experiment":name,"accepted":accepted,"before":round(base_score,2),"after":round(score,2),"memory":rec}
  w["aiDiagnostics"]["lastExperiment"]=result
  return w
 
