@@ -19,7 +19,7 @@ def advance():
     with WORLD_LOCK:
         return atomic_update(lambda w: autonomous_cycle(w, time.time())[0] if w is not None else seed())
 
-@app.get("/")
+@app.api_route("/", methods=["GET","HEAD"])
 def root():
     return FileResponse("/app/index.html", media_type="text/html")
 
