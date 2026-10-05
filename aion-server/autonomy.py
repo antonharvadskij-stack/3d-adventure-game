@@ -275,7 +275,10 @@ def propose_policy(world, observation):
 
 def policy_score_action(policy, goal, action):
     w=policy.get("weights",{})
-    return float(w.get(goal,1.0))*float(w.get(action,1.0))
+    goal_weight=float(w.get(goal,1.0))
+    action_key=action.get("name") if isinstance(action,dict) else action
+    action_weight=float(w.get(action_key,1.0))
+    return goal_weight*action_weight
 
 def self_improve_policy(world):
     obs=observe(world)
