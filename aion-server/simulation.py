@@ -25,6 +25,7 @@ def seed():
 
 def _evolve_config(w):
  e=w.setdefault("evolution",dict(DEFAULT_EVOLUTION))
+ self_repair(w)
  p=len(w["population"]); s=len(w["settlements"])
  # AION evaluates outcomes and changes only bounded, reversible game parameters.
  pressure=max(0.0,min(1.0,(2-p)/2))
@@ -57,6 +58,32 @@ def _evolve_config(w):
   e["generation"]=int(e.get("generation",1))+1
  return e
 
+def diagnose(w):
+ issues=[]
+ p=len(w.get("population",[])); settlements=w.get("settlements",[])
+ if p==0: issues.append({"code":"POPULATION_ZERO","severity":"high","message":"В мире нет жителей"})
+ if any(x.get("population",0)<=0 for x in settlements): issues.append({"code":"EMPTY_SETTLEMENT","severity":"medium","message":"Обнаружено пустое поселение"})
+ if len(w.get("history",[]))>100: issues.append({"code":"HISTORY_OVERFLOW","severity":"low","message":"История превышает лимит"})
+ return issues
+
+def propose_repair(w,issues):
+ e=w.setdefault("evolution",dict(DEFAULT_EVOLUTION)); repairs=[]
+ for issue in issues:
+  if issue["code"]=="POPULATION_ZERO": e["birthRate"]=min(1.5,e.get("birthRate",1)*1.08); e["resourceAbundance"]=min(1.5,e.get("resourceAbundance",1)*1.05); repairs.append(issue["code"])
+  elif issue["code"]=="EMPTY_SETTLEMENT":
+   for x in w["settlements"]: x["population"]=max(1,min(4,len(w["population"])))
+   repairs.append(issue["code"])
+  elif issue["code"]=="HISTORY_OVERFLOW": w["history"]=w["history"][-100:]; repairs.append(issue["code"])
+ if repairs:
+  e["generation"]=int(e.get("generation",1))+1
+  e["lastReason"]="AION диагностировал и безопасно исправил: "+", ".join(repairs)
+ return repairs
+
+def self_repair(w):
+ issues=diagnose(w); repairs=propose_repair(w,issues) if issues else []
+ w["aiDiagnostics"]={"checkedAt":time.time(),"issues":issues,"repairs":repairs}
+ return w
+
 def tick(w,seconds):
  seconds=max(0,min(seconds,86400*30))
  e=w.setdefault("evolution",dict(DEFAULT_EVOLUTION))
@@ -78,5 +105,6 @@ def tick(w,seconds):
  score=len(p)*.7+len(w["settlements"])*5
  w["epoch"]="Цивилизация" if score>=30 else "Развитие общества" if score>=14 else "Зарождение" if score>=5 else "Пробуждение"
  if w["cycle"]%12==0: _evolve_config(w)
+ if w["cycle"]%6==0: self_repair(w)
  w["lastTick"]=time.time();w["updatedAt"]=time.time();w["worldVersion"]=w.get("worldVersion",0)+1;w["history"]=w["history"][-100:]
  return w
