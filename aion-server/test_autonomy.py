@@ -13,7 +13,7 @@ def base():
 def test_repair_candidate_is_bounded():
     w=base()
     candidate,result=cycle(w,{"resource_pressure":True})
-    assert validate(w,candidate)
+    assert validate(candidate)
     assert result["accepted"] is True
 
 def test_bad_population_is_rejected():
