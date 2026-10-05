@@ -58,6 +58,26 @@ def _evolve_config(w):
   e["generation"]=int(e.get("generation",1))+1
  return e
 
+def choose_long_term_goal(w):
+ p=len(w.get("population",[])); settlements=len(w.get("settlements",[]))
+ eco=w.get("economy",{}); tech=w.get("technology",{}); society=w.get("society",{})
+ food=eco.get("food",0); water=eco.get("water",0)
+ current=w.setdefault("aiDiagnostics",{}).get("goal")
+ if food<35 or water<35: goal="survival"
+ elif p<8: goal="population"
+ elif settlements<2: goal="settlement"
+ elif tech.get("agriculture",0)+tech.get("construction",0)+tech.get("navigation",0)<5: goal="technology"
+ elif society.get("knowledge",0)<10: goal="exploration"
+ else: goal="civilization"
+ if current and current.get("goal")==goal and current.get("remaining",0)>0:
+  current["remaining"]-=1
+  return current
+ goals={"survival":("Стабилизировать ресурсы",12),"population":("Укрепить население",12),"settlement":("Создать устойчивые поселения",12),"technology":("Развить технологии",12),"exploration":("Расширить знания мира",12),"civilization":("Развить цивилизацию",12)}
+ target,remaining=goals[goal]
+ g={"goal":goal,"target":target,"remaining":remaining,"startedAt":time.time()}
+ w.setdefault("aiDiagnostics",{})["goal"]=g
+ return g
+
 def evaluate_world(w):
  p=len(w.get("population",[])); settlements=len(w.get("settlements",[]))
  eco=w.get("economy",{})
@@ -177,5 +197,6 @@ def tick(w,seconds):
  if w["cycle"]%6==0:
   self_repair(w)
   if w["cycle"]%30==0: run_experiment(w)
+ choose_long_term_goal(w)
  w["lastTick"]=time.time();w["updatedAt"]=time.time();w["worldVersion"]=w.get("worldVersion",0)+1;w["history"]=w["history"][-100:]
  return w
