@@ -155,3 +155,31 @@ def advance_universe_time(world, now=None):
     clock["simulatedYears"] = clock["simulatedSeconds"] / (365.25 * 86400)
     clock["rate"] = "24 real hours = 100 simulated years"
     return sim_seconds
+
+
+def advance_generations(world, sim_seconds):
+    """Apply elapsed simulated time to population and society without requiring the game to stay open."""
+    years=sim_seconds/(365.25*86400)
+    pop=world.setdefault("population",[])
+    deaths=0; births=0
+    for person in pop:
+        person["age"]=float(person.get("age",0))+years
+        if person["age"]>90 or (person["health"] if "health" in person else 100)<=0:
+            person["dead"]=True
+    survivors=[p for p in pop if not p.get("dead")]
+    deaths=len(pop)-len(survivors)
+    world["population"]=survivors
+    # Replenish generations from healthy adults when enough food/water exist.
+    eco=world.setdefault("economy",{"food":100,"water":100,"wood":60,"stone":30,"knowledge":0})
+    adults=sum(18<=p.get("age",0)<=45 for p in survivors)
+    capacity=max(0,min(1000,adults//2))
+    births=min(capacity,int(years/1.0))
+    for _ in range(births):
+        if eco.get("food",0)<8 or eco.get("water",0)<5: break
+        nid=world.get("births",0)+1; world["births"]=nid
+        survivors.append({"id":nid,"name":f"AION-{nid}","age":0,"job":"ученик","health":100,"children":0,"memory":["Родился в автономной вселенной AION"],"autonomous":True})
+        eco["food"]-=8;eco["water"]-=5
+    world["population"]=survivors
+    world["deaths"]=world.get("deaths",0)+deaths
+    world["history"]=world.get("history",[])[-90:]+[f"Прошло {years:.2f} лет: рождений {births}, смертей {deaths}."]
+    return years,births,deaths
