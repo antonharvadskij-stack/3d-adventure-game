@@ -29,8 +29,8 @@ for(let i=0;i<9;i++){const lake=new THREE.Mesh(new THREE.CircleGeometry(2+Math.r
 // Natural resources and biomes: visible deposits that can later drive settlement growth.
 const resourceMat={wood:new THREE.MeshStandardMaterial({color:0x8b5a2b}),stone:new THREE.MeshStandardMaterial({color:0x727b82}),ore:new THREE.MeshStandardMaterial({color:0x9b6a45})};
 const resources=[];
-function resource(x,z,type){const g=new THREE.Group(),m=resourceMat[type];for(let j=0;j<3;j++){const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.25+Math.random()*.22,0),m);rock.position.set((Math.random()-.5)*.7,.25+Math.random()*.2,(Math.random()-.5)*.7);g.add(rock);}g.position.set(x,.08,z);W.add(g);resources.push({g,type});}
-for(let i=0;i<70;i++){const a=Math.random()*Math.PI*2,d=12+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;resource(x,z,i%3===0?'ore':i%2?'wood':'stone');}
+function naturalResource(x,z,type){const g=new THREE.Group(),m=resourceMat[type];for(let j=0;j<3;j++){const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.25+Math.random()*.22,0),m);rock.position.set((Math.random()-.5)*.7,.25+Math.random()*.2,(Math.random()-.5)*.7);g.add(rock);}g.position.set(x,.08,z);W.add(g);resources.push({g,type});}
+for(let i=0;i<70;i++){const a=Math.random()*Math.PI*2,d=12+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;naturalResource(x,z,i%3===0?'ore':i%2?'wood':'stone');}
 
 // Early settlements: small camps placed near resources and water.
 const settlementMat=new THREE.MeshStandardMaterial({color:0xc28b52,roughness:.9});
