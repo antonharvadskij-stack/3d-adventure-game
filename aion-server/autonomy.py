@@ -289,9 +289,9 @@ def self_improve_policy(world):
     return policy
 
 
-def autonomous_cycle(world, now=None):
+def autonomous_cycle(world, now=None, forced_seconds=0):
     """Advance the persistent universe and let AION observe, adapt, experiment and decide."""
-    sim_seconds = advance_universe_time(world, now)
+    sim_seconds = forced_seconds if forced_seconds > 0 else advance_universe_time(world, now)
     chunk = 30 * 86400
     remaining = sim_seconds
     while remaining > 0:
