@@ -51,7 +51,7 @@ def debug_world():
 @app.get("/ai/status")
 def ai_status():
     w=load() or seed()
-    return {"autonomous":True,"scope":"game-world-and-persistent-game-config","generation":w.get("evolution",{}).get("generation",1),"strategy":w.get("evolution",{}).get("strategy"),"visuals":w.get("evolution",{}),"lastReason":w.get("evolution",{}).get("lastReason"),"diagnostics":w.get("aiDiagnostics",{})}
+    return {"autonomous":True,"scope":"game-world-and-persistent-game-config","generation":w.get("evolution",{}).get("generation",1),"strategy":w.get("evolution",{}).get("strategy"),"goal":w.get("aiDiagnostics",{}).get("goal"),"economy":w.get("economy",{}),"technology":w.get("technology",{}),"society":w.get("society",{}),"population":len(w.get("population",[])),"settlements":len(w.get("settlements",[])),"lastReason":w.get("evolution",{}).get("lastReason"),"diagnostics":w.get("aiDiagnostics",{})}
 
 @app.post("/ai/experiment")
 def ai_experiment():
