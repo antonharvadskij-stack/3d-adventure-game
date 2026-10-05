@@ -76,6 +76,16 @@ def ai_self_repair():
     w=atomic_update(update)
     return {"ok":True,"diagnostics":w.get("aiDiagnostics",{}),"generation":w.get("evolution",{}).get("generation",1)}
 
+@app.post("/world/reset")
+def reset_world():
+    def reset(_w):
+        w=seed()
+        w["history"].append("Большой взрыв. Пустота. AION начинает создавать новую Землю с нуля.")
+        w["epoch"]="Пустота"
+        w["universe"]["resetReason"]="manual_rebirth"
+        return w
+    return atomic_update(reset)
+
 @app.get("/world")
 def world():
     return advance()
