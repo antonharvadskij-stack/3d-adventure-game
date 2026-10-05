@@ -173,28 +173,56 @@ def adapt_society(w, seconds):
 def govern_civilization(w, seconds):
  e=w.setdefault("evolution",dict(DEFAULT_EVOLUTION))
  p=w["population"]; settlements=w["settlements"]; eco=w["economy"]; tech=w["technology"]
- for a in p:
-  if not a.get("job"): a["job"]=JOBS[0]
- if settlements:
-  counts={j:0 for j in JOBS}
-  for a in p: counts[a.get("job",JOBS[0])]=counts.get(a.get("job",JOBS[0]),0)+1
-  if eco["food"]<35:
+ society=w.setdefault("society",{"stability":1.0,"happiness":1.0,"knowledge":0})
+ policy=w.setdefault("aiPolicy",{"focus":"survival","lastDecision":"","decisionCycle":0})
+ if not p: return w
+
+ # AION allocates people from measured shortages instead of fixed scripted roles.
+ desired={}
+ if eco["food"]<35: desired["собиратель"]=max(1,len(p)//3)
+ if eco["water"]<35: desired["собиратель"]=max(desired.get("собиратель",0),len(p)//4)
+ if eco["wood"]<25: desired["строитель"]=max(1,len(p)//4)
+ if tech["navigation"]>3 and eco["food"]>=35: desired["исследователь"]=max(1,len(p)//5)
+ desired["охотник"]=max(1,len(p)-sum(desired.values()))
+ if tech["construction"]>=2: desired["строитель"]=max(desired.get("строитель",0),1)
+
+ for job,count in desired.items():
+  current=[a for a in p if a.get("job")==job]
+  need=max(0,count-len(current))
+  if need:
    for a in p:
-    if a.get("job")=="исследователь": a["job"]="собиратель"
-  elif eco["wood"]<25:
-   for a in p:
-    if a.get("job")=="охотник": a["job"]="строитель"
-  elif tech["navigation"]>3:
-   for a in p:
-    if a.get("job")=="собиратель" and random.random()<.15: a["job"]="исследователь"
-  # Settlements become distinct communities as construction technology grows.
+    if need<=0: break
+    if a.get("job")!=job:
+     a["job"]=job; need-=1
+
+ # Civilizations develop their own policy from outcomes.
+ if eco["food"]<20 or eco["water"]<20:
+  policy["focus"]="survival"; society["happiness"]=max(.2,society["happiness"]-.01)
+ elif len(settlements)<2:
+  policy["focus"]="settlement"
+ elif tech["construction"]<5:
+  policy["focus"]="construction"
+ elif tech["navigation"]<5:
+  policy["focus"]="exploration"
+ else:
+  policy["focus"]="civilization"
+ policy["decisionCycle"]=w.get("cycle",0)
+ policy["lastDecision"]=f"AION выбрал приоритет: {policy['focus']}"
+
+ # Persistent settlement identity and autonomous construction.
+ for settlement in settlements:
+  settlement.setdefault("buildings",[])
+  settlement.setdefault("specialization","community")
+  if tech["agriculture"]>=2: settlement["specialization"]="agrarian"
+  elif tech["navigation"]>=3: settlement["specialization"]="explorers"
   if tech["construction"]>=2:
-   for s in settlements:
-    s.setdefault("buildings",[])
-    wanted=["жилище","склад"] if tech["construction"]<5 else ["жилище","склад","мастерская"]
-    for b in wanted:
-     if b not in s["buildings"] and eco["wood"]>=5:
-      s["buildings"].append(b); eco["wood"]-=5
+   wanted=["жилище","склад"]
+   if tech["construction"]>=5: wanted.append("мастерская")
+   if tech["construction"]>=8: wanted.append("центр знаний")
+   for building in wanted:
+    if building not in settlement["buildings"] and eco["wood"]>=5:
+     settlement["buildings"].append(building); eco["wood"]-=5
+     w["history"].append(f'{settlement["name"]} построило: {building}.')
  return w
 
 def tick(w,seconds):
