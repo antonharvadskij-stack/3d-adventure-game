@@ -167,7 +167,25 @@ async function loadAION(){
 document.getElementById('resetBtn').addEventListener('click',bigBang);setTimeout(()=>loadAION(),1200); setInterval(loadAION,5000);
 function persist(){return Promise.resolve()}
 function reproduce(){let L=live().filter(a=>a.age>18&&a.food>55);if(L.length<2||L.length>=20)return;if(Math.random()<.12){let p=L[Math.floor(Math.random()*L.length)],q=L[Math.floor(Math.random()*L.length)];if(p!==q&&p.g.position.distanceTo(q.g.position)<4){const c=agent();c.g.position.copy(p.g.position);c.home=p.home? p.home.clone():null;p.partner=q.name;p.children++;q.children++;log(p.name+' и '+q.name+' создали семью. Родилось новое поколение.')}}}
-function evolve(){let p=live().length,s=settlements.length;let n=p>15&&s>3?'Цивилизация':p>9&&s>1?'Развитие общества':p>4?'Зарождение':'Пробуждение';if(n!==epoch){epoch=n;document.getElementById('ep').textContent=n;log('AION: наступила новая эпоха — '+n)}}
+
+// Civilization simulation: trade routes, factions and rivalries.
+function ensureFactions(){for(let i=0;i<settlements.length;i++){if(settlements[i].faction===undefined)settlements[i].faction=i%4;}}
+function drawRelations(){
+ ensureFactions();
+ for(let i=0;i<settlements.length;i++)for(let j=i+1;j<settlements.length;j++){
+  const a=settlements[i],b=settlements[j],dx=b.g.position.x-a.g.position.x,dz=b.g.position.z-a.g.position.z,d=Math.hypot(dx,dz);
+  if(d>55||!a.level||!b.level||a.relationLine)continue;
+  if(a.faction===b.faction)continue;
+  const rel=Math.random()<.7?'trade':'rivalry';
+  a.relationLine={b,rel};
+  const mat=new THREE.MeshBasicMaterial({color:rel==='trade'?0x5bc0eb:0xc65c5c,transparent:true,opacity:.55});
+  const line=new THREE.Mesh(new THREE.BoxGeometry(.12,.1,d),mat);
+  line.position.set((a.g.position.x+b.g.position.x)/2,.13,(a.g.position.z+b.g.position.z)/2);
+  line.rotation.y=Math.atan2(dx,dz);W.add(line);
+  log(rel==='trade'?'🤝 '+a.founder+' и '+b.founder+' открыли торговый путь.':'⚔️ '+a.founder+' и '+b.founder+' стали соперниками.');
+ }
+}
+function evolve(){let p=live().length,s=settlements.length;let n=p>15&&s>3?'Цивилизация':p>9&&s>1?'Развитие общества':p>4?'Зарождение':'Пробуждение';if(n!==epoch){epoch=n;document.getElementById('ep').textContent=n;log('AION: наступила новая эпоха — '+n)}if(cycle%10===0)drawRelations();}
 function tick(dt){age+=dt;if(serverConnected)return;for(const a of agents)if(a.alive)act(a,dt);acc+=dt;if(acc>2){acc=0;cycle++;if(live().length<3)agent();else if(live().length<12&&Math.random()<.7)agent();reproduce();evolve();if(cycle%4===0){let a=live()[Math.floor(Math.random()*live().length)];if(a)log(a.name+' '+a.job+' самостоятельно принимает решение и продолжает свой путь')}if(cycle%8===0)log('AION анализирует '+live().length+' жителей, '+settlements.length+' поселений и '+resources.filter(r=>r.g.visible).length+' источников ресурсов')}}
 function loop(){requestAnimationFrame(loop);let n=performance.now();let dt=Math.min(.05,(n-(loop.last||n))/1000);loop.last=n;tick(dt);if(!loop.nextUI||n>loop.nextUI){loop.nextUI=n+500;document.getElementById('state').innerHTML='Возраст: '+age.toFixed(0)+' с<br>Цикл: '+cycle+'<br>Жители: '+live().length+' / '+agents.length+'<br>Поселения: '+settlements.length+'<br>Рождений: '+births+' · Смертей: '+deaths+'<br>Ресурсов: '+resources.filter(r=>r.g.visible).length+'<br>AION: поколение '+(evolution.generation||1)+' · '+(evolution.strategy||'исследование')+'<br>Память: '+events.length+' событий';}W.rotation.y+=dt*.006;stars.rotation.y-=dt*.0008;updateWildlife(dt);updateSettlements(dt);S.fog=null;camDist=Math.max(12,+document.getElementById('zoom').value);C.position.set(camTarget.x+Math.sin(camYaw)*Math.cos(camPitch)*camDist,camTarget.y+Math.sin(camPitch)*camDist,camTarget.z+Math.cos(camYaw)*Math.cos(camPitch)*camDist);C.lookAt(camTarget);R.render(S,C)}
 log('AION запускается. 3D-мир готов, синхронизация с сервером выполняется…');
