@@ -170,6 +170,33 @@ def adapt_society(w, seconds):
  if tech["agriculture"]>=2: e["birthRate"]=min(1.5,e.get("birthRate",1)*1.002)
  if tech["construction"]>=2: e["settlementRate"]=min(1.5,e.get("settlementRate",1)*1.002)
 
+def govern_civilization(w, seconds):
+ e=w.setdefault("evolution",dict(DEFAULT_EVOLUTION))
+ p=w["population"]; settlements=w["settlements"]; eco=w["economy"]; tech=w["technology"]
+ for a in p:
+  if not a.get("job"): a["job"]=JOBS[0]
+ if settlements:
+  counts={j:0 for j in JOBS}
+  for a in p: counts[a.get("job",JOBS[0])]=counts.get(a.get("job",JOBS[0]),0)+1
+  if eco["food"]<35:
+   for a in p:
+    if a.get("job")=="исследователь": a["job"]="собиратель"
+  elif eco["wood"]<25:
+   for a in p:
+    if a.get("job")=="охотник": a["job"]="строитель"
+  elif tech["navigation"]>3:
+   for a in p:
+    if a.get("job")=="собиратель" and random.random()<.15: a["job"]="исследователь"
+  # Settlements become distinct communities as construction technology grows.
+  if tech["construction"]>=2:
+   for s in settlements:
+    s.setdefault("buildings",[])
+    wanted=["жилище","склад"] if tech["construction"]<5 else ["жилище","склад","мастерская"]
+    for b in wanted:
+     if b not in s["buildings"] and eco["wood"]>=5:
+      s["buildings"].append(b); eco["wood"]-=5
+ return w
+
 def tick(w,seconds):
  seconds=max(0,min(seconds,86400*30))
  e=w.setdefault("evolution",dict(DEFAULT_EVOLUTION))
@@ -191,6 +218,7 @@ def tick(w,seconds):
   s["age"]+=seconds/31557600
   s["population"]=max(1,min(len(p),s.get("population",1)+int(seconds/1800)))
  adapt_society(w,seconds)
+ govern_civilization(w,seconds)
  score=len(p)*.7+len(w["settlements"])*5
  w["epoch"]="Цивилизация" if score>=30 else "Развитие общества" if score>=14 else "Зарождение" if score>=5 else "Пробуждение"
  if w["cycle"]%12==0: _evolve_config(w)
