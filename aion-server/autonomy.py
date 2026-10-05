@@ -136,3 +136,22 @@ def cycle(world, diagnosis=None):
         candidate["aiDiagnostics"]["autonomyLevel"]="goal_selection + planning + simulation + selection"
         return candidate,{"accepted":True,"goal":goal,"action":action,"beforeScore":round(before_score,2),"afterScore":round(after_score,2)}
     return before,{"accepted":False,"goal":goal,"action":action,"beforeScore":round(before_score,2),"afterScore":round(after_score,2)}
+
+
+# Universe clock: 24 real hours = 100 simulated years.
+REAL_SECONDS_PER_CENTURY = 24 * 60 * 60
+SIM_DAYS_PER_CENTURY = 36525
+SIM_SECONDS_PER_REAL_SECOND = SIM_DAYS_PER_CENTURY * 86400 / REAL_SECONDS_PER_CENTURY
+
+def advance_universe_time(world, now=None):
+    """Advance the persistent universe from wall-clock time, even while the game is closed."""
+    now = float(time.time() if now is None else now)
+    clock = world.setdefault("universeClock", {})
+    last = float(clock.get("lastRealTimestamp", now))
+    elapsed = max(0.0, now - last)
+    sim_seconds = elapsed * SIM_SECONDS_PER_REAL_SECOND
+    clock["lastRealTimestamp"] = now
+    clock["simulatedSeconds"] = float(clock.get("simulatedSeconds", 0.0)) + sim_seconds
+    clock["simulatedYears"] = clock["simulatedSeconds"] / (365.25 * 86400)
+    clock["rate"] = "24 real hours = 100 simulated years"
+    return sim_seconds
