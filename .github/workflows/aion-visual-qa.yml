@@ -1,0 +1,29 @@
+name: AION Visual QA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["**"]
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install browser QA
+        working-directory: qa
+        run: npm install && npx playwright install --with-deps chromium
+      - name: Run AION visual smoke test
+        working-directory: qa
+        env:
+          AION_CLIENT_URL: https://aion-server-b80c.onrender.com
+        run: npm test
+      - name: Upload AION screenshot and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aion-visual-qa
+          path: qa/artifacts/
