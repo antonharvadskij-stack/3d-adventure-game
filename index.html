@@ -164,12 +164,15 @@ async function loadAION(){
   document.getElementById('ep').textContent=epoch;
   for(const a of [...agents]){a.g.removeFromParent();a.alive=false}
   agents.length=0;settlements.length=0;
-  (serverState.population||[]).slice(0,20).forEach(x=>{const a=agent();a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0});
+  (serverState.population||[]).slice(0,20).forEach(x=>{const a=agent();a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0;if(Number.isFinite(+x.x)){a.g.position.x=+x.x;a.g.position.z=Number.isFinite(+x.z)?+x.z:0;a.g.position.y=Number.isFinite(+x.y)?+x.y:terrainHeight(a.g.position.x,a.g.position.z);}});
   (serverState.settlements||[]).forEach((x,i)=>{const a=agents[i%Math.max(1,agents.length)];if(a)house(a)});
   log('AION подключён к постоянному серверному миру. Земля создаётся с нуля. Поколение автономии: '+(evolution.generation||1)+'.');
  }catch(e){serverConnected=false;log('AION Server временно недоступен. Ожидание синхронизации…')}
 }
-document.getElementById('resetBtn').addEventListener('click',bigBang);setTimeout(()=>loadAION(),1200); setInterval(loadAION,5000);
+
+async function uploadPhysicsColliders(){try{const colliders=staticColliders.map((s,i)=>({id:s.id||(`${s.type||'object'}-${i}`),x:s.g.position.x,y:s.g.position.y,z:s.g.position.z,radius:s.radius||.5,height:s.height||1}));await fetch(AION_SERVER+'/physics/colliders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({colliders}),cache:'no-store'});}catch(e){}}
+
+document.getElementById('resetBtn').addEventListener('click',bigBang);setTimeout(()=>{loadAION();setTimeout(uploadPhysicsColliders,1800)},1200); setInterval(loadAION,5000);
 function persist(){return Promise.resolve()}
 function reproduce(){let L=live().filter(a=>a.age>18&&a.food>55);if(L.length<2||L.length>=20)return;if(Math.random()<.12){let p=L[Math.floor(Math.random()*L.length)],q=L[Math.floor(Math.random()*L.length)];if(p!==q&&p.g.position.distanceTo(q.g.position)<4){const c=agent();c.g.position.copy(p.g.position);c.home=p.home? p.home.clone():null;c.g.position.y=terrainHeight(c.g.position.x,c.g.position.z);p.partner=q.name;p.children++;q.children++;log(p.name+' и '+q.name+' создали семью. Родилось новое поколение.')}}}
 
