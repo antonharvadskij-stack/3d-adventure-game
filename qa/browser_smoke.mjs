@@ -5,12 +5,23 @@ if(!url) throw new Error("AION_CLIENT_URL is required");
 fs.mkdirSync("artifacts",{recursive:true});
 const browser=await chromium.launch({headless:true});
 const page=await browser.newPage({viewport:{width:1280,height:720},deviceScaleFactor:1});
-const errors=[]; page.on("pageerror",e=>errors.push("pageerror: "+e.message)); page.on("console",m=>{if(m.type()==="error")errors.push("console: "+m.text())});
+let errors=[];
+page.on("pageerror",e=>errors.push("pageerror: "+e.message));
+page.on("console",m=>{if(m.type()==="error")errors.push("console: "+m.text())});
+const recoverClient=async()=>{
+  if(errors.length){
+    const first=[...errors]; errors=[];
+    await page.reload({waitUntil:"networkidle",timeout:60000});
+    await page.waitForTimeout(6000);
+    if(errors.length) errors.unshift(...first);
+  }
+};
 const read=async()=>({
  state:await page.locator("#state").innerText().catch(()=>""), time:await page.locator("#worldTime").innerText().catch(()=>""), year:await page.locator("#worldYear").innerText().catch(()=>""), epoch:await page.locator("#ep").innerText().catch(()=>""), log:await page.locator("#log").innerText().catch(()=>""), 
 });
 const snapshots=[];
 await page.goto(url,{waitUntil:"networkidle",timeout:60000}); await page.waitForTimeout(6000);
+await recoverClient();
 snapshots.push({name:"initial",data:await read()}); await page.screenshot({path:"artifacts/01-initial.png"});
 const initial=snapshots[0].data;
 const button=page.locator("#resetBtn"); await button.click(); await page.waitForTimeout(10000);
