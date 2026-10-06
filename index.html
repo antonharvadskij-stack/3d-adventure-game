@@ -21,7 +21,7 @@ const mountainGeo=new THREE.ConeGeometry(3.5,7,8),mountainMat=new THREE.MeshStan
 // Climate vegetation: forests, grasslands and sparse vegetation across the new continents.
 const treeTrunk=new THREE.CylinderGeometry(.12,.18,1.2,6),treeTop=new THREE.ConeGeometry(.65,1.7,7);
 const vegetationSeeded=Math.sin((terrainSeed||1)*0.00017);
-for(let i=0;i<180;i++){const a=Math.random()*Math.PI*2,d=8+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=Math.sin(x*.045+vegetationSeeded)*1.8+Math.cos(z*.052-vegetationSeeded)*1.5+Math.sin((x+z)*.085+vegetationSeeded)*1.1+Math.sin(x*.17-z*.11)*.55;const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;if(h>-.15&&continent>.05){const g=new THREE.Group();const t=new THREE.Mesh(treeTrunk,new THREE.MeshStandardMaterial({color:0x5b3d28,roughness:1}));const l=new THREE.Mesh(treeTop,new THREE.MeshStandardMaterial({color:0x356b3b,roughness:1}));t.position.y=.6;l.position.y=1.8;g.add(t,l);g.position.set(x,h,z);g.scale.setScalar(.65+Math.random()*.7);W.add(g);}}
+for(let i=0;i<180;i++){const a=Math.random()*Math.PI*2,d=8+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=Math.sin(x*.045+vegetationSeeded)*1.8+Math.cos(z*.052-vegetationSeeded)*1.5+Math.sin((x+z)*.085+vegetationSeeded)*1.1+Math.sin(x*.17-z*.11)*.55;const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;if(h>-.15&&continent>.05){const g=new THREE.Group();const t=new THREE.Mesh(treeTrunk,new THREE.MeshStandardMaterial({color:0x5b3d28,roughness:1}));const l=new THREE.Mesh(treeTop,new THREE.MeshStandardMaterial({color:0x356b3b,roughness:1}));t.position.y=.6;l.position.y=1.8;g.add(t,l);g.position.set(x,Math.max(h,0),z);g.scale.setScalar(.65+Math.random()*.7);W.add(g);}}
 
 // Rivers and lakes: procedural water features carved visually across the continents.
 const riverMat=new THREE.MeshStandardMaterial({color:0x2e91c7,roughness:.28,metalness:.08});
@@ -32,19 +32,19 @@ for(let i=0;i<9;i++){const lake=new THREE.Mesh(new THREE.CircleGeometry(2+Math.r
 // Natural resources and biomes: visible deposits that can later drive settlement growth.
 const resourceMat={wood:new THREE.MeshStandardMaterial({color:0x8b5a2b}),stone:new THREE.MeshStandardMaterial({color:0x727b82}),ore:new THREE.MeshStandardMaterial({color:0x9b6a45})};
 const naturalResources=[];
-function naturalResource(x,z,type){const g=new THREE.Group(),m=resourceMat[type];for(let j=0;j<3;j++){const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.25+Math.random()*.22,0),m);rock.position.set((Math.random()-.5)*.7,.25+Math.random()*.2,(Math.random()-.5)*.7);g.add(rock);}g.position.set(x,.08,z);W.add(g);naturalResources.push({g,type});}
+function naturalResource(x,z,type){const g=new THREE.Group(),m=resourceMat[type];for(let j=0;j<3;j++){const rock=new THREE.Mesh(new THREE.DodecahedronGeometry(.25+Math.random()*.22,0),m);rock.position.set((Math.random()-.5)*.7,.25+Math.random()*.2,(Math.random()-.5)*.7);g.add(rock);}g.position.set(x,Math.max(.08,0),z);W.add(g);naturalResources.push({g,type});}
 for(let i=0;i<70;i++){const a=Math.random()*Math.PI*2,d=12+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;naturalResource(x,z,i%3===0?'ore':i%2?'wood':'stone');}
 
 // Early settlements: small camps placed near resources and water.
 const worldSettlementMat=new THREE.MeshStandardMaterial({color:0xc28b52,roughness:.9});
 const worldSettlements=[];
-for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,d=18+Math.random()*82,x=Math.cos(a)*d,z=Math.sin(a)*d;const g=new THREE.Group();const base=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.35,.35,8),worldSettlementMat);const roof=new THREE.Mesh(new THREE.ConeGeometry(.95,.9,6),new THREE.MeshStandardMaterial({color:0x70412c}));base.position.y=.2;roof.position.y=.8;g.add(base,roof);g.position.set(x,.05,z);W.add(g);worldSettlements.push({x,z,pop:3+Math.floor(Math.random()*9),g});}
+for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,d=18+Math.random()*82,x=Math.cos(a)*d,z=Math.sin(a)*d;const g=new THREE.Group();const base=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.35,.35,8),worldSettlementMat);const roof=new THREE.Mesh(new THREE.ConeGeometry(.95,.9,6),new THREE.MeshStandardMaterial({color:0x70412c}));base.position.y=.2;roof.position.y=.8;g.add(base,roof);g.position.set(x,Math.max(.05,0),z);W.add(g);worldSettlements.push({x,z,pop:3+Math.floor(Math.random()*9),g});}
 // Wildlife layer: simple low-poly animals distributed over habitable land.
 const animals=[];
 function animal(x,z,type){
  const g=new THREE.Group(),mat=new THREE.MeshStandardMaterial({color:type==='deer'?0x8b6545:0x596b43,roughness:1});
  const body=new THREE.Mesh(new THREE.BoxGeometry(.9,.45,.42),mat),head=new THREE.Mesh(new THREE.SphereGeometry(.27,8,6),mat);
- body.position.y=.48;head.position.set(.52,.7,0);g.add(body,head);g.position.set(x,.05,z);W.add(g);animals.push({g,phase:Math.random()*6.28,speed:.15+Math.random()*.3});
+ body.position.y=.48;head.position.set(.52,.7,0);g.add(body,head);g.position.set(x,Math.max(.05,0),z);W.add(g);animals.push({g,phase:Math.random()*6.28,speed:.15+Math.random()*.3});
 }
 for(let i=0;i<45;i++){const a=Math.random()*Math.PI*2,d=10+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;animal(x,z,i%2?'deer':'boar');}
 for(let i=0;i<36;i++){const m=new THREE.Mesh(mountainGeo,mountainMat);let a=i*2.399,d=18+(i%6)*11;m.position.set(Math.cos(a)*d,3.2,Math.sin(a)*d);m.scale.y=.6+(i%4)*.25;W.add(m);}
