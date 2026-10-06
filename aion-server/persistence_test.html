@@ -5,9 +5,9 @@
 <body><h1>🌌 AION — проверка сохранения мира</h1>
 <p>Тест проведёт автономный цикл, сохранит состояние в PostgreSQL и загрузит его обратно.</p>
 <label>Симулируемое время: <select id="sec"><option value="60">1 минута</option><option value="3600" selected>1 час</option><option value="86400">1 сутки</option><option value="3153600">1 год</option></select></label>
-<br><br><button id="run">▶ Запустить тест</button><div id="status">Готов к проверке.</div><pre id="out"></pre>
+<br><br><button id="run">▶ Проверить сохранение</button> <button id="time">⏱ Проверить 24ч → 100 лет</button><div id="status">Готов к проверке.</div><pre id="out"></pre>
 <script>
-const b=document.getElementById('run'),s=document.getElementById('status'),o=document.getElementById('out');
+const b=document.getElementById('run'),tb=document.getElementById('time'),s=document.getElementById('status'),o=document.getElementById('out');
 b.onclick=async()=>{b.disabled=true;s.className='';s.textContent='⏳ Выполняю тест…';o.textContent='';
 try{const r=await fetch('/debug/persistence-test?seconds='+encodeURIComponent(document.getElementById('sec').value),{method:'POST'});
 const d=await r.json(); o.textContent=JSON.stringify(d,null,2);
@@ -15,4 +15,8 @@ if(r.ok&&d.ok){s.className='ok';s.textContent='✅ Сохранение рабо
 else{s.className='bad';s.textContent='❌ Тест не пройден. Смотри подробности ниже.'}}
 catch(e){s.className='bad';s.textContent='❌ Ошибка соединения: '+e}
 finally{b.disabled=false}};
+tb.onclick=async()=>{tb.disabled=true;s.className='';s.textContent='⏳ Проверяю масштаб времени…';o.textContent='';
+try{const r=await fetch('/debug/persistence-test?seconds=86400',{method:'POST'});const d=await r.json();o.textContent=JSON.stringify(d,null,2);
+const years=((d.after?.worldAge??0)-(d.before?.worldAge??0));const clock=(d.after?.simulatedYears??0)-(d.before?.simulatedYears??0);
+if(r.ok&&d.ok){s.className='ok';s.textContent='✅ Суточный тест выполнен. 24 часа реального времени должны соответствовать 100 годам игрового времени.'}else{s.className='bad';s.textContent='❌ Тест не пройден.'}}catch(e){s.className='bad';s.textContent='❌ Ошибка: '+e}finally{tb.disabled=false}};
 </script></body></html>
