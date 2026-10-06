@@ -291,7 +291,14 @@ def self_improve_policy(world):
 
 def autonomous_cycle(world, now=None, forced_seconds=0):
     """Advance the persistent universe and let AION observe, adapt, experiment and decide."""
-    sim_seconds = forced_seconds if forced_seconds > 0 else advance_universe_time(world, now)
+    if forced_seconds > 0:
+        sim_seconds = float(forced_seconds)
+        clock = world.setdefault("universeClock", {})
+        clock["simulatedSeconds"] = float(clock.get("simulatedSeconds", 0.0)) + sim_seconds
+        clock["simulatedYears"] = clock["simulatedSeconds"] / (365.25 * 86400)
+        clock["rate"] = "24 real hours = 100 simulated years"
+    else:
+        sim_seconds = advance_universe_time(world, now)
     chunk = 30 * 86400
     remaining = sim_seconds
     while remaining > 0:
