@@ -1,4 +1,5 @@
 import random,time,secrets
+import pybullet as p
 # Server-authoritative rigid-body physics. The simulation owns the canonical transforms.
 class PhysicsWorld:
     def __init__(self):
