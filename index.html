@@ -11,6 +11,8 @@ const ocean=new THREE.Mesh(new THREE.PlaneGeometry(320,320,1,1),new THREE.MeshSt
 ocean.rotation.x=-Math.PI/2;ocean.position.y=-1.15;W.add(ocean);
 const geo=new THREE.PlaneGeometry(300,300,128,128), pos=geo.attributes.position;
 for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getY(i);const n=Math.sin(x*.045)*1.8+Math.cos(z*.052)*1.5+Math.sin((x+z)*.085)*1.1+Math.sin(x*.17-z*.11)*.55;const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;let h=n*.7+(continent>.05?(continent-.05)*5.0:continent*.35);h=Math.max(-1.15,h);pos.setZ(i,h);}
+let terrainSeed=0;
+function applyTerrainSeed(seed){seed=Number(seed)||0;if(!seed||seed===terrainSeed)return;terrainSeed=seed;const k=(seed%100000)/100000;for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getY(i),base=Math.sin(x*.045)*1.8+Math.cos(z*.052)*1.5+Math.sin((x+z)*.085)*1.1+Math.sin(x*.17-z*.11)*.55;pos.setZ(i,Math.max(-1.15,base*.7+Math.sin(x*(.021+k*.02)+seed*.000001)*.65+Math.cos(z*(.027+k*.015)-seed*.0000013)*.55));}geo.computeVertexNormals();}
 geo.computeVertexNormals();
 const groundMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.88,metalness:.01});const colors=new Float32Array(pos.count*3);for(let i=0;i<pos.count;i++){const h=pos.getZ(i),x=pos.getX(i),z=pos.getY(i),c=new THREE.Color();if(h<-.15)c.setHex(0x6f9360);else if(h<.8)c.setHex((Math.sin(x*.06)+Math.cos(z*.05))>.2?0x4f7f45:0x6f8d4e);else if(h<2.3)c.setHex(0x718b62);else c.setHex(0x87918b);colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;}geo.setAttribute('color',new THREE.BufferAttribute(colors,3));const ground=new THREE.Mesh(geo,groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=-.05;W.add(ground);
 const shore=new THREE.Mesh(new THREE.PlaneGeometry(300,300,1,1),new THREE.MeshStandardMaterial({color:0x8aa36a,transparent:true,opacity:.18,roughness:1}));shore.rotation.x=-Math.PI/2;shore.position.y=.02;W.add(shore);
@@ -155,6 +157,7 @@ async function loadAION(){
   serverState=await r.json(); serverConnected=true;
   evolution=serverState.evolution||evolution;
   if(serverState.universeClock) evolution.universeClock=serverState.universeClock;
+  applyTerrainSeed(serverState.universe?.worldSeed);
   applyEvolutionVisuals();
   age=serverState.worldAge||0; cycle=serverState.cycle||0; epoch=serverState.epoch||'Большой взрыв'; births=serverState.births||0; deaths=serverState.deaths||0;
   document.getElementById('ep').textContent=epoch;
