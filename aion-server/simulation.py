@@ -4,61 +4,67 @@ import pybullet as p
 class PhysicsWorld:
     def __init__(self):
         self.client=p.connect(p.DIRECT)
-        p.setGravity(0, -9.81, 0, physicsClientId=self.client)
+        p.setGravity(0,-9.81,0,physicsClientId=self.client)
+        p.setPhysicsEngineParameter(fixedTimeStep=1.0/60.0,numSolverIterations=12,physicsClientId=self.client)
         self.bodies={}
         self.dt=1.0/60.0
-    def add_body(self, key, x, y, z, radius=0.4, mass=1.0, height=1.5):
-        if key in self.bodies: return self.bodies[key]
-        shape=p.createCollisionShape(p.GEOM_CAPSULE, radius=max(.05,radius), height=max(.1,height-2*radius), physicsClientId=self.client)
-        bid=p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=shape, basePosition=[x,y+radius,z], physicsClientId=self.client)
-        p.changeDynamics(bid,-1,lateralFriction=.8,restitution=.05,physicsClientId=self.client)
+    def _shape(self,radius,height,kind="capsule"):
+        if kind=="box":
+            return p.createCollisionShape(p.GEOM_BOX,halfExtents=[radius,max(.05,height/2),radius],physicsClientId=self.client)
+        return p.createCollisionShape(p.GEOM_CAPSULE,radius=max(.05,radius),height=max(.05,height-2*radius),physicsClientId=self.client)
+    def add_body(self,key,x,y,z,radius=.4,mass=1.0,height=1.5,kind="capsule"):
+        if key in self.bodies:return self.bodies[key]
+        shape=self._shape(radius,height,kind)
+        bid=p.createMultiBody(baseMass=mass,baseCollisionShapeIndex=shape,basePosition=[x,y,z],physicsClientId=self.client)
+        p.changeDynamics(bid,-1,lateralFriction=.85,restitution=.02,linearDamping=.08,angularDamping=.9,physicsClientId=self.client)
         self.bodies[key]=bid
         return bid
-    def sync_body(self,key,x,y,z):
+    def set_velocity(self,key,vx,vz):
         bid=self.bodies.get(key)
-        if bid is not None: p.resetBasePositionAndOrientation(bid,[x,y,z],[0,0,0,1],physicsClientId=self.client)
-    def step(self, seconds):
-        steps=min(120,max(1,int(seconds/self.dt)))
-        for _ in range(steps): p.stepSimulation(physicsClientId=self.client)
+        if bid is not None:p.resetBaseVelocity(bid,linearVelocity=[vx,0,vz],physicsClientId=self.client)
+    def set_position(self,key,x,y,z):
+        bid=self.bodies.get(key)
+        if bid is not None:p.resetBasePositionAndOrientation(bid,[x,y,z],[0,0,0,1],physicsClientId=self.client)
+    def step(self,seconds):
+        steps=max(1,min(3600,int(round(seconds/self.dt))))
+        for _ in range(steps):p.stepSimulation(physicsClientId=self.client)
     def position(self,key):
         bid=self.bodies.get(key)
         return p.getBasePositionAndOrientation(bid,physicsClientId=self.client)[0] if bid is not None else None
+    def add_static(self,key,x,y,z,radius,height=2.0,kind="box"):
+        return self.add_body(key,x,y,z,radius,0,height,kind)
 
 physics=PhysicsWorld()
 
 def _body_key(agent):
     return f"agent:{agent.get('id')}"
 
-def _ensure_agent_physics(agent, index):
+def _ensure_agent_physics(agent,index):
+    import math
     if "x" not in agent:
-        import math
-        angle=index*2.3999632297
-        radius=2.5+(index%7)*0.8
-        agent["x"]=round(math.cos(angle)*radius,4)
-        agent["z"]=round(math.sin(angle)*radius,4)
-        agent["y"]=0.0
-    physics.add_body(_body_key(agent),agent["x"],agent.get("y",0.0),agent["z"],
-                     radius=float(agent.get("radius",0.38)),mass=1.0,height=1.55)
+        angle=index*2.3999632297; rr=2.5+(index%7)*.8
+        agent["x"]=round(math.cos(angle)*rr,4);agent["z"]=round(math.sin(angle)*rr,4);agent["y"]=.9
+    physics.add_body(_body_key(agent),float(agent["x"]),float(agent.get("y",.9)),float(agent["z"]),
+                     radius=float(agent.get("radius",.38)),mass=1,height=1.55)
 
-def simulate_physics(w, seconds):
+def simulate_physics(w,seconds):
     population=w.get("population",[])
-    for i,a in enumerate(population):
-        _ensure_agent_physics(a,i)
-        physics.sync_body(_body_key(a),float(a["x"]),float(a.get("y",0.0)),float(a["z"]))
+    # Create canonical dynamic bodies once; never teleport them every tick.
+    for i,a in enumerate(population):_ensure_agent_physics(a,i)
+    # AI requests velocity; physics decides the resulting position.
+    for a in population:
+        goal=a.get("target") or a.get("goalPosition")
+        if isinstance(goal,dict):
+            dx=float(goal.get("x",a["x"]))-a["x"];dz=float(goal.get("z",a["z"]))-a["z"];d=(dx*dx+dz*dz)**.5
+            if d>.4:
+                speed=float(a.get("moveSpeed",1.1));physics.set_velocity(_body_key(a),dx/d*speed,dz/d*speed)
+            else:physics.set_velocity(_body_key(a),0,0)
     physics.step(seconds)
     for a in population:
         pos=physics.position(_body_key(a))
-        if pos:
-            a["x"]=round(float(pos[0]),4)
-            a["y"]=round(float(pos[1]),4)
-            a["z"]=round(float(pos[2]),4)
-    pstate=w.setdefault("physics",{})
-    pstate.update({"engine":"pybullet","fixedTimestep":physics.dt,"gravity":-9.81,
-                   "bodies":len(population),"lastStepSeconds":seconds})
+        if pos:a["x"]=round(float(pos[0]),4);a["y"]=round(float(pos[1]),4);a["z"]=round(float(pos[2]),4)
+    w.setdefault("physics",{}).update({"engine":"pybullet","authoritative":True,"fixedTimestep":physics.dt,"gravity":-9.81,"bodies":len(population),"lastStepSeconds":seconds})
     return w
-
-
-import pybullet as p
 
 
 NAMES=["Ари","Нова","Тар","Лум","Кай","Сел","Ори","Вен","Мира","Рен","Лио","Эна"]
