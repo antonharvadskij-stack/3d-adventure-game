@@ -47,7 +47,13 @@ def _ensure_agent_physics(agent,index):
     physics.add_body(_body_key(agent),float(agent["x"]),float(agent.get("y",.9)),float(agent["z"]),
                      radius=float(agent.get("radius",.38)),mass=1,height=1.55)
 
+def _ensure_world_colliders(w):
+    for item in w.get("physicsColliders",[]):
+        key=f"static:{item.get("id")}"
+        physics.add_static(key,float(item.get("x",0)),float(item.get("y",0)),float(item.get("z",0)),float(item.get("radius",.5)),float(item.get("height",1.0)),item.get("kind","box"))
+
 def simulate_physics(w,seconds):
+    _ensure_world_colliders(w)
     population=w.get("population",[])
     # Create canonical dynamic bodies once; never teleport them every tick.
     for i,a in enumerate(population):_ensure_agent_physics(a,i)
@@ -63,7 +69,7 @@ def simulate_physics(w,seconds):
     for a in population:
         pos=physics.position(_body_key(a))
         if pos:a["x"]=round(float(pos[0]),4);a["y"]=round(float(pos[1]),4);a["z"]=round(float(pos[2]),4)
-    w.setdefault("physics",{}).update({"engine":"pybullet","authoritative":True,"fixedTimestep":physics.dt,"gravity":-9.81,"bodies":len(population),"lastStepSeconds":seconds})
+    w.setdefault("physics",{}).update({"engine":"pybullet","authoritative":True,"fixedTimestep":physics.dt,"gravity":-9.81,"bodies":len(population),"staticColliders":len(w.get("physicsColliders",[])),"lastStepSeconds":seconds})
     return w
 
 
