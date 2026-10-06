@@ -129,6 +129,22 @@ def reset_world(confirm: str = ""):
         return w
     return atomic_update(reset)
 
+@app.post("/physics/colliders")
+def physics_colliders(payload: dict):
+    colliders=payload.get("colliders",[]) if isinstance(payload,dict) else []
+    clean=[]
+    for i,item in enumerate(colliders[:500]):
+        try:
+            clean.append({"id":str(item.get("id",i)),"x":float(item.get("x",0)),"y":float(item.get("y",0)),"z":float(item.get("z",0)),"radius":max(.05,float(item.get("radius",.5))),"height":max(.05,float(item.get("height",1.0))),"kind":"box"})
+        except (TypeError,ValueError):
+            continue
+    def update(w):
+        if w is None: w=seed()
+        w["physicsColliders"]=clean
+        w.setdefault("physics",{})["staticColliders"]=len(clean)
+        return w
+    return atomic_update(update)
+
 @app.get("/world")
 def world():
     return advance()
