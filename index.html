@@ -136,7 +136,7 @@ async function bigBang(){
   log('🌑 Пустота. Пространство готово к созданию.');
   await new Promise(r=>setTimeout(r,1200));
   b.textContent='🌍 Создание Земли…';
-  const r=await fetch(AION_SERVER+'/world/reset?confirm=BIG_BANG',{
+  const r=await aionFetch('/world/reset?confirm=BIG_BANG',{
    method:'POST',headers:{'Accept':'application/json'},cache:'no-store'
   });
   const raw=await r.text();
@@ -157,7 +157,7 @@ async function bigBang(){
 }
 async function loadAION(){
  try{
-  const r=await fetch(AION_SERVER+'/world',{cache:'no-store'});
+  const r=await aionFetch('/world');
   if(!r.ok) throw new Error('AION '+r.status);
   serverState=await r.json(); serverConnected=true;
   evolution=serverState.evolution||evolution;
@@ -174,7 +174,7 @@ async function loadAION(){
  }catch(e){serverConnected=false;log('AION Server временно недоступен. Ожидание синхронизации…')}
 }
 
-async function uploadPhysicsColliders(){try{const colliders=staticColliders.map((s,i)=>({id:s.id||(`${s.type||'object'}-${i}`),x:s.g.position.x,y:s.g.position.y,z:s.g.position.z,radius:s.radius||.5,height:s.height||1}));await fetch(AION_SERVER+'/physics/colliders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({colliders}),cache:'no-store'});}catch(e){}}
+async function uploadPhysicsColliders(){try{const colliders=staticColliders.map((s,i)=>({id:s.id||(`${s.type||'object'}-${i}`),x:s.g.position.x,y:s.g.position.y,z:s.g.position.z,radius:s.radius||.5,height:s.height||1}));await aionFetch('/physics/colliders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({colliders}),cache:'no-store'});}catch(e){}}
 
 document.getElementById('resetBtn').addEventListener('click',bigBang);setTimeout(()=>{loadAION();setTimeout(uploadPhysicsColliders,1800)},1200); setInterval(loadAION,5000);
 function persist(){return Promise.resolve()}
