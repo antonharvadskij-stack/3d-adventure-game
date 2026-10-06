@@ -13,6 +13,8 @@ from simulation import tick
 MAX_POPULATION=100000
 MAX_SETTLEMENTS=1000
 MAX_HISTORY=100
+# 24 real hours = 100 simulated years.
+SIM_SECONDS_PER_REAL_SECOND=(100*365.25*86400)/86400
 
 def snapshot(world): return copy.deepcopy(world)
 def checksum(world): return hashlib.sha256(repr(world).encode()).hexdigest()
