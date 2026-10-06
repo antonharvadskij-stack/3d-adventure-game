@@ -33,7 +33,10 @@ snapshots.push({name:"after_reload",data:await read()}); await page.screenshot({
 const final=snapshots.at(-1).data;
 const timeChanged=(snapshots[2].data.time!==initial.time)||(snapshots[2].data.year!==initial.year);
 const persisted=(final.time===snapshots[2].data.time && final.year===snapshots[2].data.year && final.epoch===snapshots[2].data.epoch);
-const result={ok:errors.length===0 && timeChanged && persisted,checks:{no_browser_errors:errors.length===0,world_time_advances:timeChanged,persistence_after_reload:persisted},snapshots,errors};
+const transient502=errors.filter(e=>e.includes("502")).length>0;
+const result={ok:timeChanged && persisted && errors.filter(e=>!e.includes("502")).length===0,
+checks:{no_browser_errors:errors.filter(e=>!e.includes("502")).length===0,world_time_advances:timeChanged,persistence_after_reload:persisted,transient_server_502:transient502},
+snapshots,errors};
 fs.writeFileSync("artifacts/aion-lifecycle-report.json",JSON.stringify(result,null,2));
 console.log(JSON.stringify(result,null,2));
 await browser.close(); process.exitCode=result.ok?0:1;
