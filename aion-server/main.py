@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 import time, threading, os, logging
 from database import init, load, save, atomic_update
@@ -22,6 +22,12 @@ if load() is None:
 def advance():
     with WORLD_LOCK:
         return atomic_update(lambda w: autonomous_cycle(w, time.time())[0] if w is not None else seed())
+
+@app.get("/persistence-test", response_class=HTMLResponse)
+def persistence_test_page():
+    path=os.path.join(os.path.dirname(__file__), "persistence_test.html")
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
 
 @app.api_route("/", methods=["GET","HEAD"])
 def root():
