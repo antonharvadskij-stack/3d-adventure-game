@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AION — Проверка сохранения</title>
+<style>body{font-family:system-ui;background:#0b1020;color:#eef;padding:24px;max-width:720px;margin:auto}button{font-size:18px;padding:14px 20px;border:0;border-radius:10px;cursor:pointer}#status{margin:18px 0;padding:14px;border-radius:10px;background:#18213a}pre{white-space:pre-wrap;background:#111827;padding:16px;border-radius:10px;overflow:auto}.ok{background:#123d2a!important}.bad{background:#4a1f26!important}</style></head>
+<body><h1>🌌 AION — проверка сохранения мира</h1>
+<p>Тест проведёт автономный цикл, сохранит состояние в PostgreSQL и загрузит его обратно.</p>
+<label>Симулируемое время: <select id="sec"><option value="60">1 минута</option><option value="3600" selected>1 час</option><option value="86400">1 сутки</option><option value="3153600">1 год</option></select></label>
+<br><br><button id="run">▶ Запустить тест</button><div id="status">Готов к проверке.</div><pre id="out"></pre>
+<script>
+const b=document.getElementById('run'),s=document.getElementById('status'),o=document.getElementById('out');
+b.onclick=async()=>{b.disabled=true;s.className='';s.textContent='⏳ Выполняю тест…';o.textContent='';
+try{const r=await fetch('/debug/persistence-test?seconds='+encodeURIComponent(document.getElementById('sec').value),{method:'POST'});
+const d=await r.json(); o.textContent=JSON.stringify(d,null,2);
+if(r.ok&&d.ok){s.className='ok';s.textContent='✅ Сохранение работает: состояние после цикла совпало с загруженным из БД.'}
+else{s.className='bad';s.textContent='❌ Тест не пройден. Смотри подробности ниже.'}}
+catch(e){s.className='bad';s.textContent='❌ Ошибка соединения: '+e}
+finally{b.disabled=false}};
+</script></body></html>
