@@ -12,13 +12,13 @@ jobs:
       run:
         working-directory: aion-server
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: aion-server/requirements.txt
-      - name: Install PyBullet
-        run: pip install pybullet==3.2.7
+      - name: Install test dependencies
+        run: python -m pip install "numpy<2" "pybullet==3.2.7"
       - name: Run deterministic physics QA
         run: python qa_physics.py
