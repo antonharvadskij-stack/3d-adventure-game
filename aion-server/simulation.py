@@ -49,7 +49,7 @@ def _ensure_agent_physics(agent,index):
 
 def _ensure_world_colliders(w):
     for item in w.get("physicsColliders",[]):
-        key=f"static:{item.get("id")}"
+        key='static:'+str(item.get('id'))
         physics.add_static(key,float(item.get("x",0)),float(item.get("y",0)),float(item.get("z",0)),float(item.get("radius",.5)),float(item.get("height",1.0)),item.get("kind","box"))
 
 def simulate_physics(w,seconds):
