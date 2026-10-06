@@ -1,4 +1,62 @@
-import random,time,secrets\n# Server-authoritative rigid-body physics. The simulation owns the canonical transforms.\nclass PhysicsWorld:\n    def __init__(self):\n        self.client=p.connect(p.DIRECT)\n        p.setGravity(0, -9.81, 0, physicsClientId=self.client)\n        self.bodies={}\n        self.dt=1.0/60.0\n    def add_body(self, key, x, y, z, radius=0.4, mass=1.0, height=1.5):\n        if key in self.bodies: return self.bodies[key]\n        shape=p.createCollisionShape(p.GEOM_CAPSULE, radius=max(.05,radius), height=max(.1,height-2*radius), physicsClientId=self.client)\n        bid=p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=shape, basePosition=[x,y+radius,z], physicsClientId=self.client)\n        p.changeDynamics(bid,-1,lateralFriction=.8,restitution=.05,physicsClientId=self.client)\n        self.bodies[key]=bid\n        return bid\n    def sync_body(self,key,x,y,z):\n        bid=self.bodies.get(key)\n        if bid is not None: p.resetBasePositionAndOrientation(bid,[x,y,z],[0,0,0,1],physicsClientId=self.client)\n    def step(self, seconds):\n        steps=min(120,max(1,int(seconds/self.dt)))\n        for _ in range(steps): p.stepSimulation(physicsClientId=self.client)\n    def position(self,key):\n        bid=self.bodies.get(key)\n        return p.getBasePositionAndOrientation(bid,physicsClientId=self.client)[0] if bid is not None else None\n\nphysics=PhysicsWorld()\n
+import random,time,secrets
+# Server-authoritative rigid-body physics. The simulation owns the canonical transforms.
+class PhysicsWorld:
+    def __init__(self):
+        self.client=p.connect(p.DIRECT)
+        p.setGravity(0, -9.81, 0, physicsClientId=self.client)
+        self.bodies={}
+        self.dt=1.0/60.0
+    def add_body(self, key, x, y, z, radius=0.4, mass=1.0, height=1.5):
+        if key in self.bodies: return self.bodies[key]
+        shape=p.createCollisionShape(p.GEOM_CAPSULE, radius=max(.05,radius), height=max(.1,height-2*radius), physicsClientId=self.client)
+        bid=p.createMultiBody(baseMass=mass, baseCollisionShapeIndex=shape, basePosition=[x,y+radius,z], physicsClientId=self.client)
+        p.changeDynamics(bid,-1,lateralFriction=.8,restitution=.05,physicsClientId=self.client)
+        self.bodies[key]=bid
+        return bid
+    def sync_body(self,key,x,y,z):
+        bid=self.bodies.get(key)
+        if bid is not None: p.resetBasePositionAndOrientation(bid,[x,y,z],[0,0,0,1],physicsClientId=self.client)
+    def step(self, seconds):
+        steps=min(120,max(1,int(seconds/self.dt)))
+        for _ in range(steps): p.stepSimulation(physicsClientId=self.client)
+    def position(self,key):
+        bid=self.bodies.get(key)
+        return p.getBasePositionAndOrientation(bid,physicsClientId=self.client)[0] if bid is not None else None
+
+physics=PhysicsWorld()
+
+def _body_key(agent):
+    return f"agent:{agent.get('id')}"
+
+def _ensure_agent_physics(agent, index):
+    if "x" not in agent:
+        import math
+        angle=index*2.3999632297
+        radius=2.5+(index%7)*0.8
+        agent["x"]=round(math.cos(angle)*radius,4)
+        agent["z"]=round(math.sin(angle)*radius,4)
+        agent["y"]=0.0
+    physics.add_body(_body_key(agent),agent["x"],agent.get("y",0.0),agent["z"],
+                     radius=float(agent.get("radius",0.38)),mass=1.0,height=1.55)
+
+def simulate_physics(w, seconds):
+    population=w.get("population",[])
+    for i,a in enumerate(population):
+        _ensure_agent_physics(a,i)
+        physics.sync_body(_body_key(a),float(a["x"]),float(a.get("y",0.0)),float(a["z"]))
+    physics.step(seconds)
+    for a in population:
+        pos=physics.position(_body_key(a))
+        if pos:
+            a["x"]=round(float(pos[0]),4)
+            a["y"]=round(float(pos[1]),4)
+            a["z"]=round(float(pos[2]),4)
+    pstate=w.setdefault("physics",{})
+    pstate.update({"engine":"pybullet","fixedTimestep":physics.dt,"gravity":-9.81,
+                   "bodies":len(population),"lastStepSeconds":seconds})
+    return w
+
+
 import pybullet as p
 
 
@@ -259,5 +317,6 @@ def tick(w,seconds):
   self_repair(w)
   if w["cycle"]%30==0: run_experiment(w)
  choose_long_term_goal(w)
+ simulate_physics(w, min(seconds, 120.0))
  w["lastTick"]=time.time();w["updatedAt"]=time.time();w["worldVersion"]=w.get("worldVersion",0)+1;w["history"]=w["history"][-100:]
  return w
