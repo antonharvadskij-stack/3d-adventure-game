@@ -21,6 +21,9 @@ jobs:
         env:
           AION_CLIENT_URL: https://aion-server-b80c.onrender.com
         run: npm test
+      - name: Publish lifecycle report even on failure
+        if: always()
+        run: cat artifacts/aion-lifecycle-report.json || true
       - name: Upload AION screenshot and report
         if: always()
         uses: actions/upload-artifact@v4
