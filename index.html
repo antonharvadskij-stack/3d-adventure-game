@@ -164,6 +164,7 @@ async function bigBang(){
   let data;
   try{data=JSON.parse(raw)}catch(e){throw new Error('сервер вернул некорректный ответ: '+raw.slice(0,120))}
   if(!r.ok||data.ok===false) throw new Error(data.message||('HTTP '+r.status));
+  ++aionLoadSeq;
   await new Promise(r=>setTimeout(r,300));
   await loadAION();
   W.visible=true;
