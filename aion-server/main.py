@@ -21,7 +21,25 @@ if load() is None:
 
 def advance():
     with WORLD_LOCK:
-        return atomic_update(lambda w: autonomous_cycle(w, time.time())[0] if w is not None else seed())
+        def update(w):
+            if w is None:
+                w=seed()
+            return autonomous_cycle(w, time.time())[0]
+        return atomic_update(update)
+
+def world_snapshot():
+    with WORLD_LOCK:
+        w=load()
+        if w is None:
+            w=seed()
+            save(w, time.time())
+        clock=w.setdefault("universeClock", {})
+        clock.setdefault("lastRealTimestamp", time.time())
+        clock.setdefault("simulatedSeconds", float(w.get("worldAge", 0) or 0))
+        clock.setdefault("simulatedYears", float(clock.get("simulatedSeconds", 0)) / (365.25 * 86400))
+        clock["rate"]="24 real hours = 100 simulated years"
+        w["worldAge"]=clock["simulatedSeconds"]
+        return w
 
 @app.get("/persistence-test", response_class=HTMLResponse)
 def persistence_test_page():
@@ -155,7 +173,8 @@ def physics_colliders(payload: dict):
 
 @app.get("/world")
 def world():
-    return advance()
+    # Read-only snapshot: browser polling must never write to PostgreSQL.
+    return world_snapshot()
 
 @app.post("/world/tick")
 def manual_tick(seconds:int=60):
