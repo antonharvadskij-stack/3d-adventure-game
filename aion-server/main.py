@@ -114,6 +114,19 @@ def ai_status():
     w=load() or seed()
     return {"autonomous":True,"scope":"game-world-and-persistent-game-config","generation":w.get("evolution",{}).get("generation",1),"strategy":w.get("evolution",{}).get("strategy"),"goal":w.get("aiDiagnostics",{}).get("goal"),"economy":w.get("economy",{}),"technology":w.get("technology",{}),"society":w.get("society",{}),"policy":w.get("aiPolicy",{}),"population":len(w.get("population",[])),"settlements":len(w.get("settlements",[])),"lastReason":w.get("evolution",{}).get("lastReason"),"diagnostics":w.get("aiDiagnostics",{})}
 
+@app.get("/ai/self-development")
+def ai_self_development():
+    w=load() or seed()
+    sd=w.get("aiDiagnostics",{}).get("selfDevelopment",{})
+    return {
+        "ok":True,
+        "version":sd.get("version",0),
+        "accepted":sd.get("accepted",0),
+        "rejected":sd.get("rejected",0),
+        "latest":sd.get("modules",[])[-1] if sd.get("modules") else None,
+        "autonomy":"observe -> invent -> sandbox -> validate -> adopt/rollback"
+    }
+
 @app.post("/ai/experiment")
 def ai_experiment():
     def update(w):
