@@ -164,8 +164,10 @@ def reset_world(confirm: str = ""):
             "simulatedYears": 0.0,
             "rate": "24 real hours = 100 simulated years"
         }
+        now=time.time()
         w["worldVersion"]=previous_version+1
-        w["updatedAt"]=time.time()
+        w["updatedAt"]=now
+        w.setdefault("universeClock",{})["lastRealTimestamp"]=now
         return w
     return atomic_update(reset)
 
@@ -211,7 +213,7 @@ def loop():
         try: advance()
         except Exception as exc:
             log.exception("AION autonomous loop failed: %s", exc)
-        time.sleep(20)
+        time.sleep(1)
 
 def start_autonomous_loop():
     try:
