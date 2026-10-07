@@ -28,21 +28,20 @@ def advance():
         return atomic_update(update)
 
 def world_snapshot():
-    with WORLD_LOCK:
-        w=load()
-        if w is None:
-            w=seed()
-            save(w, time.time())
-        clock=w.setdefault("universeClock", {})
-        # The persisted clock is authoritative. Legacy worlds are migrated once.
-        if "simulatedSeconds" not in clock:
-            clock["simulatedSeconds"]=float(w.get("worldAge", 0) or 0)
-        if "simulatedYears" not in clock:
-            clock["simulatedYears"]=float(clock["simulatedSeconds"]) / (365.25 * 86400)
-        clock.setdefault("lastRealTimestamp", time.time())
-        clock["rate"]="24 real hours = 100 simulated years"
-        w["worldAge"]=float(clock["simulatedSeconds"])
-        return w
+    # Read-only request: never wait behind the autonomous write lock.
+    w=load()
+    if w is None:
+        w=seed()
+        save(w, time.time())
+    clock=w.setdefault("universeClock", {})
+    if "simulatedSeconds" not in clock:
+        clock["simulatedSeconds"]=float(w.get("worldAge", 0) or 0)
+    if "simulatedYears" not in clock:
+        clock["simulatedYears"]=float(clock["simulatedSeconds"]) / (365.25 * 86400)
+    clock.setdefault("lastRealTimestamp", time.time())
+    clock["rate"]="24 real hours = 100 simulated years"
+    w["worldAge"]=float(clock["simulatedSeconds"])
+    return w
 
 @app.get("/persistence-test", response_class=HTMLResponse)
 def persistence_test_page():
@@ -200,6 +199,6 @@ def loop():
         try: advance()
         except Exception as exc:
             log.exception("AION autonomous loop failed: %s", exc)
-        time.sleep(10)
+        time.sleep(20)
 
 threading.Thread(target=loop,daemon=True).start()
