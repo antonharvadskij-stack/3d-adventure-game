@@ -146,21 +146,22 @@ def ai_self_repair():
 def reset_world(confirm: str = ""):
     if confirm != "BIG_BANG":
         return {"ok":False,"message":"Для перезапуска требуется confirm=BIG_BANG"}
-    def reset(_w):
+    def reset(previous):
+        previous_version=int((previous or {}).get("worldVersion",0) or 0)
         w=seed()
         w["history"].append("Большой взрыв. Пустота. AION начинает создавать новую Землю с нуля.")
         w["epoch"]="Пустота"
         w["universe"]["resetReason"]="manual_rebirth"
-        # A Big Bang is a hard world boundary. Persist the fresh seed immediately;
-        # the autonomous loop will advance it after the reset instead of silently
-        # applying a day of evolution during the reset request.
+        # A Big Bang creates a new persistent world generation. Keep the
+        # generation counter from the previous world so the client can prove
+        # that a new universe replaced the old one.
         w["universeClock"]={
             "lastRealTimestamp": time.time(),
             "simulatedSeconds": 0.0,
             "simulatedYears": 0.0,
             "rate": "24 real hours = 100 simulated years"
         }
-        w["worldVersion"]=int(w.get("worldVersion",0))+1
+        w["worldVersion"]=previous_version+1
         w["updatedAt"]=time.time()
         return w
     return atomic_update(reset)
