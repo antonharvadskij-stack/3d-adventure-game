@@ -34,11 +34,14 @@ def world_snapshot():
             w=seed()
             save(w, time.time())
         clock=w.setdefault("universeClock", {})
+        # The persisted clock is authoritative. Legacy worlds are migrated once.
+        if "simulatedSeconds" not in clock:
+            clock["simulatedSeconds"]=float(w.get("worldAge", 0) or 0)
+        if "simulatedYears" not in clock:
+            clock["simulatedYears"]=float(clock["simulatedSeconds"]) / (365.25 * 86400)
         clock.setdefault("lastRealTimestamp", time.time())
-        clock.setdefault("simulatedSeconds", float(w.get("worldAge", 0) or 0))
-        clock.setdefault("simulatedYears", float(clock.get("simulatedSeconds", 0)) / (365.25 * 86400))
         clock["rate"]="24 real hours = 100 simulated years"
-        w["worldAge"]=clock["simulatedSeconds"]
+        w["worldAge"]=float(clock["simulatedSeconds"])
         return w
 
 @app.get("/persistence-test", response_class=HTMLResponse)
