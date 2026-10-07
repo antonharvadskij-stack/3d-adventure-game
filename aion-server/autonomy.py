@@ -303,6 +303,46 @@ def _self_development_snapshot(world):
             "knowledge":round(o["knowledge"],3),"stability":round(o["stability"],3),
             "generation":int(world.get("evolution",{}).get("generation",1))}
 
+
+def generate_mechanic(world):
+    """AION invents a bounded gameplay mechanic from current world state."""
+    o=_self_development_snapshot(world)
+    existing={m.get("name") for m in world.get("aiDiagnostics",{}).get("mechanics",[])}
+    if o["knowledge"]>=20 and o["population"]>=20 and "academy" not in existing:
+        return {"name":"academy","type":"building","description":"Центр обучения ускоряет знания.","effects":{"knowledge":2.0,"stability":0.01}}
+    if o["population"]>=15 and o["settlements"]>=3 and "trade_route" not in existing:
+        return {"name":"trade_route","type":"network","description":"Связь поселений повышает устойчивость.","effects":{"stability":0.03,"knowledge":1.0}}
+    return {"name":"seasonal_adaptation","type":"world_event","description":"Мир адаптируется к ресурсам.","effects":{"resourceAbundance":1.02}}
+
+def test_mechanic(world, mechanic):
+    candidate=snapshot(world)
+    before=score(candidate)
+    effects=mechanic.get("effects",{})
+    candidate.setdefault("economy",{}).setdefault("knowledge",0)
+    candidate.setdefault("society",{}).setdefault("stability",1)
+    candidate.setdefault("evolution",{})
+    if "knowledge" in effects:
+        candidate["economy"]["knowledge"]+=float(effects["knowledge"])
+    if "stability" in effects:
+        candidate["society"]["stability"]=min(1.5,candidate["society"]["stability"]+float(effects["stability"]))
+    if "resourceAbundance" in effects:
+        candidate["evolution"]["resourceAbundance"]=min(2.0,float(candidate["evolution"].get("resourceAbundance",1))*float(effects["resourceAbundance"]))
+    after=score(candidate)
+    return validate(candidate) and after>=before, {"before":round(before,3),"after":round(after,3)}
+
+def self_create_mechanic(world):
+    d=world.setdefault("aiDiagnostics",{})
+    store=d.setdefault("mechanics",[])
+    mechanic=generate_mechanic(world)
+    ok,report=test_mechanic(world,mechanic)
+    mechanic.update({"version":len(store)+1,"autonomous":True,"sandboxTest":report,"createdAt":time.time()})
+    if ok:
+        store.append(mechanic)
+        world.setdefault("history",[]).append("AION самостоятельно создал игровую механику: "+mechanic["name"])
+        world.setdefault("evolution",{})["mechanicVersion"]=mechanic["version"]
+    return ok,mechanic
+
+
 def _generate_module(world):
     """Generate a versioned declarative module from current world conditions."""
     o=_self_development_snapshot(world)
