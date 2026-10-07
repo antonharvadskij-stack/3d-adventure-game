@@ -146,15 +146,18 @@ def reset_world(confirm: str = ""):
         w["history"].append("Большой взрыв. Пустота. AION начинает создавать новую Землю с нуля.")
         w["epoch"]="Пустота"
         w["universe"]["resetReason"]="manual_rebirth"
-        # Bootstrap the new universe from a deterministic primordial interval.
-        # This remains server-authoritative and is persisted in PostgreSQL.
+        # A Big Bang is a hard world boundary. Persist the fresh seed immediately;
+        # the autonomous loop will advance it after the reset instead of silently
+        # applying a day of evolution during the reset request.
         w["universeClock"]={
             "lastRealTimestamp": time.time(),
             "simulatedSeconds": 0.0,
             "simulatedYears": 0.0,
             "rate": "24 real hours = 100 simulated years"
         }
-        return autonomous_cycle(w, time.time(), forced_seconds=86400)[0]
+        w["worldVersion"]=int(w.get("worldVersion",0))+1
+        w["updatedAt"]=time.time()
+        return w
     return atomic_update(reset)
 
 @app.post("/physics/colliders")
