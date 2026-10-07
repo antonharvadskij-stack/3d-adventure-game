@@ -11,7 +11,7 @@ page.on("console",m=>{if(m.type()==="error")errors.push("console: "+m.text())});
 const recoverClient=async()=>{
   if(errors.length){
     const first=[...errors]; errors=[];
-    await page.reload({waitUntil:"networkidle",timeout:60000});
+    await page.reload({waitUntil:"domcontentloaded",timeout:60000}).catch(async()=>{ await page.waitForTimeout(3000); });
     await page.waitForTimeout(6000);
     if(errors.length) errors.unshift(...first);
   }
@@ -20,7 +20,7 @@ const read=async()=>({
  state:await page.locator("#state").innerText().catch(()=>""), time:await page.locator("#worldTime").innerText().catch(()=>""), year:await page.locator("#worldElapsed").innerText().catch(()=>""), epoch:await page.locator("#ep").innerText().catch(()=>""), log:await page.locator("#log").innerText().catch(()=>""), 
 });
 const snapshots=[];
-await page.goto(url,{waitUntil:"networkidle",timeout:60000}); await page.waitForTimeout(6000);
+await page.goto(url,{waitUntil:"domcontentloaded",timeout:60000}); await page.waitForTimeout(6000);
 await recoverClient();
 snapshots.push({name:"initial",data:await read()}); await page.screenshot({path:"artifacts/01-initial.png"});
 const initial=snapshots[0].data;
