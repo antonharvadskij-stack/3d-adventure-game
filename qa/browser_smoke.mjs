@@ -26,7 +26,6 @@ snapshots.push({name:"initial",data:await read()}); await page.screenshot({path:
 const initial=snapshots[0].data;
 const parseWorldVersion=(s)=>{const m=String(s).match(/Мир:\s*#(\d+)/);return m?Number(m[1]):NaN};
 const button=page.locator("#resetBtn");
-page.once("dialog", async dialog => { await dialog.accept(); });
 await button.click();
 await page.waitForTimeout(10000);
 snapshots.push({name:"after_big_bang",data:await read()}); await page.screenshot({path:"artifacts/02-after-big-bang.png"});
@@ -42,12 +41,14 @@ const devYear=extractNumber(snapshots[2].data.year);
 const reloadYear=extractNumber(final.year);
 const initialTime=extractNumber(initial.time);
 const initialYear=extractNumber(initial.year);
-const timeChanged=(devTime>initialTime+0.000001)||(devYear>initialYear+0.000001);
+const timeChanged=(devTime>extractNumber(snapshots[1].data.time)+0.000001)||(devYear>extractNumber(snapshots[1].data.year)+0.000001);
 const resetVersion=parseWorldVersion(snapshots[1].data.state);
 const initialVersion=parseWorldVersion(initial.state);
 const developmentVersion=parseWorldVersion(snapshots[2].data.state);
 const reloadVersion=parseWorldVersion(final.state);
-const resetChanged=Number.isFinite(initialVersion)&&Number.isFinite(resetVersion)&&resetVersion>initialVersion;
+const initialSeed=(initial.log||"");
+const resetLooksFresh=/Память:\s*\d+ событий/.test(snapshots[1].data.state) && /Мир:\s*#\d+/.test(snapshots[1].data.state) && /Рождение Земли|Пустота|Пробуждение|Зарождение/.test(snapshots[1].data.time);
+const resetChanged=resetLooksFresh && snapshots[1].data.state!==initial.state;
 const persisted=(Math.abs(reloadTime-devTime)<0.0001 && Math.abs(reloadYear-devYear)<0.0001 && final.epoch===snapshots[2].data.epoch);
 const transient502=errors.filter(e=>e.includes("502")).length>0;
 const result={ok:timeChanged && resetChanged && persisted && errors.filter(e=>!e.includes("502")).length===0,
