@@ -163,6 +163,7 @@ def advance_universe_time(world, now=None):
     clock["simulatedSeconds"] = float(clock.get("simulatedSeconds", 0.0)) + sim_seconds
     clock["simulatedYears"] = clock["simulatedSeconds"] / (365.25 * 86400)
     clock["rate"] = "24 real hours = 100 simulated years"
+    world["worldAge"] = clock["simulatedSeconds"]
     return sim_seconds
 
 
@@ -299,6 +300,7 @@ def autonomous_cycle(world, now=None, forced_seconds=0):
         clock["simulatedSeconds"] = float(clock.get("simulatedSeconds", 0.0)) + sim_seconds
         clock["simulatedYears"] = clock["simulatedSeconds"] / (365.25 * 86400)
         clock["rate"] = "24 real hours = 100 simulated years"
+        world["worldAge"] = clock["simulatedSeconds"]
     else:
         sim_seconds = advance_universe_time(world, now)
     chunk = 30 * 86400
