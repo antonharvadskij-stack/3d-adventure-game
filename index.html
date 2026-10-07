@@ -137,7 +137,6 @@ async function aionFetch(path, options={}, attempts=6){
 let serverState=null;
 async function bigBang(){
  const b=document.getElementById('resetBtn');
- if(!confirm('Начать новую вселенную? Текущий мир будет полностью сброшен.')) return;
  b.disabled=true;
  try{
   b.textContent='💥 Большой взрыв…';
