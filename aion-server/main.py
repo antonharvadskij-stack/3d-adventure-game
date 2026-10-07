@@ -28,25 +28,14 @@ def advance():
         return atomic_update(update)
 
 def world_snapshot():
-    # Browser reads also recover the persistent clock if the host paused the
-    # background worker. Wall-clock elapsed time is converted to simulation
-    # time and persisted before returning the snapshot.
-    def update(w):
-        if w is None:
-            w=seed()
-        clock=w.setdefault("universeClock", {})
-        clock.setdefault("simulatedSeconds", float(w.get("worldAge", 0) or 0))
-        clock.setdefault("simulatedYears", float(clock["simulatedSeconds"]) / (365.25 * 86400))
-        clock.setdefault("lastRealTimestamp", time.time())
-        now=time.time()
-        elapsed=max(0.0, now-float(clock.get("lastRealTimestamp", now)))
-        if elapsed > 0.25:
-            w, _ = autonomous_cycle(w, now)
-        clock=w.setdefault("universeClock", clock)
-        clock["rate"]="24 real hours = 100 simulated years"
-        w["worldAge"]=float(clock.get("simulatedSeconds", 0.0))
-        return w
-    return atomic_update(update)
+    # Fast read-only snapshot. The autonomous loop is the single writer that
+    # advances simulation time, so browser polling never competes for the
+    # PostgreSQL advisory lock and can never stall behind a simulation tick.
+    w=load()
+    if w is None:
+        w=seed()
+        save(w, time.time())
+    return w
 
 @app.get("/persistence-test", response_class=HTMLResponse)
 def persistence_test_page():
