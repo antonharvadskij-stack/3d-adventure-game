@@ -292,6 +292,74 @@ def self_improve_policy(world):
     return policy
 
 
+
+def _self_development_snapshot(world):
+    """Return the minimal state AION may use while inventing a module."""
+    o=observe(world)
+    return {"population":o["population"],"settlements":o["settlements"],
+            "food":round(o["food"],3),"water":round(o["water"],3),
+            "knowledge":round(o["knowledge"],3),"stability":round(o["stability"],3),
+            "generation":int(world.get("evolution",{}).get("generation",1))}
+
+def _generate_module(world):
+    """Generate a versioned declarative module from current world conditions."""
+    o=_self_development_snapshot(world)
+    if o["food"]<40 or o["water"]<40:
+        return {"kind":"world_rule","name":"adaptive_survival","goal":"survival",
+                "priority":1.35,"effects":{"resourceAbundance":1.025,"stability":0.015},
+                "reason":"Ресурсов недостаточно; усилить устойчивость мира."}
+    if o["population"]>=12 and o["settlements"]>=2 and o["knowledge"]>=12:
+        return {"kind":"world_rule","name":"civilization_network","goal":"civilization",
+                "priority":1.3,"effects":{"terrainScale":1.015,"fogDistance":2,"knowledge":0.8},
+                "reason":"Цивилизация готова к расширению связей и территории."}
+    return {"kind":"world_rule","name":"exploration_drive","goal":"exploration",
+            "priority":1.15,"effects":{"terrainScale":1.01,"knowledge":0.5},
+            "reason":"AION не видит критической угрозы и расширяет пространство исследований."}
+
+def _test_module(world,module):
+    """Test a proposed module on an isolated copy; never execute arbitrary code."""
+    before=snapshot(world)
+    candidate=snapshot(world)
+    e=candidate.setdefault("evolution",dict(DEFAULT_EVOLUTION))
+    effects=module.get("effects",{})
+    for key,value in effects.items():
+        if key=="knowledge":
+            candidate.setdefault("economy",{})["knowledge"]=max(0,candidate.setdefault("economy",{}).get("knowledge",0)+float(value))
+        elif key=="stability":
+            candidate.setdefault("society",{})["stability"]=min(1.5,max(0,candidate.setdefault("society",{}).get("stability",1)+float(value)))
+        elif key=="fogDistance":
+            e["fogDistance"]=min(180,max(30,float(e.get("fogDistance",90))+float(value)))
+        elif key in ("resourceAbundance","terrainScale"):
+            e[key]=min(2.0,max(0.5,float(e.get(key,1))*float(value)))
+    if not validate(candidate):
+        return False, {"reason":"validation_failed"}
+    before_score=score(before); after_score=score(candidate)
+    return after_score>=before_score, {"before":round(before_score,3),"after":round(after_score,3)}
+
+def self_develop(world):
+    """AION's first self-writing loop: invent -> sandbox -> test -> version -> adopt/rollback."""
+    d=world.setdefault("aiDiagnostics",{})
+    sd=d.setdefault("selfDevelopment",{"version":0,"modules":[],"accepted":0,"rejected":0})
+    module=_generate_module(world)
+    ok,report=_test_module(world,module)
+    module["createdAt"]=time.time()
+    module["version"]=int(sd.get("version",0))+1
+    module["autonomous"]=True
+    module["sandboxTest"]=report
+    sd["version"]=module["version"]
+    if ok:
+        sd["modules"]=(sd.get("modules",[])+[module])[-50:]
+        sd["accepted"]=int(sd.get("accepted",0))+1
+        world.setdefault("evolution",{})["selfCodeVersion"]=module["version"]
+        world["evolution"]["lastReason"]="AION сам создал, протестировал и принял модуль '"+module["name"]+"'."
+        world.setdefault("history",[]).append("AION сам создал и принял модуль: "+module["name"])
+    else:
+        sd["rejected"]=int(sd.get("rejected",0))+1
+        world.setdefault("history",[]).append("AION сам создал модуль '"+module["name"]+"', протестировал и отклонил его.")
+    d["selfDevelopment"]=sd
+    return ok,module
+
+
 def autonomous_cycle(world, now=None, forced_seconds=0):
     """Advance the persistent universe and let AION observe, adapt, experiment and decide."""
     if forced_seconds > 0:
@@ -311,6 +379,9 @@ def autonomous_cycle(world, now=None, forced_seconds=0):
         remaining -= step
     obs = observe(world)
     evo = world.setdefault("evolution", {})
+    sd = world.setdefault("aiDiagnostics", {}).setdefault("selfDevelopment", {})
+    if not sd.get("modules") or int(sd.get("version", 0)) % 5 == 0:
+        self_develop(world)
     last_pop = evo.get("lastPolicyPopulation", -1)
     if "activePolicy" not in world.get("aiDiagnostics", {}) or abs(obs["population"] - last_pop) >= 5 or sim_seconds > 0:
         self_improve_policy(world)
