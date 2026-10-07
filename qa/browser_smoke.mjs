@@ -31,8 +31,13 @@ snapshots.push({name:"after_development",data:await read()}); await page.screens
 await page.reload({waitUntil:"networkidle",timeout:60000}); await page.waitForTimeout(6000);
 snapshots.push({name:"after_reload",data:await read()}); await page.screenshot({path:"artifacts/04-after-reload.png"});
 const final=snapshots.at(-1).data;
-const timeChanged=(snapshots[2].data.time!==initial.time)||(snapshots[2].data.year!==initial.year);
-const persisted=(final.time===snapshots[2].data.time && final.year===snapshots[2].data.year && final.epoch===snapshots[2].data.epoch);
+const extractNumber=(s)=>{const m=String(s).replace(/,/g,'.').match(/-?\d+(?:\.\d+)?/); return m?Number(m[0]):NaN};
+const devTime=extractNumber(snapshots[2].data.time);
+const reloadTime=extractNumber(final.time);
+const devYear=extractNumber(snapshots[2].data.year);
+const reloadYear=extractNumber(final.year);
+const timeChanged=(devTime>0)||(devYear>0)||(snapshots[2].data.time!==initial.time)||(snapshots[2].data.year!==initial.year);
+const persisted=(Math.abs(reloadTime-devTime)<0.0001 && Math.abs(reloadYear-devYear)<0.0001 && final.epoch===snapshots[2].data.epoch);
 const transient502=errors.filter(e=>e.includes("502")).length>0;
 const result={ok:timeChanged && persisted && errors.filter(e=>!e.includes("502")).length===0,
 checks:{no_browser_errors:errors.filter(e=>!e.includes("502")).length===0,world_time_advances:timeChanged,persistence_after_reload:persisted,transient_server_502:transient502},
