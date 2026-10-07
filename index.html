@@ -132,7 +132,7 @@ function act(a,dt){
  if(Math.random()<dt*.012)a.memory.push({cycle,message:'исследовал новую область'});
 }
 const AION_SERVER='https://aion-server-b80c.onrender.com';
-async function aionFetch(path, options={}, attempts=6){
+async function aionFetch(path, options={}, attempts=12){
   let lastError;
   for(let i=0;i<attempts;i++){
     try{
@@ -140,7 +140,7 @@ async function aionFetch(path, options={}, attempts=6){
       if(r.ok) return r;
       lastError=new Error('HTTP '+r.status);
     }catch(e){ lastError=e; }
-    if(i+1<attempts) await new Promise(resolve=>setTimeout(resolve,Math.min(15000,1500*Math.pow(1.7,i))));
+    if(i+1<attempts) await new Promise(resolve=>setTimeout(resolve,Math.min(15000,2500*Math.pow(1.35,i))));
   }
   throw lastError || new Error('AION server unavailable');
 }
