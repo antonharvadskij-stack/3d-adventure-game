@@ -16,6 +16,17 @@ MAX_HISTORY=100
 # 24 real hours = 100 simulated years.
 SIM_SECONDS_PER_REAL_SECOND=(100*365.25*86400)/86400
 
+# Default state for autonomous evolution. Keep this schema local so the
+# self-development sandbox can safely validate old/new worlds without relying
+# on a symbol that may not exist in older persisted snapshots.
+DEFAULT_EVOLUTION={
+    "generation":1,
+    "strategy":"balanced",
+    "resourceAbundance":1.0,
+    "terrainScale":1.0,
+    "lastReason":"initial world",
+}
+
 def snapshot(world): return copy.deepcopy(world)
 def checksum(world): return hashlib.sha256(repr(world).encode()).hexdigest()
 
