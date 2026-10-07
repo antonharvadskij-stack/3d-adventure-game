@@ -59,6 +59,12 @@ function applyEvolutionVisuals(){
  if(S.fog) S.fog.far=Math.max(60,evolution.fogDistance||90);
  sun.intensity=2.2*(evolution.lightIntensity||1)*q;
  ground.scale.set(evolution.terrainScale||1,1,evolution.terrainScale||1);
+ ocean.scale.setScalar(Math.max(0.8,Math.min(1.6,evolution.terrainScale||1)));
+ const mood=evolution.colorMood||'balanced';
+ const moodColors={balanced:[0x02040a,0x123c61],civilization:[0x07101a,0x164a70],expansion:[0x08150d,0x174d3a],survival:[0x160d08,0x5a351e]};
+ const mc=moodColors[mood]||moodColors.balanced;
+ S.background.setHex(mc[0]); S.fog.color.setHex(mc[0]); ocean.material.color.setHex(mc[1]);
+ sun.position.x=15+(evolution.terrainScale||1)*8;
  R.setPixelRatio(Math.min(devicePixelRatio,Math.min(2,1.25+q*.35)));
  if(evolution.colorMood==='civilization'){S.background.setHex(0x07101a);S.fog.color.setHex(0x07101a);}else{S.background.setHex(0x02040a);S.fog.color.setHex(0x02040a);}
 }
