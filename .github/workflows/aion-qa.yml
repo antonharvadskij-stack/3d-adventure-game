@@ -44,8 +44,17 @@ jobs:
           before=get("/debug/world")
           test_url=base+"/debug/persistence-test?seconds=5"
           req=urllib.request.Request(test_url, method="POST")
-          with urllib.request.urlopen(req, timeout=30) as r:
-              result=json.load(r)
+          last=None
+          for attempt in range(5):
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                      result=json.load(r)
+                  break
+              except Exception as e:
+                  last=e
+                  time.sleep(min(15, 3*(attempt+1)))
+          else:
+              raise last
           after=get("/debug/world")
           print(json.dumps({"before":before,"persistence_test":result,"after":after}, ensure_ascii=False, indent=2))
           assert result.get("ok") is True, "persistence-test failed"
