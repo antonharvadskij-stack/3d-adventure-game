@@ -148,13 +148,13 @@ async function bigBang(){
   await new Promise(r=>setTimeout(r,1200));
   b.textContent='🌍 Создание Земли…';
   const r=await aionFetch('/world/reset?confirm=BIG_BANG',{
-   method:'POST',headers:{'Accept':'application/json'},cache:'no-store'
+   method:'GET',headers:{'Accept':'application/json'},cache:'no-store'
   });
   const raw=await r.text();
   let data;
   try{data=JSON.parse(raw)}catch(e){throw new Error('сервер вернул некорректный ответ: '+raw.slice(0,120))}
   if(!r.ok||data.ok===false) throw new Error(data.message||('HTTP '+r.status));
-  await new Promise(r=>setTimeout(r,1000));
+  await new Promise(r=>setTimeout(r,300));
   await loadAION();
   W.visible=true;
   b.textContent='🌍 Новая Земля создана';
