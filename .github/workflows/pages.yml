@@ -14,10 +14,6 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: pages
-  cancel-in-progress: false
-
 jobs:
   evolve:
     if: github.event_name == 'schedule'
@@ -37,9 +33,6 @@ jobs:
   deploy:
     needs: evolve
     if: always() && (github.event_name != 'schedule' || needs.evolve.result == 'success')
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
