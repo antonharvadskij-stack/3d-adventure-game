@@ -7,6 +7,7 @@ const browser=await chromium.launch({headless:true});
 const page=await browser.newPage({viewport:{width:1280,height:720},deviceScaleFactor:1});
 let errors=[];
 page.on("pageerror",e=>errors.push("pageerror: "+e.message));
+page.on("requestfailed",r=>errors.push("requestfailed: "+r.url()+" :: "+(r.failure()?.errorText||"unknown")));
 page.on("console",m=>{if(m.type()==="error")errors.push("console: "+m.text())});
 const recoverClient=async()=>{
   if(errors.length){
@@ -22,7 +23,7 @@ const read=async()=>({
 const waitForServerHydration=async()=>{await page.waitForFunction(()=>window.__AION_SYNCED===true && !!window.__AION_SERVER_STATE && Number.isFinite(Number(window.__AION_SERVER_STATE.worldVersion)),undefined,{timeout:120000,polling:500});};
 const snapshots=[];
 const apiRead=async()=>{const r=await fetch(url+"/debug/world",{cache:"no-store"}); if(!r.ok) throw new Error("debug/world "+r.status); return await r.json();};
-await page.goto(url,{waitUntil:"domcontentloaded",timeout:60000}); await waitForServerHydration();
+await page.goto(url,{waitUntil:"domcontentloaded",timeout:60000}); try{await waitForServerHydration();}catch(e){throw new Error(e.message+"\nAION diagnostics:\n"+errors.join("\n"));}
 await recoverClient();
 snapshots.push({name:"initial",data:await read(),api:await apiRead()}); await page.screenshot({path:"artifacts/01-initial.png"});
 const initial=snapshots[0].data;
