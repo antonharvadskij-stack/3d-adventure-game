@@ -148,7 +148,7 @@ async function bigBang(){
   await new Promise(r=>setTimeout(r,1200));
   b.textContent='🌍 Создание Земли…';
   const r=await aionFetch('/world/reset?confirm=BIG_BANG',{
-   method:'GET',headers:{'Accept':'application/json'},cache:'no-store'
+   method:'POST',headers:{'Accept':'application/json'},cache:'no-store'
   });
   const raw=await r.text();
   let data;
