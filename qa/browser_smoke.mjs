@@ -63,8 +63,6 @@ const devApi=snapshots[2].api;
 const reloadApi=snapshots[3].api;
 const timeChanged=Number(devApi.worldAge)>Number(resetApi.worldAge)+0.000001 && Number(devApi.cycle)>Number(resetApi.cycle);
 const resetVersion=Number(resetApi.worldVersion||0);
-// initialVersion already declared above
-const initialVersion=Number(initialApi.worldVersion||0);
 const developmentVersion=Number(devApi.worldVersion||0);
 const reloadVersion=Number(reloadApi.worldVersion||0);
 const initialSeed=(initial.log||"");
