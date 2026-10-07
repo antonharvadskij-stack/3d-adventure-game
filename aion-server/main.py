@@ -49,8 +49,9 @@ def root():
 
 @app.get("/health")
 def health():
-    w=load()
-    return {"ok":True,"service":"AION","worldCycle":w.get("cycle",0),"epoch":w.get("epoch"),"worldVersion":w.get("worldVersion",0),"updatedAt":w.get("updatedAt",0),"universeClock":w.get("universeClock",{})}
+    # Render health checks must be independent of PostgreSQL latency.
+    # Database-backed diagnostics belong to /debug/world.
+    return {"ok":True,"service":"AION","persistentStorage":"postgresql"}
 
 @app.post("/debug/persistence-test")
 def persistence_test(seconds:int=60):
