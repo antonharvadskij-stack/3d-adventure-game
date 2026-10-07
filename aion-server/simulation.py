@@ -94,6 +94,7 @@ def seed():
  now=time.time()
  return {"version":2,"worldAge":0,"cycle":0,"epoch":"Большой взрыв","population":[],"settlements":[],"births":0,"deaths":0,
  "history":["Большой взрыв. Вселенная начала своё существование."],"lastTick":now,"worldVersion":1,
+ "universeClock":{"lastRealTimestamp":now,"simulatedSeconds":0.0,"simulatedYears":0.0,"rate":"24 real hours = 100 simulated years"},
  "updatedAt":now,"evolution":dict(DEFAULT_EVOLUTION),"universe":{"name":"Новая Земля","origin":"Большой взрыв","terrain":"full_planetary_land","visualPreset":"cinematic","resetAt":now,"worldSeed":secrets.randbits(32)},"economy":{"food":100,"water":100,"wood":60,"stone":30,"knowledge":0},"technology":{"agriculture":0,"construction":0,"navigation":0},"society":{"stability":1.0,"happiness":1.0,"knowledge":0}}
 
 def _evolve_config(w):
