@@ -30,9 +30,17 @@ jobs:
           python - <<'PY'
           import json, os, urllib.request
           base=os.environ["AION_SERVER_URL"]
-          def get(path):
-              with urllib.request.urlopen(base+path, timeout=30) as r:
-                  return json.load(r)
+          import time
+          def get(path, attempts=6):
+              last=None
+              for i in range(attempts):
+                  try:
+                      with urllib.request.urlopen(base+path, timeout=30) as r:
+                          return json.load(r)
+                  except Exception as e:
+                      last=e
+                      time.sleep(min(15, 2**i))
+              raise last
           before=get("/debug/world")
           test_url=base+"/debug/persistence-test?seconds=60"
           req=urllib.request.Request(test_url, method="POST")
