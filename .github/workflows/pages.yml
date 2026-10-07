@@ -3,6 +3,8 @@ name: Deploy Frontier Echo Test
 on:
   push:
     branches: ["main"]
+    paths-ignore:
+      - "state.json"
   schedule:
     - cron: "*/15 * * * *"
   workflow_dispatch:
