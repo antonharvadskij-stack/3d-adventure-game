@@ -5,6 +5,10 @@ on:
   push:
     branches: ["**"]
 
+concurrency:
+  group: aion-live-qa
+  cancel-in-progress: false
+
 jobs:
   browser:
     runs-on: ubuntu-latest
