@@ -134,7 +134,7 @@ async function aionFetch(path, options={}, attempts=6){
   }
   throw lastError || new Error('AION server unavailable');
 }
-let serverState=null;
+let serverState=null;let aionLoadSeq=0;
 async function bigBang(){
  const b=document.getElementById('resetBtn');
  b.disabled=true;
@@ -167,10 +167,13 @@ async function bigBang(){
  }finally{b.disabled=false}
 }
 async function loadAION(){
+ const seq=++aionLoadSeq;
  try{
   const r=await aionFetch('/world');
   if(!r.ok) throw new Error('AION '+r.status);
-  serverState=await r.json(); serverConnected=true;
+  const nextState=await r.json();
+  if(seq!==aionLoadSeq)return;
+  serverState=nextState; serverConnected=true;
   evolution=serverState.evolution||evolution;
   if(serverState.universeClock) evolution.universeClock=serverState.universeClock;
   applyTerrainSeed(serverState.universe?.worldSeed);
