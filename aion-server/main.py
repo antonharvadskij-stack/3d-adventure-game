@@ -213,4 +213,11 @@ def loop():
             log.exception("AION autonomous loop failed: %s", exc)
         time.sleep(20)
 
-threading.Thread(target=loop,daemon=True).start()
+def start_autonomous_loop():
+    try:
+        advance()
+    except Exception as exc:
+        log.exception("AION initial autonomous advance failed: %s", exc)
+    threading.Thread(target=loop,daemon=True).start()
+
+start_autonomous_loop()
