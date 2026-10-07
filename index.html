@@ -86,6 +86,16 @@ function connectSettlements(){
   road.rotation.y=Math.atan2(dx,dz);W.add(road);settlementRoads.push(road);a.roadTo=b;
  }
 }
+function applyVisualWorldSeed(seed){
+ const s=(Number(seed)>>>0)||1;
+ let state=s;
+ const rnd=()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return ((state>>>0)/4294967296);};
+ const place=(g,spread=105)=>{let tries=0;while(tries++<80){const a=rnd()*Math.PI*2,d=8+rnd()*spread,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=terrainHeight(x,z);const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;if(h>-.15&&continent>.02){g.position.set(x,Math.max(h,0),z);return;}}g.position.set((rnd()-.5)*120,0,(rnd()-.5)*120);};
+ staticColliders.filter(x=>x.type==='tree').forEach(s=>place(s.g));
+ naturalResources.forEach(r=>place(r.g));
+ worldSettlements.forEach(q=>place(q.g));
+ animals.forEach(a=>{place(a.g);a.phase=rnd()*Math.PI*2;});
+}
 function updateSettlements(dt){
  for(const q of worldSettlements)q.g.rotation.y+=dt*.05;
  for(const s of settlements){
@@ -134,7 +144,7 @@ async function aionFetch(path, options={}, attempts=6){
   }
   throw lastError || new Error('AION server unavailable');
 }
-let serverState=null;let aionLoadSeq=0;
+let serverState=null;let aionLoadSeq=0;let appliedWorldVersion=-1;
 async function bigBang(){
  const b=document.getElementById('resetBtn');
  b.disabled=true;
@@ -177,13 +187,21 @@ async function loadAION(){
   evolution=serverState.evolution||evolution;
   if(serverState.universeClock) evolution.universeClock=serverState.universeClock;
   applyTerrainSeed(serverState.universe?.worldSeed);
+  applyVisualWorldSeed(serverState.universe?.worldSeed);
   applyEvolutionVisuals();
   age=serverState.worldAge||0; cycle=serverState.cycle||0; epoch=serverState.epoch||'Большой взрыв'; births=serverState.births||0; deaths=serverState.deaths||0;
   document.getElementById('ep').textContent=epoch;
-  for(const a of [...agents]){a.g.removeFromParent();a.alive=false}
-  agents.length=0;settlements.length=0;
-  (serverState.population||[]).slice(0,20).forEach(x=>{const a=agent();a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0;if(Number.isFinite(+x.x)){a.g.position.x=+x.x;a.g.position.z=Number.isFinite(+x.z)?+x.z:0;a.g.position.y=Number.isFinite(+x.y)?+x.y:terrainHeight(a.g.position.x,a.g.position.z);}});
-  (serverState.settlements||[]).forEach((x,i)=>{const a=agents[i%Math.max(1,agents.length)];if(a)house(a)});
+  const incoming=(serverState.population||[]).slice(0,20);
+  const worldChanged=Number(serverState.worldVersion||0)!==appliedWorldVersion;
+  if(worldChanged || agents.length!==incoming.length){
+    for(const a of [...agents]){a.g.removeFromParent();a.alive=false}
+    agents.length=0;settlements.length=0;
+    incoming.forEach(x=>{const a=agent();a.serverId=x.id;a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0;if(Number.isFinite(+x.x)){a.g.position.x=+x.x;a.g.position.z=Number.isFinite(+x.z)?+x.z:0;a.g.position.y=Number.isFinite(+x.y)?+x.y:terrainHeight(a.g.position.x,a.g.position.z);}});
+    (serverState.settlements||[]).forEach((x,i)=>{const a=agents[i%Math.max(1,agents.length)];if(a)house(a)});
+    appliedWorldVersion=Number(serverState.worldVersion||0);
+  }else{
+    incoming.forEach((x,i)=>{const a=agents[i];if(!a)return;a.serverId=x.id;a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0;if(Number.isFinite(+x.x)){a.g.position.x=+x.x;a.g.position.z=Number.isFinite(+x.z)?+x.z:a.g.position.z;a.g.position.y=Number.isFinite(+x.y)?+x.y:terrainHeight(a.g.position.x,a.g.position.z);}});
+  }
   log('AION подключён к постоянному серверному миру. Земля создаётся с нуля. Поколение автономии: '+(evolution.generation||1)+'.');
  }catch(e){serverConnected=false;log('AION Server временно недоступен. Ожидание синхронизации…')}
 }
