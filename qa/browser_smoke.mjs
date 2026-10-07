@@ -27,10 +27,16 @@ await page.goto(url,{waitUntil:"domcontentloaded",timeout:60000}); try{await wai
 await recoverClient();
 snapshots.push({name:"initial",data:await read(),api:await apiRead()}); await page.screenshot({path:"artifacts/01-initial.png"});
 const initial=snapshots[0].data;
+const initialApi=snapshots[0].api;
+const initialVersion=Number(initialApi.worldVersion||0);
 const parseWorldVersion=(s)=>{const m=String(s).match(/Мир:\s*#(\d+)/);return m?Number(m[1]):NaN};
 const button=page.locator("#resetBtn");
 await button.click();
-await page.waitForFunction(()=>document.querySelector("#resetBtn")?.textContent.includes("Новая Земля создана"),{timeout:50000}).catch(()=>{});
+await page.waitForFunction(()=>document.querySelector("#resetBtn")?.textContent.includes("Новая Земля создана"),{timeout:50000});
+await page.waitForFunction(async(v)=>{
+  try{const r=await fetch("https://aion-server-b80c.onrender.com/debug/world",{cache:"no-store"});if(!r.ok)return false;const d=await r.json();return Number(d.worldVersion)>v && Number(d.worldAge)<=1;}
+  catch(e){return false}
+},initialVersion,{timeout:60000,polling:1000});
 await waitForServerHydration();
 await page.waitForTimeout(1000);
 await recoverClient();
@@ -49,18 +55,21 @@ const extractNumber=(s)=>{const m=String(s).replace(/,/g,'.').match(/-?\d+(?:\.\
 const devTime=extractNumber(snapshots[2].data.time);
 const reloadTime=extractNumber(final.time);
 const devYear=extractNumber(snapshots[2].data.year);
-const reloadYear=extractNumber(final.year);
+const reloadYear=extractNumber(final.time);
 const initialTime=extractNumber(initial.time);
 const initialYear=extractNumber(initial.year);
-const timeChanged=(devTime>extractNumber(snapshots[1].data.time)+0.000001)||(devYear>extractNumber(snapshots[1].data.year)+0.000001);
-const resetVersion=parseWorldVersion(snapshots[1].data.state);
-const initialVersion=parseWorldVersion(initial.state);
-const developmentVersion=parseWorldVersion(snapshots[2].data.state);
-const reloadVersion=parseWorldVersion(final.state);
+const resetApi=snapshots[1].api;
+const devApi=snapshots[2].api;
+const reloadApi=snapshots[3].api;
+const timeChanged=Number(devApi.worldAge)>Number(resetApi.worldAge)+0.000001 && Number(devApi.cycle)>Number(resetApi.cycle);
+const resetVersion=Number(resetApi.worldVersion||0);
+const initialVersion=Number(initialApi.worldVersion||0);
+const developmentVersion=Number(devApi.worldVersion||0);
+const reloadVersion=Number(reloadApi.worldVersion||0);
 const initialSeed=(initial.log||"");
-const resetLooksFresh=/Память:\s*\d+ событий/.test(snapshots[1].data.state) && /Мир:\s*#\d+/.test(snapshots[1].data.state) && /Рождение Земли|Пустота|Пробуждение|Зарождение/.test(snapshots[1].data.time);
-const resetChanged=resetLooksFresh && snapshots[1].data.state!==initial.state;
-const persisted=(Math.abs(reloadTime-devTime)<0.0001 && Math.abs(reloadYear-devYear)<0.0001 && final.epoch===snapshots[2].data.epoch);
+const resetLooksFresh=resetVersion>initialVersion && Number(resetApi.worldAge)<=1 && resetApi.epoch!==initialApi.epoch;
+const resetChanged=resetLooksFresh;
+const persisted=(reloadVersion===developmentVersion && Number(reloadApi.worldAge)===Number(devApi.worldAge) && Number(reloadApi.cycle)===Number(devApi.cycle) && final.epoch===snapshots[2].data.epoch);
 const transient502=errors.filter(e=>e.includes("502")).length>0;
 const result={ok:timeChanged && resetChanged && persisted && errors.filter(e=>!e.includes("502")).length===0,
 checks:{no_browser_errors:errors.filter(e=>!e.includes("502")).length===0,world_time_advances:timeChanged,big_bang_resets_world:resetChanged,persistence_after_reload:persisted,transient_server_502:transient502},
