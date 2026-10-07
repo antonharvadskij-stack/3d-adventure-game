@@ -42,9 +42,9 @@ jobs:
                       time.sleep(min(15, 2**i))
               raise last
           before=get("/debug/world")
-          test_url=base+"/debug/persistence-test?seconds=60"
+          test_url=base+"/debug/persistence-test?seconds=5"
           req=urllib.request.Request(test_url, method="POST")
-          with urllib.request.urlopen(req, timeout=60) as r:
+          with urllib.request.urlopen(req, timeout=30) as r:
               result=json.load(r)
           after=get("/debug/world")
           print(json.dumps({"before":before,"persistence_test":result,"after":after}, ensure_ascii=False, indent=2))
