@@ -34,3 +34,5 @@ jobs:
         with:
           name: aion-visual-qa
           path: qa/artifacts/
+
+# force new workflow run
