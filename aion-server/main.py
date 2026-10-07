@@ -72,7 +72,10 @@ def persistence_test(seconds:int=60):
         if w is None:
             w=before
         return autonomous_cycle(w,time.time(),forced_seconds=seconds)[0]
-    advanced=atomic_update(update)
+    # Physics state is process-global; serialize this diagnostic with the
+    # autonomous writer so PyBullet cannot be accessed concurrently.
+    with WORLD_LOCK:
+        advanced=atomic_update(update)
     persisted=load()
     after_snapshot={
         "cycle":advanced.get("cycle",0),
