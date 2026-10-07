@@ -5,6 +5,10 @@ on:
     branches: ["**"]
   workflow_dispatch:
 
+concurrency:
+  group: aion-live-qa
+  cancel-in-progress: false
+
 jobs:
   physics:
     runs-on: ubuntu-22.04
