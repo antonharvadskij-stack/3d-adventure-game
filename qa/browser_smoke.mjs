@@ -19,7 +19,7 @@ const recoverClient=async()=>{
 const read=async()=>({
  state:await page.locator("#state").innerText().catch(()=>""), time:await page.locator("#worldTime").innerText().catch(()=>""), year:await page.locator("#worldElapsed").innerText().catch(()=>""), epoch:await page.locator("#ep").innerText().catch(()=>""), log:await page.locator("#log").innerText().catch(()=>""), 
 });
-const waitForServerHydration=async()=>{await page.waitForFunction(()=>window.__AION_SYNCED===true && !!window.__AION_SERVER_STATE && Number.isFinite(Number(window.__AION_SERVER_STATE.worldVersion)),{timeout:45000,polling:250});};
+const waitForServerHydration=async()=>{await page.waitForFunction(()=>window.__AION_SYNCED===true && !!window.__AION_SERVER_STATE && Number.isFinite(Number(window.__AION_SERVER_STATE.worldVersion)),{timeout:120000,polling:500});};
 const snapshots=[];
 const apiRead=async()=>{const r=await fetch(url+"/debug/world",{cache:"no-store"}); if(!r.ok) throw new Error("debug/world "+r.status); return await r.json();};
 await page.goto(url,{waitUntil:"domcontentloaded",timeout:60000}); await waitForServerHydration();
