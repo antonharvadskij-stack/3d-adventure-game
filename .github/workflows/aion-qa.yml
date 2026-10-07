@@ -22,3 +22,24 @@ jobs:
         run: python -m pip install "numpy<2" "pybullet==3.2.7"
       - name: Run deterministic physics QA
         run: python qa_physics.py
+
+      - name: Live persistence API check
+        env:
+          AION_SERVER_URL: https://aion-server-b80c.onrender.com
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+          base=os.environ["AION_SERVER_URL"]
+          def get(path):
+              with urllib.request.urlopen(base+path, timeout=30) as r:
+                  return json.load(r)
+          before=get("/debug/world")
+          test_url=base+"/debug/persistence-test?seconds=60"
+          req=urllib.request.Request(test_url, method="POST")
+          with urllib.request.urlopen(req, timeout=60) as r:
+              result=json.load(r)
+          after=get("/debug/world")
+          print(json.dumps({"before":before,"persistence_test":result,"after":after}, ensure_ascii=False, indent=2))
+          assert result.get("ok") is True, "persistence-test failed"
+          assert after.get("worldVersion", 0) >= result["after"]["worldVersion"], "live world version did not persist"
+          PY
