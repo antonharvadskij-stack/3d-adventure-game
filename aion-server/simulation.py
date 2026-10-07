@@ -332,5 +332,5 @@ def tick(w,seconds):
   if w["cycle"]%30==0: run_experiment(w)
  choose_long_term_goal(w)
  simulate_physics(w, min(seconds, 0.25))
- w["lastTick"]=time.time();w["updatedAt"]=time.time();w["worldVersion"]=w.get("worldVersion",0)+1;w["history"]=w["history"][-100:]
+ w["lastTick"]=time.time();w["updatedAt"]=time.time();w["history"]=w["history"][-100:]
  return w
