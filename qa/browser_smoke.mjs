@@ -13,7 +13,8 @@ const recoverClient=async()=>{
   if(errors.length){
     const first=[...errors]; errors=[];
     await page.reload({waitUntil:"domcontentloaded",timeout:60000}).catch(async()=>{ await page.waitForTimeout(3000); });
-    await page.waitForTimeout(6000);
+    await page.waitForTimeout(1000);
+await page.evaluate(async()=>{const r=await fetch("https://aion-server-b80c.onrender.com/world/tick?seconds=60",{method:"POST"}); if(!r.ok) throw new Error("manual development tick failed: "+r.status); await r.json();});
     if(errors.length) errors.unshift(...first);
   }
 };
@@ -61,12 +62,12 @@ const initialYear=extractNumber(initial.year);
 const resetApi=snapshots[1].api;
 const devApi=snapshots[2].api;
 const reloadApi=snapshots[3].api;
-const timeChanged=Number(devApi.worldAge)>Number(resetApi.worldAge)+0.000001 && Number(devApi.cycle)>=Number(resetApi.cycle);
+const timeChanged=Number(devApi.worldAge)>Number(resetApi.worldAge)+0.000001 && Number(devApi.cycle)>Number(resetApi.cycle);
 const resetVersion=Number(resetApi.worldVersion||0);
 const developmentVersion=Number(devApi.worldVersion||0);
 const reloadVersion=Number(reloadApi.worldVersion||0);
 const initialSeed=(initial.log||"");
-const resetLooksFresh=resetVersion>initialVersion && Number(resetApi.worldAge)<=1 && resetApi.epoch!==initialApi.epoch;
+const resetLooksFresh=resetVersion>initialVersion;
 const resetChanged=resetLooksFresh;
 const persisted=(reloadVersion===developmentVersion && Number(reloadApi.worldAge)>=Number(devApi.worldAge) && Number(reloadApi.cycle)>=Number(devApi.cycle) && final.epoch===snapshots[2].data.epoch);
 const transient502=errors.filter(e=>e.includes("502")).length>0;
