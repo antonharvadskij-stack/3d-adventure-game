@@ -17,7 +17,7 @@ const recoverClient=async()=>{
   }
 };
 const read=async()=>({
- state:await page.locator("#state").innerText().catch(()=>""), time:await page.locator("#worldTime").innerText().catch(()=>""), year:await page.locator("#worldYear").innerText().catch(()=>""), epoch:await page.locator("#ep").innerText().catch(()=>""), log:await page.locator("#log").innerText().catch(()=>""), 
+ state:await page.locator("#state").innerText().catch(()=>""), time:await page.locator("#worldTime").innerText().catch(()=>""), year:await page.locator("#worldElapsed").innerText().catch(()=>""), epoch:await page.locator("#ep").innerText().catch(()=>""), log:await page.locator("#log").innerText().catch(()=>""), 
 });
 const snapshots=[];
 await page.goto(url,{waitUntil:"networkidle",timeout:60000}); await page.waitForTimeout(6000);
