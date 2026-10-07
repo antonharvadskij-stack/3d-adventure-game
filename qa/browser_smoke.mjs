@@ -24,6 +24,7 @@ await page.goto(url,{waitUntil:"networkidle",timeout:60000}); await page.waitFor
 await recoverClient();
 snapshots.push({name:"initial",data:await read()}); await page.screenshot({path:"artifacts/01-initial.png"});
 const initial=snapshots[0].data;
+const parseWorldVersion=(s)=>{const m=String(s).match(/Мир:\s*#(\d+)/);return m?Number(m[1]):NaN};
 const button=page.locator("#resetBtn"); await button.click(); await page.waitForTimeout(10000);
 snapshots.push({name:"after_big_bang",data:await read()}); await page.screenshot({path:"artifacts/02-after-big-bang.png"});
 await page.waitForTimeout(10000);
@@ -36,11 +37,15 @@ const devTime=extractNumber(snapshots[2].data.time);
 const reloadTime=extractNumber(final.time);
 const devYear=extractNumber(snapshots[2].data.year);
 const reloadYear=extractNumber(final.year);
-const timeChanged=(devTime>0)||(devYear>0)||(snapshots[2].data.time!==initial.time)||(snapshots[2].data.year!==initial.year);
+const resetVersion=parseWorldVersion(snapshots[1].data.state);
+const initialVersion=parseWorldVersion(initial.state);
+const developmentVersion=parseWorldVersion(snapshots[2].data.state);
+const reloadVersion=parseWorldVersion(final.state);
+const resetChanged=Number.isFinite(initialVersion)&&Number.isFinite(resetVersion)&&resetVersion>initialVersion;
 const persisted=(Math.abs(reloadTime-devTime)<0.0001 && Math.abs(reloadYear-devYear)<0.0001 && final.epoch===snapshots[2].data.epoch);
 const transient502=errors.filter(e=>e.includes("502")).length>0;
-const result={ok:timeChanged && persisted && errors.filter(e=>!e.includes("502")).length===0,
-checks:{no_browser_errors:errors.filter(e=>!e.includes("502")).length===0,world_time_advances:timeChanged,persistence_after_reload:persisted,transient_server_502:transient502},
+const result={ok:timeChanged && resetChanged && persisted && errors.filter(e=>!e.includes("502")).length===0,
+checks:{no_browser_errors:errors.filter(e=>!e.includes("502")).length===0,world_time_advances:timeChanged,big_bang_resets_world:resetChanged,persistence_after_reload:persisted,transient_server_502:transient502},
 snapshots,errors};
 fs.writeFileSync("artifacts/aion-lifecycle-report.json",JSON.stringify(result,null,2));
 console.log(JSON.stringify(result,null,2));
