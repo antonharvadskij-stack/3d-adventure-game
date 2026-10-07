@@ -125,6 +125,8 @@ def cycle(world, diagnosis=None):
             apply_action(c,action)
         elif isinstance(action,str):
             apply_discovered_action(c,action)
+        elif isinstance(action,dict):
+            apply_discovered_action(c,action.get("name",""))
         if validate(c):
             candidates.append((score(c)+policy_score_action(policy,goal,action),action,c))
     if not candidates: return before,{"accepted":False,"reason":"no_safe_action","goal":goal}
@@ -336,6 +338,26 @@ def _test_module(world,module):
     before_score=score(before); after_score=score(candidate)
     return after_score>=before_score, {"before":round(before_score,3),"after":round(after_score,3)}
 
+
+def _apply_self_module(world,module):
+    """Apply only validated declarative effects; never eval/exec generated code."""
+    effects=module.get("effects",{})
+    eco=world.setdefault("economy",{"food":100,"water":100,"wood":60,"stone":30,"knowledge":0})
+    society=world.setdefault("society",{"stability":1.0,"happiness":1.0,"knowledge":0})
+    evo=world.setdefault("evolution",{})
+    if "knowledge" in effects:
+        eco["knowledge"]=max(0,eco.get("knowledge",0)+float(effects["knowledge"]))
+    if "stability" in effects:
+        society["stability"]=min(1.5,max(0,society.get("stability",1)+float(effects["stability"])))
+    if "resourceAbundance" in effects:
+        evo["resourceAbundance"]=min(2.0,max(.5,float(evo.get("resourceAbundance",1))*float(effects["resourceAbundance"])))
+    if "terrainScale" in effects:
+        evo["terrainScale"]=min(1.5,max(.5,float(evo.get("terrainScale",1))*float(effects["terrainScale"])))
+    if "fogDistance" in effects:
+        evo["fogDistance"]=min(180,max(30,float(evo.get("fogDistance",90))+float(effects["fogDistance"])))
+    return world
+
+
 def self_develop(world):
     """AION's first self-writing loop: invent -> sandbox -> test -> version -> adopt/rollback."""
     d=world.setdefault("aiDiagnostics",{})
@@ -348,6 +370,7 @@ def self_develop(world):
     module["sandboxTest"]=report
     sd["version"]=module["version"]
     if ok:
+        _apply_self_module(world,module)
         sd["modules"]=(sd.get("modules",[])+[module])[-50:]
         sd["accepted"]=int(sd.get("accepted",0))+1
         world.setdefault("evolution",{})["selfCodeVersion"]=module["version"]
