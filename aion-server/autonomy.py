@@ -395,9 +395,20 @@ def _test_module(world,module):
         elif key in ("resourceAbundance","terrainScale"):
             e[key]=min(2.0,max(0.5,float(e.get(key,1))*float(value)))
     if not validate(candidate):
-        return False, {"reason":"validation_failed"}
+        return False, {"reason":"validation_failed","decision":"rejected","threshold":0.25}
     before_score=score(before); after_score=score(candidate)
-    return after_score>=before_score, {"before":round(before_score,3),"after":round(after_score,3)}
+    delta=after_score-before_score
+    threshold=0.25
+    ok=delta>=threshold
+    return ok, {
+        "before":round(before_score,3),
+        "after":round(after_score,3),
+        "delta":round(delta,3),
+        "threshold":threshold,
+        "validated":True,
+        "decision":"accepted" if ok else "rejected",
+        "reason":"meaningful_improvement" if ok else "insufficient_improvement"
+    }
 
 
 def _apply_self_module(world,module):
@@ -430,6 +441,9 @@ def self_develop(world):
     module["autonomous"]=True
     module["sandboxTest"]=report
     sd["version"]=module["version"]
+    sd["lastCycle"]=int(world.get("cycle",0))
+    sd["lastDecision"]=report.get("decision","rejected")
+    sd["lastTest"]=report
     if ok:
         _apply_self_module(world,module)
         sd["modules"]=(sd.get("modules",[])+[module])[-50:]
