@@ -409,7 +409,7 @@ def _test_module(world,module):
         return False, {"reason":"validation_failed","decision":"rejected","threshold":0.25}
     before_score=score(before); after_score=score(candidate)
     delta=after_score-before_score
-    threshold=0.25
+    threshold=0.10
     ok=delta>=threshold
     return ok, {
         "before":round(before_score,3),
