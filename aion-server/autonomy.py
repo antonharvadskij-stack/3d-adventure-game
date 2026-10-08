@@ -364,10 +364,14 @@ def self_create_mechanic(world):
     mechanic=generate_mechanic(world)
     ok,report=test_mechanic(world,mechanic)
     mechanic.update({"version":len(store)+1,"autonomous":True,"sandboxTest":report,"createdAt":time.time()})
+    d["lastMechanicTest"]=mechanic["sandboxTest"]
+    d["lastMechanicDecision"]="accepted" if ok else "rejected"
     if ok:
         store.append(mechanic)
         world.setdefault("history",[]).append("AION самостоятельно создал игровую механику: "+mechanic["name"])
         world.setdefault("evolution",{})["mechanicVersion"]=mechanic["version"]
+    else:
+        d["rejectedMechanics"]=int(d.get("rejectedMechanics",0))+1
     return ok,mechanic
 
 
