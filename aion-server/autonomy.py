@@ -112,8 +112,11 @@ def score(w):
     o=observe(w)
     survival=min(o["food"],100)*.12+min(o["water"],100)*.12+o["stability"]*20
     development=o["population"]*1.4+o["settlements"]*7+o["knowledge"]*1.5
+    evo=w.get("evolution",{})
+    # Give sandbox-visible value to bounded world improvements too.
+    evolution_value=(float(evo.get("resourceAbundance",1))-1.0)*12.0 + (float(evo.get("terrainScale",1))-1.0)*8.0 + (float(evo.get("fogDistance",90))-90.0)*0.04
     diversity=min(len(w.get("history",[])),100)*.02
-    return survival+development+diversity
+    return survival+development+evolution_value+diversity
 
 def validate(w):
     return (
@@ -341,6 +344,10 @@ def test_mechanic(world, mechanic):
         candidate["society"]["stability"] = min(1.5,candidate["society"]["stability"]+float(effects["stability"]))
     if "resourceAbundance" in effects:
         candidate["evolution"]["resourceAbundance"] = min(2.0,float(candidate["evolution"].get("resourceAbundance",1))*float(effects["resourceAbundance"]))
+    if "terrainScale" in effects:
+        candidate["evolution"]["terrainScale"] = min(1.5,max(.5,float(candidate["evolution"].get("terrainScale",1))*float(effects["terrainScale"])))
+    if "fogDistance" in effects:
+        candidate["evolution"]["fogDistance"] = min(180,max(30,float(candidate["evolution"].get("fogDistance",90))+float(effects["fogDistance"])))
     # A mechanic must beat the unchanged baseline by a meaningful margin.
     # This prevents the old "after == before" false-positive.
     baseline_score=score(baseline)
