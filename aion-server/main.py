@@ -125,6 +125,8 @@ def ai_self_development():
         "accepted":sd.get("accepted",0),
         "rejected":sd.get("rejected",0),
         "latest":sd.get("modules",[])[-1] if sd.get("modules") else None,
+        "lastTest":sd.get("lastTest"),
+        "lastDecision":sd.get("lastDecision"),
         "autonomy":"observe -> invent -> sandbox -> validate -> adopt/rollback"
     }
 
