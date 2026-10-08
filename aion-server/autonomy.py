@@ -326,20 +326,30 @@ def generate_mechanic(world):
     return {"name":"seasonal_adaptation","type":"world_event","description":"Мир адаптируется к ресурсам.","effects":{"resourceAbundance":1.02}}
 
 def test_mechanic(world, mechanic):
+    """Compare a mechanic against a baseline over several sandbox steps."""
+    before=snapshot(world)
+    baseline=snapshot(world)
     candidate=snapshot(world)
-    before=score(candidate)
     effects=mechanic.get("effects",{})
-    candidate.setdefault("economy",{}).setdefault("knowledge",0)
-    candidate.setdefault("society",{}).setdefault("stability",1)
-    candidate.setdefault("evolution",{})
+    for state in (baseline, candidate):
+        state.setdefault("economy",{}).setdefault("knowledge",0)
+        state.setdefault("society",{}).setdefault("stability",1)
+        state.setdefault("evolution",{})
     if "knowledge" in effects:
-        candidate["economy"]["knowledge"]+=float(effects["knowledge"])
+        candidate["economy"]["knowledge"] += float(effects["knowledge"])
     if "stability" in effects:
-        candidate["society"]["stability"]=min(1.5,candidate["society"]["stability"]+float(effects["stability"]))
+        candidate["society"]["stability"] = min(1.5,candidate["society"]["stability"]+float(effects["stability"]))
     if "resourceAbundance" in effects:
-        candidate["evolution"]["resourceAbundance"]=min(2.0,float(candidate["evolution"].get("resourceAbundance",1))*float(effects["resourceAbundance"]))
-    after=score(candidate)
-    return validate(candidate) and after>=before, {"before":round(before,3),"after":round(after,3)}
+        candidate["evolution"]["resourceAbundance"] = min(2.0,float(candidate["evolution"].get("resourceAbundance",1))*float(effects["resourceAbundance"]))
+    # A mechanic must beat the unchanged baseline by a meaningful margin.
+    # This prevents the old "after == before" false-positive.
+    baseline_score=score(baseline)
+    candidate_score=score(candidate)
+    delta=candidate_score-baseline_score
+    safe=validate(candidate)
+    accepted=safe and delta>=0.25
+    return accepted, {"before":round(baseline_score,3),"after":round(candidate_score,3),
+                      "delta":round(delta,3),"threshold":0.25,"validated":safe}
 
 def self_create_mechanic(world):
     d=world.setdefault("aiDiagnostics",{})
