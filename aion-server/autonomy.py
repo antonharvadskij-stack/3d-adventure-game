@@ -454,8 +454,19 @@ def autonomous_cycle(world, now=None, forced_seconds=0):
     obs = observe(world)
     evo = world.setdefault("evolution", {})
     sd = world.setdefault("aiDiagnostics", {}).setdefault("selfDevelopment", {})
-    if not sd.get("modules") or int(sd.get("version", 0)) % 5 == 0:
+    # Run self-development on a real cycle interval. The old version checked
+    # version % 5, which stopped forever after version 5 because the version
+    # only changes when self_develop() runs.
+    last_self_cycle = int(sd.get("lastCycle", -10**9))
+    if not sd.get("modules") or int(world.get("cycle", 0)) - last_self_cycle >= 50:
         self_develop(world)
+        sd["lastCycle"] = int(world.get("cycle", 0))
+    # Gameplay mechanics are also invented/tested in the same bounded sandbox.
+    last_mechanic_cycle = int(world.get("aiDiagnostics", {}).get("lastMechanicCycle", -10**9))
+    if int(world.get("cycle", 0)) - last_mechanic_cycle >= 100:
+        ok, mechanic = self_create_mechanic(world)
+        world["aiDiagnostics"]["lastMechanicCycle"] = int(world.get("cycle", 0))
+        world["aiDiagnostics"]["lastMechanic"] = {"ok": ok, "name": mechanic.get("name"), "version": mechanic.get("version")}
     last_pop = evo.get("lastPolicyPopulation", -1)
     if "activePolicy" not in world.get("aiDiagnostics", {}) or abs(obs["population"] - last_pop) >= 5 or sim_seconds > 0:
         self_improve_policy(world)
