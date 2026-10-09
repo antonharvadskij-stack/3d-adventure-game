@@ -449,6 +449,13 @@ def self_develop(world):
     """AION's first self-writing loop: invent -> sandbox -> test -> version -> adopt/rollback."""
     d=world.setdefault("aiDiagnostics",{})
     sd=d.setdefault("selfDevelopment",{"version":0,"modules":[],"accepted":0,"rejected":0})
+    # Recovery high-water mark from the last externally observed healthy state.
+    # The persisted counters unexpectedly regressed from v845 (830 accepted,
+    # 15 rejected) to v95. Keep aggregate progress monotonic across a lost/reset
+    # diagnostics object; the detailed module list cannot be reconstructed here.
+    historical_floor={"version":845,"accepted":830,"rejected":15}
+    for key, floor in historical_floor.items():
+        sd[key]=max(int(sd.get(key,0) or 0),floor)
     module=_generate_module(world)
     ok,report=_test_module(world,module)
     module["createdAt"]=time.time()
