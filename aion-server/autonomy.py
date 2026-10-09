@@ -387,8 +387,27 @@ def _generate_module(world):
                 "priority":1.35,"effects":{"resourceAbundance":1.025,"stability":0.015},
                 "reason":"Ресурсов недостаточно; усилить устойчивость мира."}
     if o["population"]>=12 and o["settlements"]>=2 and o["knowledge"]>=12:
+        evo=world.get("evolution",{})
+        terrain=float(evo.get("terrainScale",1.0))
+        fog=float(evo.get("fogDistance",90.0))
+        knowledge=float(world.get("economy",{}).get("knowledge",0.0))
+        # Calculate only the remaining useful headroom; do not overshoot caps
+        # or keep awarding score for a nominal effect that cannot be applied.
+        terrain_target=min(1.5,max(0.5,terrain*1.015))
+        terrain_factor=terrain_target/terrain if terrain>0 else 1.0
+        fog_gain=min(2.0,max(0.0,180.0-fog))
+        knowledge_gain=min(0.8,max(0.0,100.0-knowledge))
+        effects={}
+        if terrain_factor>1.000001:
+            effects["terrainScale"]=terrain_factor
+        if fog_gain>0.000001:
+            effects["fogDistance"]=fog_gain
+        if knowledge_gain>0.000001:
+            effects["knowledge"]=knowledge_gain
+        if not effects:
+            effects={"stability":0.005} if float(world.get("society",{}).get("stability",1.0))<1.5 else {}
         return {"kind":"world_rule","name":"civilization_network","goal":"civilization",
-                "priority":1.3,"effects":{"terrainScale":1.015,"fogDistance":2,"knowledge":min(0.8,max(0.0,100.0-float(world.get("economy",{}).get("knowledge",0.0))))},
+                "priority":1.3,"effects":effects,
                 "reason":"Цивилизация готова к расширению связей и территории."}
     return {"kind":"world_rule","name":"exploration_drive","goal":"exploration",
             "priority":1.15,"effects":{"terrainScale":1.01,"knowledge":0.5},
