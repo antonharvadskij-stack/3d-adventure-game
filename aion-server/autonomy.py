@@ -110,8 +110,12 @@ def apply_action(w,action):
 
 def score(w):
     o=observe(w)
+    eco=w.get("economy",{})
     survival=min(o["food"],100)*.12+min(o["water"],100)*.12+o["stability"]*20
-    development=o["population"]*1.4+o["settlements"]*7+o["knowledge"]*1.5
+    # Technology knowledge and the separate economy knowledge stock are both
+    # meaningful, but cap the stock contribution so it cannot dominate scoring.
+    knowledge_stock=min(100.0,max(0.0,float(eco.get("knowledge",0))))
+    development=o["population"]*1.4+o["settlements"]*7+o["knowledge"]*1.5+knowledge_stock*.5
     evo=w.get("evolution",{})
     # Give sandbox-visible value to bounded world improvements too.
     evolution_value=(float(evo.get("resourceAbundance",1))-1.0)*12.0 + (float(evo.get("terrainScale",1))-1.0)*8.0 + (float(evo.get("fogDistance",90))-90.0)*0.04
@@ -406,7 +410,7 @@ def _test_module(world,module):
         elif key in ("resourceAbundance","terrainScale"):
             e[key]=min(2.0,max(0.5,float(e.get(key,1))*float(value)))
     if not validate(candidate):
-        return False, {"reason":"validation_failed","decision":"rejected","threshold":0.25}
+        return False, {"reason":"validation_failed","decision":"rejected","threshold":0.10}
     before_score=score(before); after_score=score(candidate)
     delta=after_score-before_score
     threshold=0.10
