@@ -388,7 +388,7 @@ def _generate_module(world):
                 "reason":"Ресурсов недостаточно; усилить устойчивость мира."}
     if o["population"]>=12 and o["settlements"]>=2 and o["knowledge"]>=12:
         return {"kind":"world_rule","name":"civilization_network","goal":"civilization",
-                "priority":1.3,"effects":{"terrainScale":1.015,"fogDistance":2,"knowledge":0.8},
+                "priority":1.3,"effects":{"terrainScale":1.015,"fogDistance":2,"knowledge":min(0.8,max(0.0,100.0-float(world.get("economy",{}).get("knowledge",0.0))))},
                 "reason":"Цивилизация готова к расширению связей и территории."}
     return {"kind":"world_rule","name":"exploration_drive","goal":"exploration",
             "priority":1.15,"effects":{"terrainScale":1.01,"knowledge":0.5},
