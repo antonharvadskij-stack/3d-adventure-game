@@ -28,7 +28,7 @@ jobs:
           import json, os, time, urllib.request
           base = os.environ["AION_CLIENT_URL"].rstrip("/")
           consecutive = 0
-          for attempt in range(24):
+          for attempt in range(30):
               try:
                   with urllib.request.urlopen(base + "/", timeout=15) as response:
                       html = response.read().decode("utf-8")
@@ -40,13 +40,13 @@ jobs:
                       diagnostics = json.load(response)
                   physics = world.get("physics", {})
                   has_goals = any(isinstance(a.get("goalPosition"), dict) for a in world.get("population", []))
-                  ready = ("camDist=innerWidth<600?160:110" in html and "function rebuildRivers(seed)" in html and "type:'mountain'" in html and "Жители мира: " in html and "W.rotation.y+=dt*.006" not in html and
+                  ready = ("camDist=innerWidth<600?160:110" in html and "function rebuildRivers(seed)" in html and "type:'mountain'" in html and "S.fog.far=Math.max(260,evolution.fogDistance||320)" in html and "road.position.set(roadX,terrainHeight(roadX,roadZ)+.06,roadZ)" in html and "window.__AION_DISABLE_COLLIDER_UPLOAD" in html and "Жители мира: " in html and "W.rotation.y+=dt*.006" not in html and
                            health.get("ok") is True and diagnostics.get("ok") is True and
                            diagnostics.get("database") == "postgresql" and
                            physics.get("terrainCollider") is True and has_goals)
                   consecutive = consecutive + 1 if ready else 0
-                  print(f"Readiness {attempt + 1}/24: ready={ready}, stable={consecutive}/8")
-                  if consecutive >= 8:
+                  print(f"Readiness {attempt + 1}/24: ready={ready}, stable={consecutive}/12")
+                  if consecutive >= 12:
                       print("Stable AION frontend, PostgreSQL, terrain collision and autonomous movement verified")
                       break
               except Exception as exc:
