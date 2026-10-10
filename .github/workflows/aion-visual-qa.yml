@@ -6,7 +6,7 @@ on:
     branches: ["**"]
 
 concurrency:
-  group: aion-live-qa
+  group: aion-visual-qa
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
       - name: Run AION visual smoke test
         working-directory: qa
         env:
-          AION_CLIENT_URL: https://aion-server-b80c.onrender.com
+          AION_CLIENT_URL: https://aion-server-test.onrender.com
         run: npm test
       - name: Publish lifecycle report even on failure
         if: always()
