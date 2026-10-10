@@ -40,7 +40,7 @@ jobs:
                       diagnostics = json.load(response)
                   physics = world.get("physics", {})
                   has_goals = any(isinstance(a.get("goalPosition"), dict) for a in world.get("population", []))
-                  ready = ("camDist=110" in html and "Жители мира: " in html and
+                  ready = ("camDist=110" in html and "Жители мира: " in html and "W.rotation.y+=dt*.006" not in html and
                            health.get("ok") is True and diagnostics.get("ok") is True and
                            diagnostics.get("database") == "postgresql" and
                            physics.get("terrainCollider") is True and has_goals)
