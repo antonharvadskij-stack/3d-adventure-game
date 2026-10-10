@@ -20,29 +20,41 @@ jobs:
       - name: Install browser QA
         working-directory: qa
         run: npm install && npx playwright install --with-deps chromium
-      - name: Wait for the matching frontend and physics deployment
+      - name: Wait for stable frontend and physics deployment
         env:
           AION_CLIENT_URL: https://aion-server-test.onrender.com
         run: |
           python - <<'PY'
           import json, os, time, urllib.request
           base = os.environ["AION_CLIENT_URL"].rstrip("/")
-          for attempt in range(18):
+          consecutive = 0
+          for attempt in range(24):
               try:
                   with urllib.request.urlopen(base + "/", timeout=15) as response:
                       html = response.read().decode("utf-8")
+                  with urllib.request.urlopen(base + "/health", timeout=15) as response:
+                      health = json.load(response)
                   with urllib.request.urlopen(base + "/world", timeout=15) as response:
                       world = json.load(response)
+                  with urllib.request.urlopen(base + "/ai/diagnostics", timeout=15) as response:
+                      diagnostics = json.load(response)
                   physics = world.get("physics", {})
                   has_goals = any(isinstance(a.get("goalPosition"), dict) for a in world.get("population", []))
-                  if "Жители мира: " in html and physics.get("terrainCollider") is True and has_goals:
-                      print("Current HUD, terrain collision and autonomous movement are live")
-                      raise SystemExit(0)
+                  ready = ("camDist=110" in html and "Жители мира: " in html and
+                           health.get("ok") is True and diagnostics.get("ok") is True and
+                           diagnostics.get("database") == "postgresql" and
+                           physics.get("terrainCollider") is True and has_goals)
+                  consecutive = consecutive + 1 if ready else 0
+                  print(f"Readiness {attempt + 1}/24: ready={ready}, stable={consecutive}/8")
+                  if consecutive >= 8:
+                      print("Stable AION frontend, PostgreSQL, terrain collision and autonomous movement verified")
+                      break
               except Exception as exc:
-                  print(f"Readiness attempt {attempt + 1}/18: {exc}")
-              print(f"Waiting for the latest AION deployment ({attempt + 1}/18)")
+                  consecutive = 0
+                  print(f"Readiness {attempt + 1}/24 failed; resetting stability counter: {exc}")
               time.sleep(10)
-          raise SystemExit("Timed out waiting for the expected AION frontend/physics build")
+          else:
+              raise SystemExit("Timed out waiting for stable AION frontend/physics deployment")
           PY
       - name: Run AION visual smoke test
         working-directory: qa
