@@ -7,11 +7,12 @@ fs.mkdirSync("artifacts", { recursive: true });
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+await page.addInitScript(() => { window.__AION_DISABLE_COLLIDER_UPLOAD = true; });
 const errors = [];
 const failedRequests = [];
 page.on("pageerror", e => errors.push("pageerror: " + e.message));
 page.on("requestfailed", r => failedRequests.push(r.url() + " :: " + (r.failure()?.errorText || "unknown")));
-page.on("console", m => { if (m.type() === "error") errors.push("console: " + m.text()); });
+page.on("console", m => { if (m.type() === "error") errors.push("console: " + m.text() + " [" + m.location().url + "]"); });
 
 const inspect = async name => {
   const dom = await page.evaluate(() => {
