@@ -50,7 +50,7 @@ function animal(x,z,type){
 for(let i=0;i<45;i++){const a=Math.random()*Math.PI*2,d=10+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;animal(x,z,i%2?'deer':'boar');}
 for(let i=0;i<36;i++){const m=new THREE.Mesh(mountainGeo,mountainMat);let a=i*2.399,d=18+(i%6)*11;m.position.set(Math.cos(a)*d,3.2,Math.sin(a)*d);m.scale.y=.6+(i%4)*.25;W.add(m);}
 
-const camTarget=new THREE.Vector3(0,0,0);let camYaw=0,camPitch=.62,camDist=55;const agents=[],settlements=[],resources=[],events=[];let age=0,cycle=0,acc=0,epoch='Большой взрыв',deaths=0,births=0;let serverConnected=false;let evolution={visualQuality:1,terrainScale:1,lightIntensity:1,fogDistance:90,colorMood:'natural',generation:1};
+const camTarget=new THREE.Vector3(0,0,0);let camYaw=0,camPitch=.62,camDist=110;const agents=[],settlements=[],resources=[],events=[];let age=0,cycle=0,acc=0,epoch='Большой взрыв',deaths=0,births=0;let serverConnected=false;let evolution={visualQuality:1,terrainScale:1,lightIntensity:1,fogDistance:90,colorMood:'natural',generation:1};
 const names=['Ари','Нова','Тар','Лум','Кай','Сел','Ори','Вен','Мира','Рен','Лио','Эна'];
 function log(t){events.unshift(t);if(events.length>3)events.pop();document.getElementById('log').innerHTML=events.map(e=>'<div class="event">• '+e+'</div>').join('')}
 // AION visual evolution: the server's autonomous strategy is reflected in the live world.
