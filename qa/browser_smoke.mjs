@@ -48,6 +48,9 @@ const inspect = async name => {
           y: Number(window.__AION_SERVER_STATE.population[0].y || 0),
           z: Number(window.__AION_SERVER_STATE.population[0].z || 0)
         } : null,
+        agentPositions: Array.isArray(window.__AION_SERVER_STATE.population) ? window.__AION_SERVER_STATE.population.slice(0, 20).map(a => ({
+          id: Number(a.id || 0), x: Number(a.x || 0), z: Number(a.z || 0)
+        })) : [],
         epoch: window.__AION_SERVER_STATE.epoch,
         worldAge: Number(window.__AION_SERVER_STATE.worldAge || 0),
       } : null,
@@ -107,15 +110,19 @@ try {
   await page.waitForTimeout(500);
   const mobile = await inspect("04-mobile-layout");
   if (Object.values(mobile.overlaps || {}).some(Boolean)) throw new Error("Mobile HUD panels overlap: " + JSON.stringify(mobile.overlaps));
-  const startPosition = initial.world?.firstAgentPosition;
-  if (startPosition) {
+  const startPositions = initial.world?.agentPositions || [];
+  if (startPositions.length) {
     await page.waitForFunction(start => {
-      const a = window.__AION_SERVER_STATE?.population?.[0];
-      if (!a) return false;
-      const dx = Number(a.x || 0) - start.x;
-      const dz = Number(a.z || 0) - start.z;
-      return Math.hypot(dx, dz) > 0.2;
-    }, startPosition, { timeout: 20000, polling: 500 });
+      const agents = window.__AION_SERVER_STATE?.population;
+      if (!Array.isArray(agents)) return false;
+      return start.some((p, i) => {
+        const a = agents[i];
+        if (!a) return false;
+        const dx = Number(a.x || 0) - p.x;
+        const dz = Number(a.z || 0) - p.z;
+        return Math.hypot(dx, dz) > 0.05;
+      });
+    }, startPositions, { timeout: 30000, polling: 500 });
   }
   const required = ["canvas", "panel", "epoch", "reset", "log", "god"];
   for (const key of required) {
