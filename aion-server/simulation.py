@@ -113,13 +113,18 @@ def _ensure_agent_physics(agent,index,world_token):
         agent["x"]=round(math.cos(angle)*rr,4);agent["z"]=round(math.sin(angle)*rr,4)
     x=float(agent["x"]);z=float(agent["z"])
     floor=_terrain_height_at(physics.terrain_seed or 0,x,z)
-    y=float(agent.get("y",floor+.45))
-    if y<floor+.38:y=floor+.42
+    # Agent Y is the rigid body's center, not its feet. Keep the full 1.55-unit
+    # capsule above the terrain so the browser can render its feet at ground level.
+    center_clearance=1.55/2+0.04
+    y=float(agent.get("y",floor+center_clearance))
+    if y<floor+center_clearance:y=floor+center_clearance
     agent["y"]=y
     key=_body_key(agent,world_token)
     existing=physics.position(key)
-    if existing is not None and existing[1]<_terrain_height_at(physics.terrain_seed or 0,existing[0],existing[2])+.38:
-        physics.set_position(key,existing[0],_terrain_height_at(physics.terrain_seed or 0,existing[0],existing[2])+.42,existing[2])
+    if existing is not None:
+        existing_floor=_terrain_height_at(physics.terrain_seed or 0,existing[0],existing[2])
+        if existing[1]<existing_floor+center_clearance:
+            physics.set_position(key,existing[0],existing_floor+center_clearance,existing[2])
     physics.add_body(key,x,y,z,radius=float(agent.get("radius",.38)),mass=1,height=1.55)
 
 def _ensure_world_colliders(w,world_token):
