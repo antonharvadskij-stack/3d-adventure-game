@@ -36,6 +36,7 @@ const inspect = async name => {
       epochText: document.querySelector("#ep")?.innerText || "",
       panelOpen: document.querySelector("#panel")?.classList.contains("open") || false,
       statsVisible: !!document.querySelector("#state") && getComputedStyle(document.querySelector("#state")).display !== "none",
+      connectionLogCount: [...document.querySelectorAll("#log .event")].filter(el => el.textContent.includes("AION подключён к постоянному серверному миру")).length,
       synced: window.__AION_SYNCED === true,
       world: window.__AION_SERVER_STATE ? {
         worldVersion: Number(window.__AION_SERVER_STATE.worldVersion || 0),
@@ -81,6 +82,8 @@ try {
   await page.waitForFunction(() => document.querySelector("#panel")?.classList.contains("open"));
   const hud = await inspect("02-desktop-hud-open");
   if (!hud.statsVisible) throw new Error("HUD toggle did not reveal diagnostics");
+  if (!hud.state.includes("Жители мира:")) throw new Error("HUD population does not report the server world count");
+  if (hud.connectionLogCount > 1) throw new Error("Connection log is being duplicated on polling");
 
   // Exercise camera input without changing server state.
   const canvas = page.locator("canvas");
