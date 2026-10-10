@@ -129,15 +129,28 @@ def simulate_physics(w,seconds):
         if key.startswith("agent:") and key not in active_agents:physics.remove_body(key)
     # Create canonical dynamic bodies once; never teleport them every tick.
     for i,a in enumerate(population):_ensure_agent_physics(a,i,world_token)
-    # AI requests velocity; physics decides the resulting position.
-    for a in population:
+    # Give every inhabitant a persistent bounded exploration target; PyBullet owns motion.
+    for i,a in enumerate(population):
         goal=a.get("target") or a.get("goalPosition")
+        if not isinstance(goal,dict):
+            goal=None
+        if goal is None or math.hypot(float(goal.get("x",a["x"]))-float(a["x"]),
+                                      float(goal.get("z",a["z"]))-float(a["z"]))<1.2:
+            ident=int(a.get("id",i+1) or i+1)
+            phase=(int(w.get("cycle",0))//10+ident)*2.3999632297
+            distance=8.0+(ident%7)*1.5
+            goal={"x":max(-140.0,min(140.0,float(a["x"])+math.cos(phase)*distance)),
+                  "z":max(-140.0,min(140.0,float(a["z"])+math.sin(phase)*distance))}
+            a["goalPosition"]=goal
         key=_body_key(a,world_token)
-        if isinstance(goal,dict):
-            dx=float(goal.get("x",a["x"]))-a["x"];dz=float(goal.get("z",a["z"]))-a["z"];d=(dx*dx+dz*dz)**.5
-            if d>.4:
-                speed=float(a.get("moveSpeed",1.1));physics.set_velocity(key,dx/d*speed,dz/d*speed)
-            else:physics.set_velocity(key,0,0)
+        dx=float(goal.get("x",a["x"]))-float(a["x"])
+        dz=float(goal.get("z",a["z"]))-float(a["z"])
+        d=math.hypot(dx,dz)
+        if d>.4:
+            speed=float(a.get("moveSpeed",1.1))
+            physics.set_velocity(key,dx/d*speed,dz/d*speed)
+        else:
+            physics.set_velocity(key,0,0)
     physics.step(seconds)
     for a in population:
         pos=physics.position(_body_key(a,world_token))
