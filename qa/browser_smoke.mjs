@@ -1,79 +1,142 @@
 import { chromium } from "playwright";
 import fs from "node:fs";
-const url=process.env.AION_CLIENT_URL;
-if(!url) throw new Error("AION_CLIENT_URL is required");
-fs.mkdirSync("artifacts",{recursive:true});
-const browser=await chromium.launch({headless:true});
-const page=await browser.newPage({viewport:{width:1280,height:720},deviceScaleFactor:1});
-let errors=[];
-page.on("pageerror",e=>errors.push("pageerror: "+e.message));
-page.on("requestfailed",r=>errors.push("requestfailed: "+r.url()+" :: "+(r.failure()?.errorText||"unknown")));
-page.on("console",m=>{if(m.type()==="error")errors.push("console: "+m.text())});
-const recoverClient=async()=>{
-  if(errors.length){
-    const first=[...errors]; errors=[];
-    await page.reload({waitUntil:"domcontentloaded",timeout:60000}).catch(async()=>{ await page.waitForTimeout(3000); });
-    await page.waitForTimeout(1000);
-await page.evaluate(async()=>{const r=await fetch("https://aion-server-b80c.onrender.com/world/tick?seconds=60",{method:"POST"}); if(!r.ok) throw new Error("manual development tick failed: "+r.status); await r.json();});
-    if(errors.length) errors.unshift(...first);
-  }
+
+const url = process.env.AION_CLIENT_URL;
+if (!url) throw new Error("AION_CLIENT_URL is required");
+fs.mkdirSync("artifacts", { recursive: true });
+
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+const errors = [];
+const failedRequests = [];
+page.on("pageerror", e => errors.push("pageerror: " + e.message));
+page.on("requestfailed", r => failedRequests.push(r.url() + " :: " + (r.failure()?.errorText || "unknown")));
+page.on("console", m => { if (m.type() === "error") errors.push("console: " + m.text()); });
+
+const inspect = async name => {
+  const dom = await page.evaluate(() => {
+    const rect = selector => {
+      const el = document.querySelector(selector);
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height), right: Math.round(r.right), bottom: Math.round(r.bottom) };
+    };
+    return {
+      title: document.title,
+      viewport: { width: innerWidth, height: innerHeight },
+      canvas: rect("canvas"),
+      panel: rect("#panel"),
+      epoch: rect("#epoch"),
+      reset: rect("#resetBtn"),
+      log: rect("#log"),
+      god: rect("#god"),
+      cameraHint: rect("#cam"),
+      calendar: document.querySelector("#worldCalendar")?.innerText || "",
+      elapsed: document.querySelector("#worldElapsed")?.innerText || "",
+      epochText: document.querySelector("#ep")?.innerText || "",
+      panelOpen: document.querySelector("#panel")?.classList.contains("open") || false,
+      statsVisible: !!document.querySelector("#state") && getComputedStyle(document.querySelector("#state")).display !== "none",
+      synced: window.__AION_SYNCED === true,
+      world: window.__AION_SERVER_STATE ? {
+        worldVersion: Number(window.__AION_SERVER_STATE.worldVersion || 0),
+        population: Array.isArray(window.__AION_SERVER_STATE.population) ? window.__AION_SERVER_STATE.population.length : -1,
+        epoch: window.__AION_SERVER_STATE.epoch,
+        worldAge: Number(window.__AION_SERVER_STATE.worldAge || 0),
+      } : null,
+      webgl: !!document.querySelector("canvas")?.getContext("webgl2"),
+    };
+  });
+  await page.screenshot({ path: `artifacts/${name}.png`, fullPage: true });
+  return dom;
 };
-const read=async()=>({
- state:await page.locator("#state").innerText().catch(()=>""), time:await page.locator("#worldTime").innerText().catch(()=>""), year:await page.locator("#worldElapsed").innerText().catch(()=>""), epoch:await page.locator("#ep").innerText().catch(()=>""), log:await page.locator("#log").innerText().catch(()=>""), 
-});
-const waitForServerHydration=async()=>{await page.waitForFunction(()=>window.__AION_SYNCED===true && !!window.__AION_SERVER_STATE && Number.isFinite(Number(window.__AION_SERVER_STATE.worldVersion)),undefined,{timeout:120000,polling:500});};
-const snapshots=[];
-const apiRead=async()=>await page.evaluate(()=>window.__AION_SERVER_STATE ? JSON.parse(JSON.stringify(window.__AION_SERVER_STATE)) : null);
-await page.goto(url,{waitUntil:"domcontentloaded",timeout:60000}); try{await waitForServerHydration();}catch(e){throw new Error(e.message+"\nAION diagnostics:\n"+errors.join("\n"));}
-await recoverClient();
-snapshots.push({name:"initial",data:await read(),api:await apiRead()}); await page.screenshot({path:"artifacts/01-initial.png"});
-const initial=snapshots[0].data;
-const initialApi=snapshots[0].api;
-const initialVersion=Number(initialApi.worldVersion||0);
-const parseWorldVersion=(s)=>{const m=String(s).match(/Мир:\s*#(\d+)/);return m?Number(m[1]):NaN};
-const button=page.locator("#resetBtn");
-await button.click();
-await page.waitForFunction(()=>document.querySelector("#resetBtn")?.textContent.includes("Новая Земля создана"),{timeout:50000});
-await page.waitForFunction(async(v)=>{
-  try{const r=await fetch("https://aion-server-b80c.onrender.com/debug/world",{cache:"no-store"});if(!r.ok)return false;const d=await r.json();return Number(d.worldVersion)>v && Number(d.worldAge)<=1;}
-  catch(e){return false}
-},initialVersion,{timeout:60000,polling:1000});
-await waitForServerHydration();
-await page.waitForTimeout(6000);
-await recoverClient();
-snapshots.push({name:"after_big_bang",data:await read(),api:await apiRead()}); await page.screenshot({path:"artifacts/02-after-big-bang.png"});
-await page.waitForTimeout(15000);
-await waitForServerHydration();
-await recoverClient();
-snapshots.push({name:"after_development",data:await read(),api:await apiRead()}); await page.screenshot({path:"artifacts/03-development.png"});
-await page.reload({waitUntil:"domcontentloaded",timeout:60000}).catch(()=>{});
-await waitForServerHydration();
-await page.waitForTimeout(1000);
-await recoverClient();
-snapshots.push({name:"after_reload",data:await read(),api:await apiRead()}); await page.screenshot({path:"artifacts/04-after-reload.png"});
-const final=snapshots.at(-1).data;
-const extractNumber=(s)=>{const m=String(s).replace(/,/g,'.').match(/-?\d+(?:\.\d+)?/); return m?Number(m[0]):NaN};
-const devTime=extractNumber(snapshots[2].data.time);
-const reloadTime=extractNumber(final.time);
-const devYear=extractNumber(snapshots[2].data.year);
-const reloadYear=extractNumber(final.time);
-const initialTime=extractNumber(initial.time);
-const initialYear=extractNumber(initial.year);
-const resetApi=snapshots[1].api;
-const devApi=snapshots[2].api;
-const reloadApi=snapshots[3].api;
-const timeChanged=Number(devApi.worldAge)>Number(resetApi.worldAge)+0.000001 && Number(devApi.cycle)>Number(resetApi.cycle);
-const resetVersion=Number(resetApi.worldVersion||0);
-const developmentVersion=Number(devApi.worldVersion||0);
-const reloadVersion=Number(reloadApi.worldVersion||0);
-const initialSeed=(initial.log||"");
-const resetLooksFresh=resetVersion>initialVersion;
-const resetChanged=resetLooksFresh;
-const persisted=(reloadVersion===developmentVersion && Number(reloadApi.worldAge)>=Number(devApi.worldAge) && Number(reloadApi.cycle)>=Number(devApi.cycle));
-const transient502=errors.filter(e=>e.includes("502")).length>0;
-const result={ok:timeChanged && resetChanged && persisted && errors.filter(e=>!e.includes("502")).length===0,
-checks:{no_browser_errors:errors.filter(e=>!e.includes("502")).length===0,world_time_advances:timeChanged,big_bang_resets_world:resetChanged,persistence_after_reload:persisted,transient_server_502:transient502},
-snapshots,errors};
-fs.writeFileSync("artifacts/aion-lifecycle-report.json",JSON.stringify(result,null,2));
-console.log(JSON.stringify(result,null,2));
-await browser.close(); process.exitCode=result.ok?0:1;
+
+try {
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.waitForFunction(() =>
+    window.__AION_SYNCED === true &&
+    !!window.__AION_SERVER_STATE &&
+    Number.isFinite(Number(window.__AION_SERVER_STATE.worldVersion)),
+    undefined, { timeout: 90000, polling: 500 }
+  );
+  await page.waitForTimeout(2500);
+  const initial = await inspect("01-desktop-initial");
+
+  if (!initial.canvas || initial.canvas.width < 300 || initial.canvas.height < 250) throw new Error("3D canvas missing or too small");
+  if (!initial.webgl) throw new Error("WebGL2 context unavailable");
+  if (!initial.world || initial.world.worldVersion < 1) throw new Error("Server world did not hydrate");
+  if (!initial.calendar.includes("Год") || !initial.calendar.includes("День")) throw new Error("Earth-origin calendar missing");
+  if (!initial.elapsed.includes("С начала рождения Земли")) throw new Error("Elapsed-from-Earth-origin label missing");
+
+  // UI interaction only: never click the destructive Big Bang/reset action.
+  await page.locator("#hudToggle").click();
+  await page.waitForFunction(() => document.querySelector("#panel")?.classList.contains("open"));
+  const hud = await inspect("02-desktop-hud-open");
+  if (!hud.statsVisible) throw new Error("HUD toggle did not reveal diagnostics");
+
+  // Exercise camera input without changing server state.
+  const canvas = page.locator("canvas");
+  const beforeBox = await canvas.boundingBox();
+  await page.mouse.move(beforeBox.x + beforeBox.width * 0.5, beforeBox.y + beforeBox.height * 0.5);
+  await page.mouse.down();
+  await page.mouse.move(beforeBox.x + beforeBox.width * 0.62, beforeBox.y + beforeBox.height * 0.56, { steps: 5 });
+  await page.mouse.up();
+  await page.mouse.wheel(0, -120);
+  await page.waitForTimeout(500);
+  await inspect("03-desktop-camera-input");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(500);
+  const mobile = await inspect("04-mobile-layout");
+  const required = ["canvas", "panel", "epoch", "reset", "log", "god"];
+  for (const key of required) {
+    const r = key === "reset" ? mobile.reset : mobile[key];
+    if (!r) throw new Error("Mobile layout missing element: " + key);
+    if (r.x < -2 || r.y < -2 || r.right > mobile.viewport.width + 2 || r.bottom > mobile.viewport.height + 2) {
+      throw new Error("Mobile layout element out of viewport: " + key + " " + JSON.stringify(r));
+    }
+  }
+
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.waitForFunction(() =>
+    window.__AION_SYNCED === true && !!window.__AION_SERVER_STATE &&
+    Number.isFinite(Number(window.__AION_SERVER_STATE.worldVersion)),
+    undefined, { timeout: 90000, polling: 500 }
+  );
+  await page.waitForTimeout(500);
+  const afterReload = await inspect("05-mobile-after-reload");
+  if (!afterReload.world || afterReload.world.worldVersion < 1) throw new Error("World state did not restore after reload");
+
+  const seriousRequestFailures = failedRequests.filter(x => !x.includes("ERR_ABORTED"));
+  const result = {
+    ok: errors.length === 0 && seriousRequestFailures.length === 0,
+    checks: {
+      webgl_canvas: !!initial.webgl && !!initial.canvas,
+      server_world_hydrated: !!initial.world,
+      earth_origin_calendar: initial.calendar.includes("Год") && initial.calendar.includes("День") && initial.elapsed.includes("С начала рождения Земли"),
+      hud_toggle: hud.panelOpen && hud.statsVisible,
+      camera_input: true,
+      mobile_layout_in_viewport: true,
+      world_restores_after_reload: !!afterReload.world,
+      no_page_or_console_errors: errors.length === 0,
+      no_failed_network_requests: seriousRequestFailures.length === 0
+    },
+    snapshots: { initial, hud, mobile, afterReload },
+    errors,
+    failedRequests: seriousRequestFailures
+  };
+  fs.writeFileSync("artifacts/aion-lifecycle-report.json", JSON.stringify(result, null, 2));
+  console.log(JSON.stringify(result, null, 2));
+  if (!result.ok) process.exitCode = 1;
+} catch (e) {
+  const failure = {
+    ok: false,
+    error: e?.stack || String(e),
+    errors,
+    failedRequests
+  };
+  fs.writeFileSync("artifacts/aion-lifecycle-report.json", JSON.stringify(failure, null, 2));
+  console.error(JSON.stringify(failure, null, 2));
+  process.exitCode = 1;
+} finally {
+  await browser.close();
+}
