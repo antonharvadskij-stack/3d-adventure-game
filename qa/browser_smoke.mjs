@@ -55,8 +55,10 @@ const inspect = async name => {
           const population = Array.isArray(window.__AION_SERVER_STATE.population) ? window.__AION_SERVER_STATE.population : [];
           const agents = population.slice(0, 20).map(a => ({ id: Number(a.id), x: Number(a.x), y: Number(a.y), z: Number(a.z) }));
           const finite = agents.filter(a => Number.isFinite(a.x) && Number.isFinite(a.y) && Number.isFinite(a.z));
-          const hasTerrain = typeof window.terrainHeight === "function";
-          const belowTerrain = hasTerrain ? finite.filter(a => a.y - window.terrainHeight(a.x, a.z) < 0.20).map(a => a.id) : [];
+          const terrainHeight = window.__AION_TERRAIN_HEIGHT;
+          const hasTerrain = typeof terrainHeight === "function";
+          // Server Y is the agent's body-center height; rendered feet are center minus half-height (1.55 / 2).
+          const belowTerrain = hasTerrain ? finite.filter(a => (a.y - 0.775) - terrainHeight(a.x, a.z) < -0.15).map(a => a.id) : [];
           const separations = [];
           for (let i = 0; i < finite.length; i++) for (let j = i + 1; j < finite.length; j++) {
             separations.push({ a: finite[i].id, b: finite[j].id, distance: Math.hypot(finite[i].x-finite[j].x, finite[i].y-finite[j].y, finite[i].z-finite[j].z) });
