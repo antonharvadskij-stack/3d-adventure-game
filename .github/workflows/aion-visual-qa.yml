@@ -60,7 +60,18 @@ jobs:
         working-directory: qa
         env:
           AION_CLIENT_URL: https://aion-server-test.onrender.com
-        run: npm test
+        run: |
+          for attempt in 1 2 3; do
+            echo "AION browser QA attempt $attempt/3"
+            if npm test; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Browser QA failed; wait for any in-progress deployment to settle, then retry."
+              sleep 20
+            fi
+          done
+          exit 1
       - name: Publish lifecycle report even on failure
         if: always()
         run: cat qa/artifacts/aion-lifecycle-report.json || true
