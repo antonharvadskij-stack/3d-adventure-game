@@ -20,6 +20,20 @@ jobs:
       - name: Install browser QA
         working-directory: qa
         run: npm install && npx playwright install --with-deps chromium
+      - name: Wait for the matching frontend deployment
+        env:
+          AION_CLIENT_URL: https://aion-server-test.onrender.com
+        run: |
+          for attempt in $(seq 1 18); do
+            if curl -fsS "$AION_CLIENT_URL/" | grep -q 'z-index:10;pointer-events:none'; then
+              echo "AION frontend with the HUD overlay fix is live"
+              exit 0
+            fi
+            echo "Frontend deployment not visible yet (attempt $attempt/18); waiting 10 seconds"
+            sleep 10
+          done
+          echo "Timed out waiting for the expected AION frontend build" >&2
+          exit 1
       - name: Run AION visual smoke test
         working-directory: qa
         env:
