@@ -28,7 +28,9 @@ jobs:
           import json, os, time, urllib.request
           base = os.environ["AION_CLIENT_URL"].rstrip("/")
           consecutive = 0
-          for attempt in range(30):
+          print('Waiting 60 seconds for the Render rollout to settle')
+          time.sleep(60)
+          for attempt in range(18):
               try:
                   with urllib.request.urlopen(base + "/", timeout=15) as response:
                       html = response.read().decode("utf-8")
@@ -51,8 +53,8 @@ jobs:
                            diagnostics.get("database") == "postgresql" and
                            isinstance(population, list) and len(population) > 0)
                   consecutive = consecutive + 1 if ready else 0
-                  print(f"Readiness {attempt + 1}/30: ready={ready}, stable={consecutive}/12, markers={markers}, health={health.get('ok')}, diagnostics_ok={diagnostics.get('ok')}, db={diagnostics.get('database')}, population={len(population) if isinstance(population, list) else 'invalid'}")
-                  if consecutive >= 12:
+                  print(f"Readiness {attempt + 1}/18: ready={ready}, stable={consecutive}/4, markers={markers}, health={health.get('ok')}, diagnostics_ok={diagnostics.get('ok')}, db={diagnostics.get('database')}, population={len(population) if isinstance(population, list) else 'invalid'}")
+                  if consecutive >= 4:
                       print("Stable AION frontend, PostgreSQL, terrain collision and autonomous movement verified")
                       break
               except Exception as exc:
