@@ -217,7 +217,7 @@ async function bigBang(){
   ++aionLoadSeq;
   await new Promise(r=>setTimeout(r,300));
   await loadAION();
-  setTimeout(uploadPhysicsColliders,300);
+  if(!window.__AION_DISABLE_COLLIDER_UPLOAD)setTimeout(uploadPhysicsColliders,300);
   W.visible=true;
   b.textContent='🌍 Новая Земля создана';
   log('🌍 Новая Земля создана. AION начинает развитие мира.');
@@ -261,7 +261,7 @@ async function loadAION(){
 
 async function uploadPhysicsColliders(){try{const colliders=staticColliders.map((s,i)=>({id:s.id||(`${s.type||'object'}-${i}`),x:s.g.position.x,y:s.g.position.y,z:s.g.position.z,radius:s.radius||.5,height:s.height||1}));await aionFetch('/physics/colliders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({colliders}),cache:'no-store'});}catch(e){}}
 
-document.getElementById('resetBtn').addEventListener('click',bigBang);setTimeout(()=>{loadAION();setTimeout(uploadPhysicsColliders,1800)},1200); setInterval(loadAION,5000);
+document.getElementById('resetBtn').addEventListener('click',bigBang);setTimeout(()=>{loadAION();if(!window.__AION_DISABLE_COLLIDER_UPLOAD)setTimeout(uploadPhysicsColliders,1800)},1200); setInterval(loadAION,5000);
 function persist(){return Promise.resolve()}
 function reproduce(){let L=live().filter(a=>a.age>18&&a.food>55);if(L.length<2||L.length>=20)return;if(Math.random()<.12){let p=L[Math.floor(Math.random()*L.length)],q=L[Math.floor(Math.random()*L.length)];if(p!==q&&p.g.position.distanceTo(q.g.position)<4){const c=agent();c.g.position.copy(p.g.position);c.home=p.home? p.home.clone():null;c.g.position.y=terrainHeight(c.g.position.x,c.g.position.z);p.partner=q.name;p.children++;q.children++;log(p.name+' и '+q.name+' создали семью. Родилось новое поколение.')}}}
 
