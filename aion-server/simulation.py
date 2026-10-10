@@ -98,12 +98,29 @@ def _world_token(w):
 def _body_key(agent,world_token):
     return f"agent:{world_token}:{agent.get('id')}"
 
+def _terrain_height_at(seed,x,z):
+    seed=int(seed or 0)
+    k=(seed%100000)/100000.0
+    base=(math.sin(x*.045)*1.8+math.cos(z*.052)*1.5+
+          math.sin((x+z)*.085)*1.1+math.sin(x*.17-z*.11)*.55)
+    return max(-1.15,base*.7+
+               math.sin(x*(.021+k*.02)+seed*.000001)*.65+
+               math.cos(z*(.027+k*.015)-seed*.0000013)*.55)-.05
+
 def _ensure_agent_physics(agent,index,world_token):
     if "x" not in agent:
         angle=index*2.3999632297; rr=2.5+(index%7)*.8
-        agent["x"]=round(math.cos(angle)*rr,4);agent["z"]=round(math.sin(angle)*rr,4);agent["y"]=.9
-    physics.add_body(_body_key(agent,world_token),float(agent["x"]),float(agent.get("y",.9)),float(agent["z"]),
-                     radius=float(agent.get("radius",.38)),mass=1,height=1.55)
+        agent["x"]=round(math.cos(angle)*rr,4);agent["z"]=round(math.sin(angle)*rr,4)
+    x=float(agent["x"]);z=float(agent["z"])
+    floor=_terrain_height_at(physics.terrain_seed or 0,x,z)
+    y=float(agent.get("y",floor+.45))
+    if y<floor+.38:y=floor+.42
+    agent["y"]=y
+    key=_body_key(agent,world_token)
+    existing=physics.position(key)
+    if existing is not None and existing[1]<_terrain_height_at(physics.terrain_seed or 0,existing[0],existing[2])+.38:
+        physics.set_position(key,existing[0],_terrain_height_at(physics.terrain_seed or 0,existing[0],existing[2])+.42,existing[2])
+    physics.add_body(key,x,y,z,radius=float(agent.get("radius",.38)),mass=1,height=1.55)
 
 def _ensure_world_colliders(w,world_token):
     universe=w.get("universe",{}) if isinstance(w.get("universe",{}),dict) else {}
