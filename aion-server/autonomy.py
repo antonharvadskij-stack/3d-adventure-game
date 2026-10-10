@@ -539,7 +539,8 @@ def autonomous_cycle(world, now=None, forced_seconds=0):
     # version % 5, which stopped forever after version 5 because the version
     # only changes when self_develop() runs.
     last_self_cycle = int(sd.get("lastCycle", -10**9))
-    if not sd.get("modules") or int(world.get("cycle", 0)) - last_self_cycle >= 50:
+    # A deferred first attempt counts as a completed search cycle; avoid retrying on every tick.
+    if (not sd.get("modules") and not sd.get("lastTest")) or int(world.get("cycle", 0)) - last_self_cycle >= 50:
         self_develop(world)
         sd["lastCycle"] = int(world.get("cycle", 0))
     # Gameplay mechanics are also invented/tested in the same bounded sandbox.
