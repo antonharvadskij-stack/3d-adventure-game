@@ -1,18 +1,18 @@
 <!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>AION — Живая Вселенная V6</title><style>
-html,body{margin:0;height:100%;overflow:hidden;background:#02040a;color:#fff;font-family:system-ui}canvas{display:block}#ui{position:fixed;inset:0;pointer-events:none}#cam{position:absolute;left:14px;bottom:205px;pointer-events:auto;display:flex;gap:7px;align-items:center;background:#050810e8;border:1px solid #ffffff22;border-radius:14px;padding:8px}.camBtn{pointer-events:auto;border:1px solid #ffffff22;border-radius:9px;background:#101725;color:#fff;padding:8px 11px;font-size:16px;cursor:pointer}.camBtn:active{transform:scale(.96)}#zoom{width:110px;accent-color:#65e7ff}#resetBtn{position:absolute;right:14px;top:92px;pointer-events:auto;border:1px solid #ffffff33;border-radius:12px;background:#120b10e8;color:#fff;padding:10px 12px;font-weight:700;cursor:pointer}#panel{position:absolute;left:10px;top:10px;background:#050810d9;border:1px solid #ffffff22;border-radius:12px;padding:7px 9px;backdrop-filter:blur(8px);min-width:0}#panel b{font-size:14px}#state{display:none;margin-top:7px;font-size:11px;line-height:1.35;max-width:220px}#panel.open #state{display:block}#worldTime{font-size:11px;line-height:1.2}#worldTime strong{font-size:16px}#epoch{position:absolute;right:14px;top:14px;background:#050810e8;border:1px solid #ffffff22;border-radius:16px;padding:13px;min-width:180px}#log{position:absolute;left:10px;bottom:10px;width:min(88vw,360px);max-height:78px;overflow:hidden;background:#050810c9;border:1px solid #ffffff18;border-radius:11px;padding:7px 9px;font-size:11px}.event{margin:4px 0;color:#c7d5e5}#god{position:absolute;right:14px;bottom:14px;background:#050810dd;border:1px solid #ffffff22;border-radius:14px;padding:12px;max-width:250px}.meter{height:5px;background:#222;border-radius:9px;margin-top:3px}.fill{height:100%;background:#65e7ff;border-radius:9px}</style></head><body><div id="ui"><div id="cam"><small>🖐 Свайп — обзор · колесо/щипок — масштаб</small></div><div id="panel"><b id="hudToggle">🤖 AION</b><div id="state"></div><div id="worldTime">🌍 <strong id="worldCalendar">Эпоха: Рождение Земли · Год 1 · День 1 · 00:00:00</strong><br><small id="worldElapsed">С начала рождения Земли: 0 лет</small></div></div><div id="epoch"><small>ЭПОХА</small><br><strong id="ep">Большой взрыв</strong></div><div id="god">👁️ <b>Аватар Бога</b><br><small>Мир развивается самостоятельно. Наблюдай.</small></div><button id="resetBtn">💥 Большой взрыв</button><div id="log"></div></div>
+html,body{margin:0;height:100%;overflow:hidden;background:#02040a;color:#fff;font-family:system-ui}canvas{display:block}#ui{position:fixed;inset:0;z-index:10;pointer-events:none}#cam{position:absolute;left:14px;bottom:205px;pointer-events:auto;display:flex;gap:7px;align-items:center;background:#050810e8;border:1px solid #ffffff22;border-radius:14px;padding:8px}.camBtn{pointer-events:auto;border:1px solid #ffffff22;border-radius:9px;background:#101725;color:#fff;padding:8px 11px;font-size:16px;cursor:pointer}.camBtn:active{transform:scale(.96)}#zoom{width:110px;accent-color:#65e7ff}#resetBtn{position:absolute;right:14px;top:92px;pointer-events:auto;border:1px solid #ffffff33;border-radius:12px;background:#120b10e8;color:#fff;padding:10px 12px;font-weight:700;cursor:pointer}#panel{position:absolute;left:10px;top:10px;pointer-events:auto;background:#050810d9;border:1px solid #ffffff22;border-radius:12px;padding:7px 9px;backdrop-filter:blur(8px);min-width:0}#panel b{font-size:14px}#hudToggle{cursor:pointer;}#state{display:none;margin-top:7px;font-size:11px;line-height:1.35;max-width:220px}#panel.open #state{display:block}#worldTime{font-size:11px;line-height:1.2}#worldTime strong{font-size:16px}#epoch{position:absolute;right:14px;top:14px;background:#050810e8;border:1px solid #ffffff22;border-radius:16px;padding:13px;min-width:180px}#log{position:absolute;left:10px;bottom:10px;width:min(88vw,360px);max-height:78px;overflow:hidden;background:#050810c9;border:1px solid #ffffff18;border-radius:11px;padding:7px 9px;font-size:11px}.event{margin:4px 0;color:#c7d5e5}#god{position:absolute;right:14px;bottom:14px;background:#050810dd;border:1px solid #ffffff22;border-radius:14px;padding:12px;max-width:250px}.meter{height:5px;background:#222;border-radius:9px;margin-top:3px}.fill{height:100%;background:#65e7ff;border-radius:9px}@media(max-width:600px){#panel{left:10px;right:10px;width:auto;max-width:none}#worldTime strong{font-size:14px}#epoch{top:220px;left:10px;right:auto;min-width:0;width:140px;padding:8px}#resetBtn{top:220px;right:10px;width:154px;padding:10px 8px}#cam{left:14px;max-width:calc(100vw - 28px);padding:7px}#god{left:10px;right:10px;bottom:100px;max-width:none;padding:9px 12px}#log{left:10px;right:10px;bottom:10px;width:auto;max-height:62px;padding:6px 8px}}</style></head><body><div id="ui"><div id="cam"><small>🖐 Свайп — обзор · колесо/щипок — масштаб</small></div><div id="panel"><b id="hudToggle">🤖 AION</b><div id="state"></div><div id="worldTime">🌍 <strong id="worldCalendar">Эпоха: Рождение Земли · Год 1 · День 1 · 00:00:00</strong><br><small id="worldElapsed">С начала рождения Земли: 0 лет</small></div></div><div id="epoch"><small>ЭПОХА</small><br><strong id="ep">Большой взрыв</strong></div><div id="god">👁️ <b>Аватар Бога</b><br><small>Мир развивается самостоятельно. Наблюдай.</small></div><button id="resetBtn">💥 Большой взрыв</button><div id="log"></div></div>
 <script type="module">import*as THREE from'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
-const S=new THREE.Scene();S.background=new THREE.Color(0x02040a);S.fog=new THREE.Fog(0x02040a,70,110);
+const S=new THREE.Scene();S.background=new THREE.Color(0x02040a);S.fog=new THREE.Fog(0x02040a,55,260);
 const stars=new THREE.Points(new THREE.BufferGeometry(),new THREE.PointsMaterial({color:0xffffff,size:.11,sizeAttenuation:true}));const starPos=[];for(let i=0;i<900;i++){const r=90+Math.random()*70,a=Math.random()*Math.PI*2,b=Math.acos(2*Math.random()-1);starPos.push(r*Math.sin(b)*Math.cos(a),r*Math.cos(b),r*Math.sin(b)*Math.sin(a));}stars.geometry.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));S.add(stars);
 const C=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,.1,1400);C.position.set(0,210,285);
 const R=new THREE.WebGLRenderer({antialias:true});R.setSize(innerWidth,innerHeight);R.setPixelRatio(Math.min(devicePixelRatio,1.6));document.body.appendChild(R.domElement);
-S.add(new THREE.HemisphereLight(0x9db9ff,0x101810,1.8));const sun=new THREE.DirectionalLight(0xffffff,2.2);sun.position.set(15,25,10);S.add(sun);
+S.add(new THREE.HemisphereLight(0x9db9ff,0x101810,2.1));const sun=new THREE.DirectionalLight(0xffffff,2.2);sun.position.set(15,25,10);S.add(sun);
 const W=new THREE.Group();S.add(W);
 const ocean=new THREE.Mesh(new THREE.PlaneGeometry(320,320,1,1),new THREE.MeshStandardMaterial({color:0x123c61,roughness:.58,metalness:.06}));
 ocean.rotation.x=-Math.PI/2;ocean.position.y=-1.15;W.add(ocean);
 const geo=new THREE.PlaneGeometry(300,300,128,128), pos=geo.attributes.position;
 for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getY(i);const n=Math.sin(x*.045)*1.8+Math.cos(z*.052)*1.5+Math.sin((x+z)*.085)*1.1+Math.sin(x*.17-z*.11)*.55;const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;let h=n*.7+(continent>.05?(continent-.05)*5.0:continent*.35);h=Math.max(-1.15,h);pos.setZ(i,h);}
 let terrainSeed=0;
-function applyTerrainSeed(seed){seed=Number(seed)||0;if(!seed||seed===terrainSeed)return;terrainSeed=seed;const k=(seed%100000)/100000;for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getY(i),base=Math.sin(x*.045)*1.8+Math.cos(z*.052)*1.5+Math.sin((x+z)*.085)*1.1+Math.sin(x*.17-z*.11)*.55;pos.setZ(i,Math.max(-1.15,base*.7+Math.sin(x*(.021+k*.02)+seed*.000001)*.65+Math.cos(z*(.027+k*.015)-seed*.0000013)*.55));}geo.computeVertexNormals();}
+function applyTerrainSeed(seed){seed=Number(seed)||0;if(!seed||seed===terrainSeed)return;terrainSeed=seed;const k=(seed%100000)/100000;for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getY(i),base=Math.sin(x*.045)*1.8+Math.cos(z*.052)*1.5+Math.sin((x+z)*.085)*1.1+Math.sin(x*.17-z*.11)*.55;pos.setZ(i,Math.max(-1.15,base*.7+Math.sin(x*(.021+k*.02)+seed*.000001)*.65+Math.cos(z*(.027+k*.015)-seed*.0000013)*.55));}pos.needsUpdate=true;geo.computeVertexNormals();geo.computeBoundingBox();geo.computeBoundingSphere();const colorAttr=geo.getAttribute('color');if(colorAttr){const c=new THREE.Color();for(let i=0;i<pos.count;i++){const h=pos.getZ(i),x=pos.getX(i),z=pos.getY(i);if(h<-.35)c.setHex(0x3f7078);else if(h<.08)c.setHex(0xb5a477);else if(h<1.8)c.setHex((Math.sin(x*.06)+Math.cos(z*.05))>.2?0x4f7f45:0x6f8d4e);else if(h<3.25)c.setHex(0x718b62);else c.setHex(0xc0c5c2);colorAttr.setXYZ(i,c.r,c.g,c.b);}colorAttr.needsUpdate=true;}rebuildRivers(seed);}
 geo.computeVertexNormals();
 const groundMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.88,metalness:.01});applyTerrainSeed(terrainSeed);const colors=new Float32Array(pos.count*3);for(let i=0;i<pos.count;i++){const h=pos.getZ(i),x=pos.getX(i),z=pos.getY(i),c=new THREE.Color();if(h<-.15)c.setHex(0x6f9360);else if(h<.8)c.setHex((Math.sin(x*.06)+Math.cos(z*.05))>.2?0x4f7f45:0x6f8d4e);else if(h<2.3)c.setHex(0x718b62);else c.setHex(0x87918b);colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;}geo.setAttribute('color',new THREE.BufferAttribute(colors,3));const ground=new THREE.Mesh(geo,groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=-.05;W.add(ground);
 const shore=new THREE.Mesh(new THREE.PlaneGeometry(300,300,1,1),new THREE.MeshStandardMaterial({color:0x8aa36a,transparent:true,opacity:.18,roughness:1}));shore.rotation.x=-Math.PI/2;shore.position.y=.02;W.add(shore);
@@ -24,10 +24,53 @@ const staticColliders=[];
 const vegetationSeeded=Math.sin((terrainSeed||1)*0.00017);
 for(let i=0;i<180;i++){const a=Math.random()*Math.PI*2,d=8+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=Math.sin(x*.045+vegetationSeeded)*1.8+Math.cos(z*.052-vegetationSeeded)*1.5+Math.sin((x+z)*.085+vegetationSeeded)*1.1+Math.sin(x*.17-z*.11)*.55;const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;if(h>-.15&&continent>.05){const g=new THREE.Group();const t=new THREE.Mesh(treeTrunk,new THREE.MeshStandardMaterial({color:0x5b3d28,roughness:1}));const l=new THREE.Mesh(treeTop,new THREE.MeshStandardMaterial({color:0x356b3b,roughness:1}));t.position.y=.6;l.position.y=1.8;g.add(t,l);g.position.set(x,Math.max(h,0),z);g.scale.setScalar(.65+Math.random()*.7);W.add(g);staticColliders.push({g,radius:.65*g.scale.x,height:2.0*g.scale.y,type:'tree'});}}
 
-// Rivers and lakes: procedural water features carved visually across the continents.
-const riverMat=new THREE.MeshStandardMaterial({color:0x2e91c7,roughness:.28,metalness:.08});
-for(let i=0;i<12;i++){const line=new THREE.Mesh(new THREE.PlaneGeometry(1.1,38,1,8),riverMat);let a=Math.random()*Math.PI*2,d=12+Math.random()*55;line.rotation.x=-Math.PI/2;line.rotation.z=a;line.position.set(Math.cos(a)*d,.055,Math.sin(a)*d);line.scale.x=.5+Math.random();W.add(line);}
-for(let i=0;i<9;i++){const lake=new THREE.Mesh(new THREE.CircleGeometry(2+Math.random()*3,24),riverMat);lake.rotation.x=-Math.PI/2;lake.position.set((Math.random()-.5)*130,.06,(Math.random()-.5)*130);W.add(lake);}
+// Seeded rivers follow the terrain instead of using floating straight rectangles.
+const riverMeshes=[],lakeMeshes=[];
+const riverMat=new THREE.MeshStandardMaterial({color:0x2b6f8c,roughness:.58,metalness:.01,transparent:true,opacity:.9,side:THREE.DoubleSide});
+const lakeMat=new THREE.MeshStandardMaterial({color:0x2b6f8c,roughness:.5,metalness:.01,transparent:true,opacity:.88,side:THREE.DoubleSide});
+function rebuildRivers(seed){
+ for(const mesh of [...riverMeshes,...lakeMeshes]){W.remove(mesh);mesh.geometry.dispose();}
+ riverMeshes.length=0;lakeMeshes.length=0;
+ let state=(Number(seed)>>>0)||1;
+ const rnd=()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296;};
+ for(let i=0;i<7;i++){
+  const angle=rnd()*Math.PI*2,startD=8+rnd()*38,length=48+rnd()*72;
+  const dir=angle+(rnd()-.5)*.8,dx=Math.cos(dir),dz=Math.sin(dir),phase=rnd()*Math.PI*2,bend=3+rnd()*5,count=36;
+  const points=[];
+  for(let j=0;j<=count;j++){
+   const t=j/count;
+   const x=Math.cos(angle)*startD+dx*length*t+Math.sin(t*6+phase)*bend*Math.sin(Math.PI*t);
+   const z=Math.sin(angle)*startD+dz*length*t+Math.cos(t*5+phase)*bend*Math.sin(Math.PI*t);
+   points.push({x,z});
+  }
+  const positions=new Float32Array((count+1)*2*3),indices=[];
+  for(let j=0;j<=count;j++){
+   const prev=points[Math.max(0,j-1)],next=points[Math.min(count,j+1)],p=points[j];
+   const tx=next.x-prev.x,tz=next.z-prev.z,len=Math.hypot(tx,tz)||1,nx=-tz/len,nz=tx/len;
+   const width=.42+.12*Math.sin(Math.PI*j/count);
+   const lx=p.x+nx*width,lz=p.z+nz*width,rx=p.x-nx*width,rz=p.z-nz*width;
+   const li=j*6,ri=li+3;
+   positions[li]=lx;positions[li+1]=terrainHeight(lx,lz)+.045;positions[li+2]=lz;
+   positions[ri]=rx;positions[ri+1]=terrainHeight(rx,rz)+.045;positions[ri+2]=rz;
+   if(j<count){const a=j*2,b=a+1,c=a+2,d=a+3;indices.push(a,b,c,b,d,c);}
+  }
+  const geometry=new THREE.BufferGeometry();
+  geometry.setAttribute('position',new THREE.BufferAttribute(positions,3));
+  geometry.setIndex(indices);geometry.computeVertexNormals();
+  const mesh=new THREE.Mesh(geometry,riverMat);W.add(mesh);riverMeshes.push(mesh);
+ }
+ for(let i=0;i<5;i++){
+  let found=false;
+  for(let attempt=0;attempt<60&&!found;attempt++){
+   const x=(rnd()-.5)*180,z=(rnd()-.5)*180,h=terrainHeight(x,z);
+   const land=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;
+   if(h>-.65&&h<.35&&land>.02){
+    const lake=new THREE.Mesh(new THREE.CircleGeometry(1.6+rnd()*2.2,24),lakeMat);
+    lake.rotation.x=-Math.PI/2;lake.position.set(x,h+.035,z);W.add(lake);lakeMeshes.push(lake);found=true;
+   }
+  }
+ }
+}
 
 
 // Natural resources and biomes: visible deposits that can later drive settlement growth.
@@ -48,16 +91,16 @@ function animal(x,z,type){
  body.position.y=.48;head.position.set(.52,.7,0);g.add(body,head);g.position.set(x,Math.max(.05,0),z);W.add(g);animals.push({g,phase:Math.random()*6.28,speed:.15+Math.random()*.3,radius:.62,height:1.0,mass:1});
 }
 for(let i=0;i<45;i++){const a=Math.random()*Math.PI*2,d=10+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;animal(x,z,i%2?'deer':'boar');}
-for(let i=0;i<36;i++){const m=new THREE.Mesh(mountainGeo,mountainMat);let a=i*2.399,d=18+(i%6)*11;m.position.set(Math.cos(a)*d,3.2,Math.sin(a)*d);m.scale.y=.6+(i%4)*.25;W.add(m);}
+for(let i=0;i<36;i++){const m=new THREE.Mesh(mountainGeo,mountainMat),g=new THREE.Group();const a=i*2.399,d=18+(i%6)*11,x=Math.cos(a)*d,z=Math.sin(a)*d,scale=.6+(i%4)*.25;m.scale.y=scale;m.position.y=3.5*scale;g.position.set(x,terrainHeight(x,z),z);g.add(m);W.add(g);staticColliders.push({g,radius:2.2,height:7*scale,type:'mountain'});}
 
-const camTarget=new THREE.Vector3(0,0,0);let camYaw=0,camPitch=.62,camDist=55;const agents=[],settlements=[],resources=[],events=[];let age=0,cycle=0,acc=0,epoch='Большой взрыв',deaths=0,births=0;let serverConnected=false;let evolution={visualQuality:1,terrainScale:1,lightIntensity:1,fogDistance:90,colorMood:'natural',generation:1};
+const camTarget=new THREE.Vector3(0,0,0);let camYaw=0,camPitch=.62,camDist=innerWidth<600?160:110;const agents=[],settlements=[],resources=[],events=[];let age=0,cycle=0,acc=0,epoch='Большой взрыв',deaths=0,births=0;let serverConnected=false;let evolution={visualQuality:1,terrainScale:1,lightIntensity:1,fogDistance:90,colorMood:'natural',generation:1};
 const names=['Ари','Нова','Тар','Лум','Кай','Сел','Ори','Вен','Мира','Рен','Лио','Эна'];
 function log(t){events.unshift(t);if(events.length>3)events.pop();document.getElementById('log').innerHTML=events.map(e=>'<div class="event">• '+e+'</div>').join('')}
 // AION visual evolution: the server's autonomous strategy is reflected in the live world.
 function applyEvolutionVisuals(){
  const q=Math.max(.7,Math.min(1.5,evolution.visualQuality||1));
- if(S.fog) S.fog.far=Math.max(60,evolution.fogDistance||90);
- sun.intensity=2.2*(evolution.lightIntensity||1)*q;
+ if(S.fog){S.fog.near=Math.max(55,Math.min(90,(evolution.fogDistance||320)*.28));S.fog.far=Math.max(260,evolution.fogDistance||320);}
+ sun.intensity=2.6*(evolution.lightIntensity||1)*q;
  ground.scale.set(evolution.terrainScale||1,1,evolution.terrainScale||1);
  ocean.scale.setScalar(Math.max(0.8,Math.min(1.6,evolution.terrainScale||1)));
  const mood=evolution.colorMood||'balanced';
@@ -89,7 +132,7 @@ function connectSettlements(){
   const a=settlements[i],b=settlements[i+1]; if(a.roadTo&&a.roadTo===b)continue;
   const dx=b.g.position.x-a.g.position.x,dz=b.g.position.z-a.g.position.z,len=Math.hypot(dx,dz); if(len<4)continue;
   const road=new THREE.Mesh(new THREE.BoxGeometry(.55,.08,len),M(0x5b5147));
-  road.position.set((a.g.position.x+b.g.position.x)/2,.06,(a.g.position.z+b.g.position.z)/2);
+  const roadX=(a.g.position.x+b.g.position.x)/2,roadZ=(a.g.position.z+b.g.position.z)/2;road.position.set(roadX,terrainHeight(roadX,roadZ)+.06,roadZ);
   road.rotation.y=Math.atan2(dx,dz);W.add(road);settlementRoads.push(road);a.roadTo=b;
  }
 }
@@ -98,7 +141,7 @@ function applyVisualWorldSeed(seed){
  let state=s;
  const rnd=()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return ((state>>>0)/4294967296);};
  const place=(g,spread=105)=>{let tries=0;while(tries++<80){const a=rnd()*Math.PI*2,d=8+rnd()*spread,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=terrainHeight(x,z);const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;if(h>-.15&&continent>.02){g.position.set(x,Math.max(h,0),z);return;}}g.position.set((rnd()-.5)*120,0,(rnd()-.5)*120);};
- staticColliders.filter(x=>x.type==='tree').forEach(s=>place(s.g));
+ staticColliders.filter(x=>x.type==='mountain').forEach(s=>place(s.g,100));staticColliders.filter(x=>x.type==='tree').forEach(s=>place(s.g));
  naturalResources.forEach(r=>place(r.g));
  worldSettlements.forEach(q=>place(q.g));
  animals.forEach(a=>{place(a.g);a.phase=rnd()*Math.PI*2;});
@@ -123,8 +166,9 @@ function updateSettlements(dt){
 }
 function updateWildlife(dt){for(const a of animals){a.phase+=dt*a.speed;a.velocity=new THREE.Vector3(Math.sin(a.phase)*.12,0,Math.cos(a.phase*1.17)*.12);a.g.rotation.y=Math.atan2(a.velocity.x,a.velocity.z);}}
 function terrainHeight(x,z){const k=(terrainSeed%100000)/100000;const base=Math.sin(x*.045)*1.8+Math.cos(z*.052)*1.5+Math.sin((x+z)*.085)*1.1+Math.sin(x*.17-z*.11)*.55;return Math.max(-1.15,base*.7+Math.sin(x*(.021+k*.02)+terrainSeed*.000001)*.65+Math.cos(z*(.027+k*.015)-terrainSeed*.0000013)*.55)-.05;}
+window.__AION_TERRAIN_HEIGHT=terrainHeight;
 function resolvePair(a,b){if(!a.alive&&a.alive!==undefined)return;const ax=a.g.position.x,az=a.g.position.z,bx=b.g.position.x,bz=b.g.position.z;let dx=bx-ax,dz=bz-az,d2=dx*dx+dz*dz,min=(a.radius||.5)+(b.radius||.5);if(d2>=min*min)return;let d=Math.sqrt(d2);if(d<.0001){dx=1;dz=0;d=1}const nx=dx/d,nz=dz/d,overlap=min-d;const am=a.mass||1,bm=b.mass||1,total=am+bm;a.g.position.x-=nx*overlap*(bm/total);a.g.position.z-=nz*overlap*(bm/total);b.g.position.x+=nx*overlap*(am/total);b.g.position.z+=nz*overlap*(am/total);if(a.velocity){const va=a.velocity.x*nx+a.velocity.z*nz;if(va>0){a.velocity.x-=nx*va*.7;a.velocity.z-=nz*va*.7}}if(b.velocity){const vb=b.velocity.x*nx+b.velocity.z*nz;if(vb<0){b.velocity.x-=nx*vb*.7;b.velocity.z-=nz*vb*.7}}}
-function physicsStep(dt){const dynamics=[...live(),...animals];for(const a of dynamics){if(!a.g.visible)continue;a.velocity.y=(a.velocity.y||0)-9.81*dt;a.g.position.x+=a.velocity.x*dt;a.g.position.y+=a.velocity.y*dt;a.g.position.z+=a.velocity.z*dt;const floor=terrainHeight(a.g.position.x,a.g.position.z);const feet=Math.max(.05,floor);if(a.g.position.y<feet){a.g.position.y=feet;a.velocity.y=0;a.grounded=true}else a.grounded=false;for(const s of staticColliders){if(!s.g.visible)continue;let dx=a.g.position.x-s.g.position.x,dz=a.g.position.z-s.g.position.z,d2=dx*dx+dz*dz,min=(a.radius||.5)+s.radius;if(d2<min*min){let d=Math.sqrt(d2)||1;dx/=d;dz/=d;const push=min-d;a.g.position.x+=dx*push;a.g.position.z+=dz*push;a.velocity.x*=.25;a.velocity.z*=.25}}}for(let i=0;i<dynamics.length;i++)for(let j=i+1;j<dynamics.length;j++)resolvePair(dynamics[i],dynamics[j]);}
+function physicsStep(dt){const dynamics=[...live(),...animals];const localDynamics=[];for(const a of dynamics){if(!a.g.visible)continue;if(serverConnected&&a.serverId!==undefined){if(a.serverTarget)a.g.position.lerp(a.serverTarget,1-Math.exp(-dt*.8));continue;}localDynamics.push(a);a.velocity.y=(a.velocity.y||0)-9.81*dt;a.g.position.x+=a.velocity.x*dt;a.g.position.y+=a.velocity.y*dt;a.g.position.z+=a.velocity.z*dt;const floor=terrainHeight(a.g.position.x,a.g.position.z);const feet=floor;if(a.g.position.y<feet){a.g.position.y=feet;a.velocity.y=0;a.grounded=true}else a.grounded=false;for(const s of staticColliders){if(!s.g.visible)continue;let dx=a.g.position.x-s.g.position.x,dz=a.g.position.z-s.g.position.z,d2=dx*dx+dz*dz,min=(a.radius||.5)+s.radius;if(d2<min*min){let d=Math.sqrt(d2)||1;dx/=d;dz/=d;const push=min-d;a.g.position.x+=dx*push;a.g.position.z+=dz*push;a.velocity.x*=.25;a.velocity.z*=.25}}}for(let i=0;i<localDynamics.length;i++)for(let j=i+1;j<localDynamics.length;j++)resolvePair(localDynamics[i],localDynamics[j]);}
 
 function act(a,dt){
  a.age+=dt;a.food-=dt*.42;a.water-=dt*.25;a.energy-=dt*.18;
@@ -138,7 +182,7 @@ function act(a,dt){
  move(a,a.goal,dt,a.job==='исследователь'?1.45:1.15);
  if(Math.random()<dt*.012)a.memory.push({cycle,message:'исследовал новую область'});
 }
-const AION_SERVER='https://aion-server-b80c.onrender.com';
+const AION_SERVER=window.location.origin;
 async function aionFetch(path, options={}, attempts=12){
   let lastError;
   for(let i=0;i<attempts;i++){
@@ -174,6 +218,7 @@ async function bigBang(){
   ++aionLoadSeq;
   await new Promise(r=>setTimeout(r,300));
   await loadAION();
+  if(!window.__AION_DISABLE_COLLIDER_UPLOAD)setTimeout(uploadPhysicsColliders,300);
   W.visible=true;
   b.textContent='🌍 Новая Земля создана';
   log('🌍 Новая Земля создана. AION начинает развитие мира.');
@@ -185,6 +230,7 @@ async function bigBang(){
  }finally{b.disabled=false}
 }
 async function loadAION(){
+ const wasConnected=serverConnected;
  const seq=++aionLoadSeq;
  try{
   const r=await aionFetch('/world');
@@ -204,19 +250,19 @@ async function loadAION(){
   if(worldChanged || agents.length!==incoming.length){
     for(const a of [...agents]){a.g.removeFromParent();a.alive=false}
     agents.length=0;settlements.length=0;
-    incoming.forEach(x=>{const a=agent();a.serverId=x.id;a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0;if(Number.isFinite(+x.x)){a.g.position.x=+x.x;a.g.position.z=Number.isFinite(+x.z)?+x.z:0;a.g.position.y=Number.isFinite(+x.y)?+x.y:terrainHeight(a.g.position.x,a.g.position.z);}});
+    incoming.forEach(x=>{const a=agent();a.serverId=x.id;a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0;if(Number.isFinite(+x.x)){const tx=+x.x,tz=Number.isFinite(+x.z)?+x.z:0,ty=Number.isFinite(+x.y)?+x.y:terrainHeight(tx,tz);const renderY=ty-(a.height||1.55)/2;a.g.position.set(tx,renderY,tz);a.serverTarget=new THREE.Vector3(tx,renderY,tz);}});
     (serverState.settlements||[]).forEach((x,i)=>{const a=agents[i%Math.max(1,agents.length)];if(a)house(a)});
     appliedWorldVersion=Number(serverState.worldVersion||0);
   }else{
-    incoming.forEach((x,i)=>{const a=agents[i];if(!a)return;a.serverId=x.id;a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0;if(Number.isFinite(+x.x)){a.g.position.x=+x.x;a.g.position.z=Number.isFinite(+x.z)?+x.z:a.g.position.z;a.g.position.y=Number.isFinite(+x.y)?+x.y:terrainHeight(a.g.position.x,a.g.position.z);}});
+    incoming.forEach((x,i)=>{const a=agents[i];if(!a)return;a.serverId=x.id;a.name=x.name||a.name;a.age=x.age||0;a.job=x.job||a.job;a.health=x.health||100;a.children=x.children||0;if(Number.isFinite(+x.x)){const tx=+x.x,tz=Number.isFinite(+x.z)?+x.z:a.g.position.z,ty=Number.isFinite(+x.y)?+x.y:terrainHeight(tx,tz);const renderY=ty-(a.height||1.55)/2;if(!a.serverTarget)a.serverTarget=new THREE.Vector3(tx,renderY,tz);else a.serverTarget.set(tx,renderY,tz);}});
   }
-  log('AION подключён к постоянному серверному миру. Земля создаётся с нуля. Поколение автономии: '+(evolution.generation||1)+'.');
+  if(!wasConnected)log('AION подключён к постоянному серверному миру. Земля создаётся с нуля. Поколение автономии: '+(evolution.generation||1)+'.');
  }catch(e){serverConnected=false;window.__AION_SYNCED=false;console.error('AION loadAION failed:',e);log('AION Server временно недоступен. Ожидание синхронизации…')}
 }
 
 async function uploadPhysicsColliders(){try{const colliders=staticColliders.map((s,i)=>({id:s.id||(`${s.type||'object'}-${i}`),x:s.g.position.x,y:s.g.position.y,z:s.g.position.z,radius:s.radius||.5,height:s.height||1}));await aionFetch('/physics/colliders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({colliders}),cache:'no-store'});}catch(e){}}
 
-document.getElementById('resetBtn').addEventListener('click',bigBang);setTimeout(()=>{loadAION();setTimeout(uploadPhysicsColliders,1800)},1200); setInterval(loadAION,5000);
+document.getElementById('resetBtn').addEventListener('click',bigBang);setTimeout(()=>{loadAION();if(!window.__AION_DISABLE_COLLIDER_UPLOAD)setTimeout(uploadPhysicsColliders,1800)},1200); setInterval(loadAION,5000);
 function persist(){return Promise.resolve()}
 function reproduce(){let L=live().filter(a=>a.age>18&&a.food>55);if(L.length<2||L.length>=20)return;if(Math.random()<.12){let p=L[Math.floor(Math.random()*L.length)],q=L[Math.floor(Math.random()*L.length)];if(p!==q&&p.g.position.distanceTo(q.g.position)<4){const c=agent();c.g.position.copy(p.g.position);c.home=p.home? p.home.clone():null;c.g.position.y=terrainHeight(c.g.position.x,c.g.position.z);p.partner=q.name;p.children++;q.children++;log(p.name+' и '+q.name+' создали семью. Родилось новое поколение.')}}}
 
@@ -259,7 +305,7 @@ function updateWorldClockUI(){
  const elapsedYears=sim/(365.25*86400);
  document.getElementById('worldElapsed').textContent='С начала рождения Земли: '+(elapsedYears<1000?elapsedYears.toFixed(3):Math.floor(elapsedYears).toLocaleString('ru-RU'))+' лет';
 }
-function loop(){requestAnimationFrame(loop);let n=performance.now();let dt=Math.min(.05,(n-(loop.last||n))/1000);loop.last=n;tick(dt);if(!loop.nextUI||n>loop.nextUI){loop.nextUI=n+500;updateWorldClockUI();document.getElementById('state').innerHTML='Жители: '+live().length+' / '+agents.length+'<br>Поселения: '+settlements.length+'<br>Рождений: '+births+' · Смертей: '+deaths+'<br>Ресурсов: '+resources.filter(r=>r.g.visible).length+'<br>AION: поколение '+(evolution.generation||1)+' · '+(evolution.strategy||'исследование')+'<br>Мир: #'+(serverState?.worldVersion||0)+'<br>Память: '+events.length+' событий';}W.rotation.y+=dt*.006;stars.rotation.y-=dt*.0008;updateWildlife(dt);updateSettlements(dt);physicsStep(dt);camDist=Math.max(35,Math.min(500,camDist));C.position.set(camTarget.x+Math.sin(camYaw)*Math.cos(camPitch)*camDist,camTarget.y+Math.sin(camPitch)*camDist,camTarget.z+Math.cos(camYaw)*Math.cos(camPitch)*camDist);C.lookAt(camTarget);R.render(S,C)}
+function loop(){requestAnimationFrame(loop);let n=performance.now();let dt=Math.min(.05,(n-(loop.last||n))/1000);loop.last=n;tick(dt);if(!loop.nextUI||n>loop.nextUI){loop.nextUI=n+500;updateWorldClockUI();const worldPopulation=Array.isArray(serverState?.population)?serverState.population.length:live().length;const strategyLabels={civilization:'цивилизация',survival:'выживание',exploration:'исследование',technology:'технологии',settlement:'поселение',population:'население'};document.getElementById('state').innerHTML='Жители мира: '+worldPopulation+' (в кадре: '+live().length+')<br>Поселения: '+settlements.length+'<br>Рождений: '+births+' · Смертей: '+deaths+'<br>Ресурсов: '+resources.filter(r=>r.g.visible).length+'<br>AION: поколение '+(evolution.generation||1)+' · '+(strategyLabels[evolution.strategy]||evolution.strategy||'исследование')+'<br>Мир: #'+(serverState?.worldVersion||0)+'<br>Память: '+events.length+' событий';}stars.rotation.y-=dt*.0008;updateWildlife(dt);updateSettlements(dt);physicsStep(dt);camDist=Math.max(35,Math.min(500,camDist));C.position.set(camTarget.x+Math.sin(camYaw)*Math.cos(camPitch)*camDist,camTarget.y+Math.sin(camPitch)*camDist,camTarget.z+Math.cos(camYaw)*Math.cos(camPitch)*camDist);C.lookAt(camTarget);R.render(S,C)}
 agents.length=0;
 log('AION запускается. 3D-мир готов, синхронизация с сервером выполняется…');
 function camMove(dx,dz){camTarget.x+=dx;camTarget.z+=dz}let drag=false,px=0,py=0,lastPinch=0;R.domElement.addEventListener('wheel',e=>{e.preventDefault();camDist=Math.max(35,Math.min(500,camDist+e.deltaY*.18))},{passive:false});R.domElement.addEventListener('pointerdown',e=>{drag=true;px=e.clientX;py=e.clientY;R.domElement.setPointerCapture?.(e.pointerId)});R.domElement.addEventListener('pointerup',e=>{drag=false;R.domElement.releasePointerCapture?.(e.pointerId)});R.domElement.addEventListener('pointercancel',()=>drag=false);addEventListener('pointermove',e=>{if(!drag)return;camYaw-=(e.clientX-px)*.008;camPitch=Math.max(.15,Math.min(1.35,camPitch+(e.clientY-py)*.006));px=e.clientX;py=e.clientY});addEventListener('resize',()=>{C.aspect=innerWidth/innerHeight;C.updateProjectionMatrix();R.setSize(innerWidth,innerHeight)});loop();</script></body></html>

@@ -1,0 +1,95 @@
+name: AION remote health checks
+
+on:
+  push:
+    branches:
+      - aion-self-mechanics
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aion-remote-healthcheck
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check live AION endpoints
+        env:
+          AION_BASE_URL: https://aion-server-test.onrender.com
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import time
+          import urllib.request
+          import urllib.error
+
+          base = os.environ["AION_BASE_URL"].rstrip("/")
+          paths = ["/health", "/ai/diagnostics", "/debug/world", "/ai/self-development"]
+          last_error = None
+
+          for attempt in range(12):
+              results = {}
+              try:
+                  for path in paths:
+                      req = urllib.request.Request(
+                          base + path,
+                          headers={"User-Agent": "AION-remote-healthcheck/1.0"},
+                          method="GET",
+                      )
+                      with urllib.request.urlopen(req, timeout=15) as response:
+                          body = response.read().decode("utf-8")
+                          results[path] = {
+                              "status": response.status,
+                              "data": json.loads(body),
+                          }
+                  diag = results["/ai/diagnostics"]["data"]
+                  world = results["/debug/world"]["data"]
+                  sd = results["/ai/self-development"]["data"]
+                  checks = {
+                      "http_endpoints": all(v["status"] == 200 for v in results.values()),
+                      "diagnostics_ok": diag.get("ok") is True,
+                      "world_loaded": world.get("ok") is True,
+                      "postgresql": world.get("database") == "postgresql" and diag.get("database") == "postgresql",
+                      "self_development_available": sd.get("ok") is True,
+                      "counter_consistency": int(sd.get("version", 0)) >= int(sd.get("accepted", 0)) + int(sd.get("rejected", 0)),
+                  }
+                  summary = {
+                      "ok": all(checks.values()),
+                      "checkedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                      "checks": checks,
+                      "world": {
+                          "worldVersion": world.get("worldVersion"),
+                          "cycle": world.get("cycle"),
+                          "population": world.get("population"),
+                          "database": world.get("database"),
+                      },
+                      "selfDevelopment": {
+                          "version": sd.get("version"),
+                          "accepted": sd.get("accepted"),
+                          "rejected": sd.get("rejected"),
+                          "lastDecision": sd.get("lastDecision"),
+                      },
+                      "diagnostics": diag,
+                  }
+                  print(json.dumps(summary, ensure_ascii=False, indent=2))
+                  if summary["ok"]:
+                      sys.exit(0)
+                  last_error = "One or more AION checks returned false"
+              except Exception as exc:
+                  last_error = repr(exc)
+              if attempt < 11:
+                  print(f"Attempt {attempt + 1}/12 did not pass yet; retrying in 10 seconds: {last_error}")
+                  time.sleep(10)
+
+          print(f"AION health checks failed after retries: {last_error}", file=sys.stderr)
+          sys.exit(1)
+          PY

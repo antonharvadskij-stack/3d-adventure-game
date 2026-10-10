@@ -1,4 +1,4 @@
-import random,time,secrets
+import random,time,secrets,math
 import pybullet as p
 # Server-authoritative rigid-body physics. The simulation owns the canonical transforms.
 class PhysicsWorld:
@@ -8,10 +8,56 @@ class PhysicsWorld:
         p.setPhysicsEngineParameter(fixedTimeStep=1.0/60.0,numSolverIterations=12,physicsClientId=self.client)
         self.bodies={}
         self.dt=1.0/60.0
+        self.terrain_body=None
+        self.terrain_seed=None
+        # A deep safety floor prevents bodies from falling forever outside the terrain mesh.
+        safety_shape=p.createCollisionShape(p.GEOM_PLANE,planeNormal=[0,1,0],physicsClientId=self.client)
+        self.safety_ground=p.createMultiBody(baseMass=0,baseCollisionShapeIndex=safety_shape,
+                                             basePosition=[0,-5,0],physicsClientId=self.client)
+        p.changeDynamics(self.safety_ground,-1,lateralFriction=.9,physicsClientId=self.client)
+
+    def set_terrain(self,seed):
+        seed=int(seed or 0)
+        if self.terrain_seed==seed:return
+        if self.terrain_body is not None:
+            p.removeBody(self.terrain_body,physicsClientId=self.client)
+            self.terrain_body=None
+        # Match the browser's seeded height function with a static triangle mesh.
+        rows=65
+        extent=150.0
+        spacing=(extent*2)/(rows-1)
+        k=(seed%100000)/100000.0
+        vertices=[]
+        for iz in range(rows):
+            z=-extent+iz*spacing
+            for ix in range(rows):
+                x=-extent+ix*spacing
+                base=(math.sin(x*.045)*1.8+math.cos(z*.052)*1.5+
+                      math.sin((x+z)*.085)*1.1+math.sin(x*.17-z*.11)*.55)
+                height=max(-1.15,base*.7+
+                           math.sin(x*(.021+k*.02)+seed*.000001)*.65+
+                           math.cos(z*(.027+k*.015)-seed*.0000013)*.55)-.05
+                vertices.append([x,height,z])
+        indices=[]
+        for iz in range(rows-1):
+            for ix in range(rows-1):
+                a=iz*rows+ix
+                b=a+1
+                c=a+rows
+                d=c+1
+                indices.extend((a,c,b,b,c,d))
+        shape=p.createCollisionShape(p.GEOM_MESH,vertices=vertices,indices=indices,
+                                     flags=p.GEOM_FORCE_CONCAVE_TRIMESH,physicsClientId=self.client)
+        self.terrain_body=p.createMultiBody(baseMass=0,baseCollisionShapeIndex=shape,
+                                            basePosition=[0,0,0],physicsClientId=self.client)
+        p.changeDynamics(self.terrain_body,-1,lateralFriction=.95,restitution=0,physicsClientId=self.client)
+        self.terrain_seed=seed
+
     def _shape(self,radius,height,kind="capsule"):
         if kind=="box":
             return p.createCollisionShape(p.GEOM_BOX,halfExtents=[radius,max(.05,height/2),radius],physicsClientId=self.client)
         return p.createCollisionShape(p.GEOM_CAPSULE,radius=max(.05,radius),height=max(.05,height-2*radius),physicsClientId=self.client)
+
     def add_body(self,key,x,y,z,radius=.4,mass=1.0,height=1.5,kind="capsule"):
         if key in self.bodies:return self.bodies[key]
         shape=self._shape(radius,height,kind)
@@ -19,59 +65,134 @@ class PhysicsWorld:
         p.changeDynamics(bid,-1,lateralFriction=.85,restitution=.02,linearDamping=.08,angularDamping=.9,physicsClientId=self.client)
         self.bodies[key]=bid
         return bid
+
+    def remove_body(self,key):
+        bid=self.bodies.pop(key,None)
+        if bid is not None:p.removeBody(bid,physicsClientId=self.client)
+
     def set_velocity(self,key,vx,vz):
         bid=self.bodies.get(key)
         if bid is not None:p.resetBaseVelocity(bid,linearVelocity=[vx,0,vz],physicsClientId=self.client)
+
     def set_position(self,key,x,y,z):
         bid=self.bodies.get(key)
         if bid is not None:p.resetBasePositionAndOrientation(bid,[x,y,z],[0,0,0,1],physicsClientId=self.client)
+
     def step(self,seconds):
         steps=max(1,min(3600,int(round(seconds/self.dt))))
         for _ in range(steps):p.stepSimulation(physicsClientId=self.client)
+
     def position(self,key):
         bid=self.bodies.get(key)
         return p.getBasePositionAndOrientation(bid,physicsClientId=self.client)[0] if bid is not None else None
+
     def add_static(self,key,x,y,z,radius,height=2.0,kind="box"):
         return self.add_body(key,x,y,z,radius,0,height,kind)
 
 physics=PhysicsWorld()
 
-def _body_key(agent):
-    return f"agent:{agent.get('id')}"
+def _world_token(w):
+    universe=w.get("universe",{}) if isinstance(w.get("universe",{}),dict) else {}
+    return f"{int(w.get('worldVersion',1) or 1)}:{int(universe.get('worldSeed',0) or 0)}"
 
-def _ensure_agent_physics(agent,index):
-    import math
+def _body_key(agent,world_token):
+    return f"agent:{world_token}:{agent.get('id')}"
+
+def _terrain_height_at(seed,x,z):
+    seed=int(seed or 0)
+    k=(seed%100000)/100000.0
+    base=(math.sin(x*.045)*1.8+math.cos(z*.052)*1.5+
+          math.sin((x+z)*.085)*1.1+math.sin(x*.17-z*.11)*.55)
+    return max(-1.15,base*.7+
+               math.sin(x*(.021+k*.02)+seed*.000001)*.65+
+               math.cos(z*(.027+k*.015)-seed*.0000013)*.55)-.05
+
+def _ensure_agent_physics(agent,index,world_token):
     if "x" not in agent:
         angle=index*2.3999632297; rr=2.5+(index%7)*.8
-        agent["x"]=round(math.cos(angle)*rr,4);agent["z"]=round(math.sin(angle)*rr,4);agent["y"]=.9
-    physics.add_body(_body_key(agent),float(agent["x"]),float(agent.get("y",.9)),float(agent["z"]),
-                     radius=float(agent.get("radius",.38)),mass=1,height=1.55)
+        agent["x"]=round(math.cos(angle)*rr,4);agent["z"]=round(math.sin(angle)*rr,4)
+    x=float(agent["x"]);z=float(agent["z"])
+    floor=_terrain_height_at(physics.terrain_seed or 0,x,z)
+    # Agent Y is the rigid body's center, not its feet. Keep the full 1.55-unit
+    # capsule above the terrain so the browser can render its feet at ground level.
+    center_clearance=1.55/2+0.04
+    y=float(agent.get("y",floor+center_clearance))
+    if y<floor+center_clearance:y=floor+center_clearance
+    agent["y"]=y
+    key=_body_key(agent,world_token)
+    existing=physics.position(key)
+    if existing is not None:
+        existing_floor=_terrain_height_at(physics.terrain_seed or 0,existing[0],existing[2])
+        if existing[1]<existing_floor+center_clearance:
+            physics.set_position(key,existing[0],existing_floor+center_clearance,existing[2])
+    physics.add_body(key,x,y,z,radius=float(agent.get("radius",.38)),mass=1,height=1.55)
 
-def _ensure_world_colliders(w):
-    for item in w.get("physicsColliders",[]):
-        key='static:'+str(item.get('id'))
-        physics.add_static(key,float(item.get("x",0)),float(item.get("y",0)),float(item.get("z",0)),float(item.get("radius",.5)),float(item.get("height",1.0)),item.get("kind","box"))
+def _ensure_world_colliders(w,world_token):
+    universe=w.get("universe",{}) if isinstance(w.get("universe",{}),dict) else {}
+    physics.set_terrain(universe.get("worldSeed",0))
+    items=w.get("physicsColliders",[])
+    active={"static:"+world_token+":"+str(item.get("id")) for item in items}
+    for key in list(physics.bodies):
+        if key.startswith("static:") and key not in active:physics.remove_body(key)
+    for item in items:
+        key="static:"+world_token+":"+str(item.get("id"))
+        height=float(item.get("height",1.0))
+        # The browser sends the object's base position; PyBullet boxes need their center.
+        center_y=float(item.get("y",0))+height/2
+        physics.add_static(key,float(item.get("x",0)),center_y,float(item.get("z",0)),
+                           float(item.get("radius",.5)),height,item.get("kind","box"))
 
 def simulate_physics(w,seconds):
-    _ensure_world_colliders(w)
     population=w.get("population",[])
+    world_token=_world_token(w)
+    _ensure_world_colliders(w,world_token)
+    active_agents={_body_key(a,world_token) for a in population}
+    for key in list(physics.bodies):
+        if key.startswith("agent:") and key not in active_agents:physics.remove_body(key)
     # Create canonical dynamic bodies once; never teleport them every tick.
-    for i,a in enumerate(population):_ensure_agent_physics(a,i)
-    # AI requests velocity; physics decides the resulting position.
-    for a in population:
+    for i,a in enumerate(population):_ensure_agent_physics(a,i,world_token)
+    # Give every inhabitant a persistent bounded exploration target; PyBullet owns motion.
+    for i,a in enumerate(population):
         goal=a.get("target") or a.get("goalPosition")
-        if isinstance(goal,dict):
-            dx=float(goal.get("x",a["x"]))-a["x"];dz=float(goal.get("z",a["z"]))-a["z"];d=(dx*dx+dz*dz)**.5
-            if d>.4:
-                speed=float(a.get("moveSpeed",1.1));physics.set_velocity(_body_key(a),dx/d*speed,dz/d*speed)
-            else:physics.set_velocity(_body_key(a),0,0)
+        if not isinstance(goal,dict):
+            goal=None
+        if goal is None or math.hypot(float(goal.get("x",a["x"]))-float(a["x"]),
+                                      float(goal.get("z",a["z"]))-float(a["z"]))<1.2:
+            ident=int(a.get("id",i+1) or i+1)
+            phase=(int(w.get("cycle",0))//10+ident)*2.3999632297
+            distance=8.0+(ident%7)*1.5
+            goal={"x":max(-140.0,min(140.0,float(a["x"])+math.cos(phase)*distance)),
+                  "z":max(-140.0,min(140.0,float(a["z"])+math.sin(phase)*distance))}
+            a["goalPosition"]=goal
+        key=_body_key(a,world_token)
+        dx=float(goal.get("x",a["x"]))-float(a["x"])
+        dz=float(goal.get("z",a["z"]))-float(a["z"])
+        d=math.hypot(dx,dz)
+        if d>.4:
+            speed=float(a.get("moveSpeed",1.1))
+            physics.set_velocity(key,dx/d*speed,dz/d*speed)
+        else:
+            physics.set_velocity(key,0,0)
     physics.step(seconds)
+    # Concave terrain meshes can allow small bodies to tunnel below the surface
+    # during a long/multi-step update. Reconcile after stepping as well as before.
+    # Preserve horizontal motion; correct only vertical penetration.
     for a in population:
-        pos=physics.position(_body_key(a))
-        if pos:a["x"]=round(float(pos[0]),4);a["y"]=round(float(pos[1]),4);a["z"]=round(float(pos[2]),4)
-    w.setdefault("physics",{}).update({"engine":"pybullet","authoritative":True,"fixedTimestep":physics.dt,"gravity":-9.81,"bodies":len(population),"staticColliders":len(w.get("physicsColliders",[])),"lastStepSeconds":seconds})
+        key=_body_key(a,world_token)
+        pos=physics.position(key)
+        if not pos:
+            continue
+        floor=_terrain_height_at(physics.terrain_seed or 0,float(pos[0]),float(pos[2]))
+        min_center_y=floor+float(a.get("height",1.55))/2+0.04
+        if float(pos[1])<min_center_y:
+            physics.set_position(key,float(pos[0]),min_center_y,float(pos[2]))
+            physics.set_velocity(key,0.0,0.0)
+            pos=physics.position(key)
+        a["x"]=round(float(pos[0]),4);a["y"]=round(float(pos[1]),4);a["z"]=round(float(pos[2]),4)
+    w.setdefault("physics",{}).update({"engine":"pybullet","authoritative":True,"fixedTimestep":physics.dt,
+        "gravity":-9.81,"bodies":len(population),"staticColliders":len(w.get("physicsColliders",[])),
+        "terrainCollider":physics.terrain_body is not None,"terrainSeed":physics.terrain_seed,"lastStepSeconds":seconds})
     return w
-
 
 NAMES=["Ари","Нова","Тар","Лум","Кай","Сел","Ори","Вен","Мира","Рен","Лио","Эна"]
 JOBS=["охотник","собиратель","строитель","исследователь"]

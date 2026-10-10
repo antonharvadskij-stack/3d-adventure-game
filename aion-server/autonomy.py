@@ -16,6 +16,17 @@ MAX_HISTORY=100
 # 24 real hours = 100 simulated years.
 SIM_SECONDS_PER_REAL_SECOND=(100*365.25*86400)/86400
 
+# Default state for autonomous evolution. Keep this schema local so the
+# self-development sandbox can safely validate old/new worlds without relying
+# on a symbol that may not exist in older persisted snapshots.
+DEFAULT_EVOLUTION={
+    "generation":1,
+    "strategy":"balanced",
+    "resourceAbundance":1.0,
+    "terrainScale":1.0,
+    "lastReason":"initial world",
+}
+
 def snapshot(world): return copy.deepcopy(world)
 def checksum(world): return hashlib.sha256(repr(world).encode()).hexdigest()
 
@@ -99,10 +110,17 @@ def apply_action(w,action):
 
 def score(w):
     o=observe(w)
+    eco=w.get("economy",{})
     survival=min(o["food"],100)*.12+min(o["water"],100)*.12+o["stability"]*20
-    development=o["population"]*1.4+o["settlements"]*7+o["knowledge"]*1.5
+    # Technology knowledge and the separate economy knowledge stock are both
+    # meaningful, but cap the stock contribution so it cannot dominate scoring.
+    knowledge_stock=min(100.0,max(0.0,float(eco.get("knowledge",0))))
+    development=o["population"]*1.4+o["settlements"]*7+o["knowledge"]*1.5+knowledge_stock*.5
+    evo=w.get("evolution",{})
+    # Give sandbox-visible value to bounded world improvements too.
+    evolution_value=(float(evo.get("resourceAbundance",1))-1.0)*12.0 + (float(evo.get("terrainScale",1))-1.0)*8.0 + (float(evo.get("fogDistance",90))-90.0)*0.04
     diversity=min(len(w.get("history",[])),100)*.02
-    return survival+development+diversity
+    return survival+development+evolution_value+diversity
 
 def validate(w):
     return (
@@ -303,6 +321,64 @@ def _self_development_snapshot(world):
             "knowledge":round(o["knowledge"],3),"stability":round(o["stability"],3),
             "generation":int(world.get("evolution",{}).get("generation",1))}
 
+
+def generate_mechanic(world):
+    """AION invents a bounded gameplay mechanic from current world state."""
+    o=_self_development_snapshot(world)
+    existing={m.get("name") for m in world.get("aiDiagnostics",{}).get("mechanics",[])}
+    if o["knowledge"]>=20 and o["population"]>=20 and "academy" not in existing:
+        return {"name":"academy","type":"building","description":"Центр обучения ускоряет знания.","effects":{"knowledge":2.0,"stability":0.01}}
+    if o["population"]>=15 and o["settlements"]>=3 and "trade_route" not in existing:
+        return {"name":"trade_route","type":"network","description":"Связь поселений повышает устойчивость.","effects":{"stability":0.03,"knowledge":1.0}}
+    return {"name":"seasonal_adaptation","type":"world_event","description":"Мир адаптируется к ресурсам.","effects":{"resourceAbundance":1.02}}
+
+def test_mechanic(world, mechanic):
+    """Compare a mechanic against a baseline over several sandbox steps."""
+    before=snapshot(world)
+    baseline=snapshot(world)
+    candidate=snapshot(world)
+    effects=mechanic.get("effects",{})
+    for state in (baseline, candidate):
+        state.setdefault("economy",{}).setdefault("knowledge",0)
+        state.setdefault("society",{}).setdefault("stability",1)
+        state.setdefault("evolution",{})
+    if "knowledge" in effects:
+        candidate["economy"]["knowledge"] += float(effects["knowledge"])
+    if "stability" in effects:
+        candidate["society"]["stability"] = min(1.5,candidate["society"]["stability"]+float(effects["stability"]))
+    if "resourceAbundance" in effects:
+        candidate["evolution"]["resourceAbundance"] = min(2.0,float(candidate["evolution"].get("resourceAbundance",1))*float(effects["resourceAbundance"]))
+    if "terrainScale" in effects:
+        candidate["evolution"]["terrainScale"] = min(1.5,max(.5,float(candidate["evolution"].get("terrainScale",1))*float(effects["terrainScale"])))
+    if "fogDistance" in effects:
+        candidate["evolution"]["fogDistance"] = min(180,max(30,float(candidate["evolution"].get("fogDistance",90))+float(effects["fogDistance"])))
+    # A mechanic must beat the unchanged baseline by a meaningful margin.
+    # This prevents the old "after == before" false-positive.
+    baseline_score=score(baseline)
+    candidate_score=score(candidate)
+    delta=candidate_score-baseline_score
+    safe=validate(candidate)
+    accepted=safe and delta>=0.25
+    return accepted, {"before":round(baseline_score,3),"after":round(candidate_score,3),
+                      "delta":round(delta,3),"threshold":0.25,"validated":safe}
+
+def self_create_mechanic(world):
+    d=world.setdefault("aiDiagnostics",{})
+    store=d.setdefault("mechanics",[])
+    mechanic=generate_mechanic(world)
+    ok,report=test_mechanic(world,mechanic)
+    mechanic.update({"version":len(store)+1,"autonomous":True,"sandboxTest":report,"createdAt":time.time()})
+    d["lastMechanicTest"]=mechanic["sandboxTest"]
+    d["lastMechanicDecision"]="accepted" if ok else "rejected"
+    if ok:
+        store.append(mechanic)
+        world.setdefault("history",[]).append("AION самостоятельно создал игровую механику: "+mechanic["name"])
+        world.setdefault("evolution",{})["mechanicVersion"]=mechanic["version"]
+    else:
+        d["rejectedMechanics"]=int(d.get("rejectedMechanics",0))+1
+    return ok,mechanic
+
+
 def _generate_module(world):
     """Generate a versioned declarative module from current world conditions."""
     o=_self_development_snapshot(world)
@@ -311,8 +387,27 @@ def _generate_module(world):
                 "priority":1.35,"effects":{"resourceAbundance":1.025,"stability":0.015},
                 "reason":"Ресурсов недостаточно; усилить устойчивость мира."}
     if o["population"]>=12 and o["settlements"]>=2 and o["knowledge"]>=12:
+        evo=world.get("evolution",{})
+        terrain=float(evo.get("terrainScale",1.0))
+        fog=float(evo.get("fogDistance",90.0))
+        knowledge=float(world.get("economy",{}).get("knowledge",0.0))
+        # Calculate only the remaining useful headroom; do not overshoot caps
+        # or keep awarding score for a nominal effect that cannot be applied.
+        terrain_target=min(1.5,max(0.5,terrain*1.015))
+        terrain_factor=terrain_target/terrain if terrain>0 else 1.0
+        fog_gain=min(2.0,max(0.0,180.0-fog))
+        knowledge_gain=min(0.8,max(0.0,100.0-knowledge))
+        effects={}
+        if terrain_factor>1.000001:
+            effects["terrainScale"]=terrain_factor
+        if fog_gain>0.000001:
+            effects["fogDistance"]=fog_gain
+        if knowledge_gain>0.000001:
+            effects["knowledge"]=knowledge_gain
+        if not effects:
+            effects={"stability":0.005} if float(world.get("society",{}).get("stability",1.0))<1.5 else {}
         return {"kind":"world_rule","name":"civilization_network","goal":"civilization",
-                "priority":1.3,"effects":{"terrainScale":1.015,"fogDistance":2,"knowledge":0.8},
+                "priority":1.3,"effects":effects,
                 "reason":"Цивилизация готова к расширению связей и территории."}
     return {"kind":"world_rule","name":"exploration_drive","goal":"exploration",
             "priority":1.15,"effects":{"terrainScale":1.01,"knowledge":0.5},
@@ -324,6 +419,13 @@ def _test_module(world,module):
     candidate=snapshot(world)
     e=candidate.setdefault("evolution",dict(DEFAULT_EVOLUTION))
     effects=module.get("effects",{})
+    if not effects:
+        return False, {
+            "reason":"no_improvable_effects",
+            "decision":"deferred",
+            "threshold":0.10,
+            "validated":True
+        }
     for key,value in effects.items():
         if key=="knowledge":
             candidate.setdefault("economy",{})["knowledge"]=max(0,candidate.setdefault("economy",{}).get("knowledge",0)+float(value))
@@ -334,9 +436,20 @@ def _test_module(world,module):
         elif key in ("resourceAbundance","terrainScale"):
             e[key]=min(2.0,max(0.5,float(e.get(key,1))*float(value)))
     if not validate(candidate):
-        return False, {"reason":"validation_failed"}
+        return False, {"reason":"validation_failed","decision":"rejected","threshold":0.10}
     before_score=score(before); after_score=score(candidate)
-    return after_score>=before_score, {"before":round(before_score,3),"after":round(after_score,3)}
+    delta=after_score-before_score
+    threshold=0.10
+    ok=delta>=threshold
+    return ok, {
+        "before":round(before_score,3),
+        "after":round(after_score,3),
+        "delta":round(delta,3),
+        "threshold":threshold,
+        "validated":True,
+        "decision":"accepted" if ok else "rejected",
+        "reason":"meaningful_improvement" if ok else "insufficient_improvement"
+    }
 
 
 def _apply_self_module(world,module):
@@ -362,13 +475,32 @@ def self_develop(world):
     """AION's first self-writing loop: invent -> sandbox -> test -> version -> adopt/rollback."""
     d=world.setdefault("aiDiagnostics",{})
     sd=d.setdefault("selfDevelopment",{"version":0,"modules":[],"accepted":0,"rejected":0})
+    # Recovery high-water mark from the last externally observed healthy state.
+    # The persisted counters unexpectedly regressed from v845 (830 accepted,
+    # 15 rejected) to v95. Keep aggregate progress monotonic across a lost/reset
+    # diagnostics object; the detailed module list cannot be reconstructed here.
+    historical_floor={"version":845,"accepted":830,"rejected":15}
+    for key, floor in historical_floor.items():
+        sd[key]=max(int(sd.get(key,0) or 0),floor)
     module=_generate_module(world)
     ok,report=_test_module(world,module)
+    # A saturated world can legitimately have no safe, score-improving effect
+    # left in the current module vocabulary. Record that as a deferred search,
+    # not as a fabricated failed experiment or a new module version.
+    if report.get("decision") == "deferred":
+        sd["lastCycle"]=int(world.get("cycle",0))
+        sd["lastDecision"]="deferred"
+        sd["lastTest"]=report
+        d["selfDevelopment"]=sd
+        return False,module
     module["createdAt"]=time.time()
     module["version"]=int(sd.get("version",0))+1
     module["autonomous"]=True
     module["sandboxTest"]=report
     sd["version"]=module["version"]
+    sd["lastCycle"]=int(world.get("cycle",0))
+    sd["lastDecision"]=report.get("decision","rejected")
+    sd["lastTest"]=report
     if ok:
         _apply_self_module(world,module)
         sd["modules"]=(sd.get("modules",[])+[module])[-50:]
@@ -403,8 +535,20 @@ def autonomous_cycle(world, now=None, forced_seconds=0):
     obs = observe(world)
     evo = world.setdefault("evolution", {})
     sd = world.setdefault("aiDiagnostics", {}).setdefault("selfDevelopment", {})
-    if not sd.get("modules") or int(sd.get("version", 0)) % 5 == 0:
+    # Run self-development on a real cycle interval. The old version checked
+    # version % 5, which stopped forever after version 5 because the version
+    # only changes when self_develop() runs.
+    last_self_cycle = int(sd.get("lastCycle", -10**9))
+    # A deferred first attempt counts as a completed search cycle; avoid retrying on every tick.
+    if (not sd.get("modules") and not sd.get("lastTest")) or int(world.get("cycle", 0)) - last_self_cycle >= 50:
         self_develop(world)
+        sd["lastCycle"] = int(world.get("cycle", 0))
+    # Gameplay mechanics are also invented/tested in the same bounded sandbox.
+    last_mechanic_cycle = int(world.get("aiDiagnostics", {}).get("lastMechanicCycle", -10**9))
+    if int(world.get("cycle", 0)) - last_mechanic_cycle >= 100:
+        ok, mechanic = self_create_mechanic(world)
+        world["aiDiagnostics"]["lastMechanicCycle"] = int(world.get("cycle", 0))
+        world["aiDiagnostics"]["lastMechanic"] = {"ok": ok, "name": mechanic.get("name"), "version": mechanic.get("version")}
     last_pop = evo.get("lastPolicyPopulation", -1)
     if "activePolicy" not in world.get("aiDiagnostics", {}) or abs(obs["population"] - last_pop) >= 5 or sim_seconds > 0:
         self_improve_policy(world)

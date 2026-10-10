@@ -14,8 +14,6 @@ log=logging.getLogger("aion")
 app=FastAPI(title="AION Persistent Universe", version="1.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 init()
-if not os.getenv("DATABASE_URL"):
-    raise RuntimeError("DATABASE_URL is required for persistent AION world")
 if load() is None:
     save(seed(), time.time())
 
@@ -72,7 +70,10 @@ def persistence_test(seconds:int=60):
         if w is None:
             w=before
         return autonomous_cycle(w,time.time(),forced_seconds=seconds)[0]
-    advanced=atomic_update(update)
+    # Physics state is process-global; serialize this diagnostic with the
+    # autonomous writer so PyBullet cannot be accessed concurrently.
+    with WORLD_LOCK:
+        advanced=atomic_update(update)
     persisted=load()
     after_snapshot={
         "cycle":advanced.get("cycle",0),
@@ -124,8 +125,83 @@ def ai_self_development():
         "accepted":sd.get("accepted",0),
         "rejected":sd.get("rejected",0),
         "latest":sd.get("modules",[])[-1] if sd.get("modules") else None,
+        "lastTest":sd.get("lastTest"),
+        "lastDecision":sd.get("lastDecision"),
         "autonomy":"observe -> invent -> sandbox -> validate -> adopt/rollback"
     }
+
+@app.get("/ai/diagnostics")
+def ai_diagnostics():
+    """Read-only, machine-readable diagnostics for remote health checks."""
+    checks = []
+    try:
+        w = load()
+        db_ok = isinstance(w, dict)
+        checks.append({"name": "database_read", "ok": db_ok})
+        if not db_ok:
+            return {
+                "ok": False,
+                "service": "AION",
+                "checks": checks,
+                "error": "World state is missing or database read failed",
+                "autonomy": "observe -> invent -> sandbox -> validate -> adopt/rollback",
+            }
+
+        sd = (w.get("aiDiagnostics") or {}).get("selfDevelopment") or {}
+        try:
+            version = int(sd.get("version", 0) or 0)
+            accepted = int(sd.get("accepted", 0) or 0)
+            rejected = int(sd.get("rejected", 0) or 0)
+            counters_ok = min(version, accepted, rejected) >= 0 and version >= accepted + rejected
+        except (TypeError, ValueError):
+            version, accepted, rejected = 0, 0, 0
+            counters_ok = False
+        checks.append({"name": "self_development_counters", "ok": counters_ok})
+
+        population = w.get("population", [])
+        population_ok = isinstance(population, list)
+        checks.append({"name": "population_shape", "ok": population_ok})
+
+        latest = sd.get("modules", [])[-1] if isinstance(sd.get("modules"), list) and sd.get("modules") else None
+        last_test = sd.get("lastTest")
+        test_ok = isinstance(last_test, dict) and last_test.get("validated") is True
+        checks.append({"name": "last_sandbox_validation", "ok": test_ok})
+
+        database = "postgresql" if os.getenv("DATABASE_URL") else "sqlite"
+        checks.append({"name": "postgresql_configured", "ok": database == "postgresql"})
+
+        return {
+            "ok": all(item["ok"] for item in checks),
+            "service": "AION",
+            "database": database,
+            "world": {
+                "worldVersion": w.get("worldVersion", 0),
+                "worldAge": w.get("worldAge", 0),
+                "cycle": w.get("cycle", 0),
+                "population": len(population) if population_ok else None,
+                "epoch": w.get("epoch"),
+                "updatedAt": w.get("updatedAt", 0),
+            },
+            "selfDevelopment": {
+                "version": version,
+                "accepted": accepted,
+                "rejected": rejected,
+                "latest": latest,
+                "lastTest": last_test,
+                "lastDecision": sd.get("lastDecision"),
+            },
+            "checks": checks,
+            "autonomy": "observe -> invent -> sandbox -> validate -> adopt/rollback",
+        }
+    except Exception:
+        log.exception("AION read-only diagnostics failed")
+        return {
+            "ok": False,
+            "service": "AION",
+            "checks": checks + [{"name": "diagnostics_exception", "ok": False}],
+            "error": "Diagnostics could not complete; inspect Render application logs",
+        }
+
 
 @app.post("/ai/experiment")
 def ai_experiment():
@@ -164,8 +240,10 @@ def reset_world(confirm: str = ""):
             "simulatedYears": 0.0,
             "rate": "24 real hours = 100 simulated years"
         }
+        now=time.time()
         w["worldVersion"]=previous_version+1
-        w["updatedAt"]=time.time()
+        w["updatedAt"]=now
+        w.setdefault("universeClock",{})["lastRealTimestamp"]=now
         return w
     return atomic_update(reset)
 
@@ -211,6 +289,13 @@ def loop():
         try: advance()
         except Exception as exc:
             log.exception("AION autonomous loop failed: %s", exc)
-        time.sleep(20)
+        time.sleep(1)
 
-threading.Thread(target=loop,daemon=True).start()
+def start_autonomous_loop():
+    try:
+        advance()
+    except Exception as exc:
+        log.exception("AION initial autonomous advance failed: %s", exc)
+    threading.Thread(target=loop,daemon=True).start()
+
+start_autonomous_loop()

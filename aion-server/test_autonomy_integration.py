@@ -32,3 +32,19 @@ def test_self_development_creates_and_sandboxes_module():
     assert sd["modules"][0]["autonomous"] is True
     assert "sandboxTest" in sd["modules"][0]
     assert world["evolution"]["selfCodeVersion"]==1
+
+
+def test_self_create_mechanic():
+    from autonomy import self_create_mechanic
+    world={
+        "population":[{"name":"A"}]*4,
+        "settlements":[{"name":"Home"}],
+        "economy":{"food":100,"water":100,"wood":60,"stone":30,"knowledge":0},
+        "society":{"stability":1},
+        "evolution":{"resourceAbundance":1,"terrainScale":1,"fogDistance":90},
+    }
+    ok,mechanic=self_create_mechanic(world)
+    assert ok is True
+    assert mechanic["autonomous"] is True
+    assert mechanic["sandboxTest"]["after"] >= mechanic["sandboxTest"]["before"]
+    assert world["aiDiagnostics"]["mechanics"][0]["name"] == "seasonal_adaptation"

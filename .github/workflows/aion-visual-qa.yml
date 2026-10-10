@@ -6,8 +6,8 @@ on:
     branches: ["**"]
 
 concurrency:
-  group: aion-live-qa
-  cancel-in-progress: false
+  group: aion-visual-qa
+  cancel-in-progress: true
 
 jobs:
   browser:
@@ -20,14 +20,69 @@ jobs:
       - name: Install browser QA
         working-directory: qa
         run: npm install && npx playwright install --with-deps chromium
+      - name: Wait for stable frontend and physics deployment
+        env:
+          AION_CLIENT_URL: https://aion-server-test.onrender.com
+        run: |
+          python - <<'PY'
+          import json, os, time, urllib.request
+          base = os.environ["AION_CLIENT_URL"].rstrip("/")
+          consecutive = 0
+          print('Waiting 60 seconds for the Render rollout to settle')
+          time.sleep(60)
+          for attempt in range(18):
+              try:
+                  with urllib.request.urlopen(base + "/", timeout=15) as response:
+                      html = response.read().decode("utf-8")
+                  with urllib.request.urlopen(base + "/health", timeout=15) as response:
+                      health = json.load(response)
+                  with urllib.request.urlopen(base + "/world", timeout=15) as response:
+                      world = json.load(response)
+                  with urllib.request.urlopen(base + "/ai/diagnostics", timeout=15) as response:
+                      diagnostics = json.load(response)
+                  population = world.get("population", [])
+                  markers = {
+                      "camera": "camDist=innerWidth<600?160:110" in html,
+                      "rivers": "function rebuildRivers(seed)" in html,
+                      "mountains": "type:'mountain'" in html,
+                      "hud": "Жители мира: " in html,
+                      "read_only_qa": "window.__AION_DISABLE_COLLIDER_UPLOAD" in html,
+                      "stable_coordinates": "W.rotation.y+=dt*.006" not in html,
+                  }
+                  ready = (all(markers.values()) and health.get("ok") is True and
+                           diagnostics.get("database") == "postgresql" and
+                           isinstance(population, list) and len(population) > 0)
+                  consecutive = consecutive + 1 if ready else 0
+                  print(f"Readiness {attempt + 1}/18: ready={ready}, stable={consecutive}/4, markers={markers}, health={health.get('ok')}, diagnostics_ok={diagnostics.get('ok')}, db={diagnostics.get('database')}, population={len(population) if isinstance(population, list) else 'invalid'}")
+                  if consecutive >= 4:
+                      print("Stable AION frontend, PostgreSQL, terrain collision and autonomous movement verified")
+                      break
+              except Exception as exc:
+                  consecutive = 0
+                  print(f"Readiness {attempt + 1}/24 failed; resetting stability counter: {exc}")
+              time.sleep(10)
+          else:
+              raise SystemExit("Timed out waiting for stable AION frontend/physics deployment")
+          PY
       - name: Run AION visual smoke test
         working-directory: qa
         env:
-          AION_CLIENT_URL: https://aion-server-b80c.onrender.com
-        run: npm test
+          AION_CLIENT_URL: https://aion-server-test.onrender.com
+        run: |
+          for attempt in 1 2 3; do
+            echo "AION browser QA attempt $attempt/3"
+            if npm test; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Browser QA failed; wait for any in-progress deployment to settle, then retry."
+              sleep 20
+            fi
+          done
+          exit 1
       - name: Publish lifecycle report even on failure
         if: always()
-        run: cat artifacts/aion-lifecycle-report.json || true
+        run: cat qa/artifacts/aion-lifecycle-report.json || true
       - name: Upload AION screenshot and report
         if: always()
         uses: actions/upload-artifact@v4

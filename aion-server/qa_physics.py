@@ -3,7 +3,7 @@ Checks physical contact/penetration rather than assuming a specific body-center 
 """
 import os, sys, json, math
 sys.path.insert(0, os.path.dirname(__file__))
-from simulation import PhysicsWorld
+from simulation import PhysicsWorld, simulate_physics, physics
 
 def run():
     p=PhysicsWorld()
@@ -37,8 +37,32 @@ def run():
     dist=math.dist(x1,x2) if x1 and x2 else 0
     checks["dynamic_collision"]=dist >= .65
 
+    # Production terrain collider: a body dropped above seeded terrain must land on the surface.
+    terrain=PhysicsWorld()
+    terrain.set_terrain(12345)
+    terrain.add_body("qa:terrain-agent",0,3,0,.4,1,1.5)
+    terrain.step(2.0)
+    terrain_pos=terrain.position("qa:terrain-agent")
+    checks["terrain_collision"]=bool(terrain_pos and math.isfinite(terrain_pos[1]) and 1.65 <= terrain_pos[1] <= 2.2)
+
+    # A new universe must not reuse a previous universe's rigid body for the same agent ID.
+    world_a={"worldVersion":1001,"universe":{"worldSeed":12345},"population":[{"id":1,"x":-8,"y":3,"z":0}],"physicsColliders":[]}
+    world_b={"worldVersion":1002,"universe":{"worldSeed":54321},"population":[{"id":1,"x":8,"y":3,"z":0}],"physicsColliders":[]}
+    simulate_physics(world_a,.1)
+    simulate_physics(world_b,.1)
+    checks["universe_reset_clears_old_bodies"]=("agent:1001:12345:1" not in physics.bodies and "agent:1002:54321:1" in physics.bodies)
+
+    moving={"worldVersion":1003,"universe":{"worldSeed":33333},"population":[{"id":7,"x":0,"y":3,"z":0}],"physicsColliders":[]}
+    motion=[]
+    for _ in range(10):
+        simulate_physics(moving,.25)
+        a=moving["population"][0]
+        motion.append((a["x"],a["z"]))
+    checks["autonomous_agent_motion"]=math.dist(motion[0],motion[-1])>.25
+
     result={"ok":all(checks.values()),"checks":checks,
-            "positions":{"ground":pos,"wall":pos2,"dynamicA":x1,"dynamicB":x2}}
+            "positions":{"ground":pos,"wall":pos2,"dynamicA":x1,"dynamicB":x2,"terrain":terrain_pos,
+                         "motionStart":motion[0],"motionEnd":motion[-1]}}
     print(json.dumps(result,ensure_ascii=False))
     return 0 if result["ok"] else 1
 
