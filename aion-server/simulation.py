@@ -174,9 +174,21 @@ def simulate_physics(w,seconds):
         else:
             physics.set_velocity(key,0,0)
     physics.step(seconds)
+    # Concave terrain meshes can allow small bodies to tunnel below the surface
+    # during a long/multi-step update. Reconcile after stepping as well as before.
+    # Preserve horizontal motion; correct only vertical penetration.
     for a in population:
-        pos=physics.position(_body_key(a,world_token))
-        if pos:a["x"]=round(float(pos[0]),4);a["y"]=round(float(pos[1]),4);a["z"]=round(float(pos[2]),4)
+        key=_body_key(a,world_token)
+        pos=physics.position(key)
+        if not pos:
+            continue
+        floor=_terrain_height_at(physics.terrain_seed or 0,float(pos[0]),float(pos[2]))
+        min_center_y=floor+float(a.get("height",1.55))/2+0.04
+        if float(pos[1])<min_center_y:
+            physics.set_position(key,float(pos[0]),min_center_y,float(pos[2]))
+            physics.set_velocity(key,0.0,0.0)
+            pos=physics.position(key)
+        a["x"]=round(float(pos[0]),4);a["y"]=round(float(pos[1]),4);a["z"]=round(float(pos[2]),4)
     w.setdefault("physics",{}).update({"engine":"pybullet","authoritative":True,"fixedTimestep":physics.dt,
         "gravity":-9.81,"bodies":len(population),"staticColliders":len(w.get("physicsColliders",[])),
         "terrainCollider":physics.terrain_body is not None,"terrainSeed":physics.terrain_seed,"lastStepSeconds":seconds})
