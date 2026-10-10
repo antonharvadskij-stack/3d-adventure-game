@@ -52,8 +52,17 @@ def run():
     simulate_physics(world_b,.1)
     checks["universe_reset_clears_old_bodies"]=("agent:1001:12345:1" not in physics.bodies and "agent:1002:54321:1" in physics.bodies)
 
+    moving={"worldVersion":1003,"universe":{"worldSeed":33333},"population":[{"id":7,"x":0,"y":3,"z":0}],"physicsColliders":[]}
+    motion=[]
+    for _ in range(10):
+        simulate_physics(moving,.25)
+        a=moving["population"][0]
+        motion.append((a["x"],a["z"]))
+    checks["autonomous_agent_motion"]=math.dist(motion[0],motion[-1])>.25
+
     result={"ok":all(checks.values()),"checks":checks,
-            "positions":{"ground":pos,"wall":pos2,"dynamicA":x1,"dynamicB":x2,"terrain":terrain_pos}}
+            "positions":{"ground":pos,"wall":pos2,"dynamicA":x1,"dynamicB":x2,"terrain":terrain_pos,
+                         "motionStart":motion[0],"motionEnd":motion[-1]}}
     print(json.dumps(result,ensure_ascii=False))
     return 0 if result["ok"] else 1
 
