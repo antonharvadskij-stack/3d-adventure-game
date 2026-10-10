@@ -419,6 +419,13 @@ def _test_module(world,module):
     candidate=snapshot(world)
     e=candidate.setdefault("evolution",dict(DEFAULT_EVOLUTION))
     effects=module.get("effects",{})
+    if not effects:
+        return False, {
+            "reason":"no_improvable_effects",
+            "decision":"deferred",
+            "threshold":0.10,
+            "validated":True
+        }
     for key,value in effects.items():
         if key=="knowledge":
             candidate.setdefault("economy",{})["knowledge"]=max(0,candidate.setdefault("economy",{}).get("knowledge",0)+float(value))
@@ -477,6 +484,15 @@ def self_develop(world):
         sd[key]=max(int(sd.get(key,0) or 0),floor)
     module=_generate_module(world)
     ok,report=_test_module(world,module)
+    # A saturated world can legitimately have no safe, score-improving effect
+    # left in the current module vocabulary. Record that as a deferred search,
+    # not as a fabricated failed experiment or a new module version.
+    if report.get("decision") == "deferred":
+        sd["lastCycle"]=int(world.get("cycle",0))
+        sd["lastDecision"]="deferred"
+        sd["lastTest"]=report
+        d["selfDevelopment"]=sd
+        return False,module
     module["createdAt"]=time.time()
     module["version"]=int(sd.get("version",0))+1
     module["autonomous"]=True
