@@ -67,7 +67,7 @@ const inspect = async name => {
             nonFinite: agents.length - finite.length,
             terrainFunctionAvailable: hasTerrain,
             belowTerrain: belowTerrain.slice(0, 20),
-            severeOverlapPairs: separations.filter(pair => pair.distance < 0.35).map(pair => ({a:pair.a,b:pair.b,distance:Number(pair.distance.toFixed(3))})).slice(0, 20),
+            significantOverlapPairs: separations.filter(pair => pair.distance < 0.60).map(pair => ({a:pair.a,b:pair.b,distance:Number(pair.distance.toFixed(3))})).slice(0, 20),
             minimumSeparation: separations.length ? Number(separations[0].distance.toFixed(3)) : null
           };
         })(),
@@ -107,7 +107,7 @@ try {
   if (!initial.world.agentGeometry || initial.world.agentGeometry.checked < 10) throw new Error("Too few server agents available for geometry QA");
   if (initial.world.agentGeometry.nonFinite > 0) throw new Error("Server agents contain non-finite coordinates: " + JSON.stringify(initial.world.agentGeometry));
   if (initial.world.agentGeometry.terrainFunctionAvailable && initial.world.agentGeometry.belowTerrain.length > 0) throw new Error("Server agents are below the rendered terrain: " + JSON.stringify(initial.world.agentGeometry.belowTerrain));
-  if (initial.world.agentGeometry.severeOverlapPairs.length > 0) throw new Error("Severe 3D agent overlaps detected: " + JSON.stringify(initial.world.agentGeometry.severeOverlapPairs));
+  if (initial.world.agentGeometry.significantOverlapPairs.length > 0) throw new Error("Significant 3D agent overlaps detected: " + JSON.stringify(initial.world.agentGeometry.significantOverlapPairs));
   if (!initial.calendar.includes("Год") || !initial.calendar.includes("День")) throw new Error("Earth-origin calendar missing");
   if (!initial.elapsed.includes("С начала рождения Земли")) throw new Error("Elapsed-from-Earth-origin label missing");
 
@@ -177,7 +177,7 @@ try {
       server_world_hydrated: !!initial.world,
       agent_coordinates_finite: !!initial.world?.agentGeometry && initial.world.agentGeometry.nonFinite === 0,
       agents_above_terrain: !!initial.world?.agentGeometry && (!initial.world.agentGeometry.terrainFunctionAvailable || initial.world.agentGeometry.belowTerrain.length === 0),
-      no_severe_agent_overlaps: !!initial.world?.agentGeometry && initial.world.agentGeometry.severeOverlapPairs.length === 0,
+      no_significant_agent_overlaps: !!initial.world?.agentGeometry && initial.world.agentGeometry.significantOverlapPairs.length === 0,
       world_generation_unchanged_after_reload: !!afterReload.world && afterReload.world.worldVersion === initial.world?.worldVersion,
       earth_origin_calendar: initial.calendar.includes("Год") && initial.calendar.includes("День") && initial.elapsed.includes("С начала рождения Земли"),
       hud_toggle: hud.panelOpen && hud.statsVisible,
