@@ -25,8 +25,8 @@ jobs:
           AION_CLIENT_URL: https://aion-server-test.onrender.com
         run: |
           for attempt in $(seq 1 18); do
-            if curl -fsS "$AION_CLIENT_URL/" | grep -q '#epoch{top:220px;left:10px;right:auto;min-width:0;width:140px;padding:8px}'; then
-              echo "AION frontend with the responsive HUD fix is live"
+            if curl -fsS "$AION_CLIENT_URL/" | grep -q 'Жители мира: '; then
+              echo "AION frontend with the HUD population/log fixes is live"
               exit 0
             fi
             echo "Frontend deployment not visible yet (attempt $attempt/18); waiting 10 seconds"
