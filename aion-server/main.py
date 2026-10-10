@@ -130,6 +130,79 @@ def ai_self_development():
         "autonomy":"observe -> invent -> sandbox -> validate -> adopt/rollback"
     }
 
+@app.get("/ai/diagnostics")
+def ai_diagnostics():
+    """Read-only, machine-readable diagnostics for remote health checks."""
+    checks = []
+    try:
+        w = load()
+        db_ok = isinstance(w, dict)
+        checks.append({"name": "database_read", "ok": db_ok})
+        if not db_ok:
+            return {
+                "ok": False,
+                "service": "AION",
+                "checks": checks,
+                "error": "World state is missing or database read failed",
+                "autonomy": "observe -> invent -> sandbox -> validate -> adopt/rollback",
+            }
+
+        sd = (w.get("aiDiagnostics") or {}).get("selfDevelopment") or {}
+        try:
+            version = int(sd.get("version", 0) or 0)
+            accepted = int(sd.get("accepted", 0) or 0)
+            rejected = int(sd.get("rejected", 0) or 0)
+            counters_ok = min(version, accepted, rejected) >= 0 and version >= accepted + rejected
+        except (TypeError, ValueError):
+            version, accepted, rejected = 0, 0, 0
+            counters_ok = False
+        checks.append({"name": "self_development_counters", "ok": counters_ok})
+
+        population = w.get("population", [])
+        population_ok = isinstance(population, list)
+        checks.append({"name": "population_shape", "ok": population_ok})
+
+        latest = sd.get("modules", [])[-1] if isinstance(sd.get("modules"), list) and sd.get("modules") else None
+        last_test = sd.get("lastTest")
+        test_ok = isinstance(last_test, dict) and last_test.get("validated") is True
+        checks.append({"name": "last_sandbox_validation", "ok": test_ok})
+
+        database = "postgresql" if os.getenv("DATABASE_URL") else "sqlite"
+        checks.append({"name": "postgresql_configured", "ok": database == "postgresql"})
+
+        return {
+            "ok": all(item["ok"] for item in checks),
+            "service": "AION",
+            "database": database,
+            "world": {
+                "worldVersion": w.get("worldVersion", 0),
+                "worldAge": w.get("worldAge", 0),
+                "cycle": w.get("cycle", 0),
+                "population": len(population) if population_ok else None,
+                "epoch": w.get("epoch"),
+                "updatedAt": w.get("updatedAt", 0),
+            },
+            "selfDevelopment": {
+                "version": version,
+                "accepted": accepted,
+                "rejected": rejected,
+                "latest": latest,
+                "lastTest": last_test,
+                "lastDecision": sd.get("lastDecision"),
+            },
+            "checks": checks,
+            "autonomy": "observe -> invent -> sandbox -> validate -> adopt/rollback",
+        }
+    except Exception:
+        log.exception("AION read-only diagnostics failed")
+        return {
+            "ok": False,
+            "service": "AION",
+            "checks": checks + [{"name": "diagnostics_exception", "ok": False}],
+            "error": "Diagnostics could not complete; inspect Render application logs",
+        }
+
+
 @app.post("/ai/experiment")
 def ai_experiment():
     def update(w):
