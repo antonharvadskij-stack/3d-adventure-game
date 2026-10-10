@@ -51,6 +51,26 @@ const inspect = async name => {
         agentPositions: Array.isArray(window.__AION_SERVER_STATE.population) ? window.__AION_SERVER_STATE.population.slice(0, 20).map(a => ({
           id: Number(a.id || 0), x: Number(a.x || 0), z: Number(a.z || 0)
         })) : [],
+        agentGeometry: (() => {
+          const population = Array.isArray(window.__AION_SERVER_STATE.population) ? window.__AION_SERVER_STATE.population : [];
+          const agents = population.slice(0, 20).map(a => ({ id: Number(a.id), x: Number(a.x), y: Number(a.y), z: Number(a.z) }));
+          const finite = agents.filter(a => Number.isFinite(a.x) && Number.isFinite(a.y) && Number.isFinite(a.z));
+          const hasTerrain = typeof window.terrainHeight === "function";
+          const belowTerrain = hasTerrain ? finite.filter(a => a.y - window.terrainHeight(a.x, a.z) < 0.20).map(a => a.id) : [];
+          const separations = [];
+          for (let i = 0; i < finite.length; i++) for (let j = i + 1; j < finite.length; j++) {
+            separations.push({ a: finite[i].id, b: finite[j].id, distance: Math.hypot(finite[i].x-finite[j].x, finite[i].y-finite[j].y, finite[i].z-finite[j].z) });
+          }
+          separations.sort((a,b) => a.distance-b.distance);
+          return {
+            checked: agents.length,
+            nonFinite: agents.length - finite.length,
+            terrainFunctionAvailable: hasTerrain,
+            belowTerrain: belowTerrain.slice(0, 20),
+            severeOverlapPairs: separations.filter(pair => pair.distance < 0.35).map(pair => ({a:pair.a,b:pair.b,distance:Number(pair.distance.toFixed(3))})).slice(0, 20),
+            minimumSeparation: separations.length ? Number(separations[0].distance.toFixed(3)) : null
+          };
+        })(),
         epoch: window.__AION_SERVER_STATE.epoch,
         worldAge: Number(window.__AION_SERVER_STATE.worldAge || 0),
       } : null,
@@ -84,6 +104,10 @@ try {
   if (!initial.canvas || initial.canvas.width < 300 || initial.canvas.height < 250) throw new Error("3D canvas missing or too small");
   if (!initial.webgl) throw new Error("WebGL2 context unavailable");
   if (!initial.world || initial.world.worldVersion < 1) throw new Error("Server world did not hydrate");
+  if (!initial.world.agentGeometry || initial.world.agentGeometry.checked < 10) throw new Error("Too few server agents available for geometry QA");
+  if (initial.world.agentGeometry.nonFinite > 0) throw new Error("Server agents contain non-finite coordinates: " + JSON.stringify(initial.world.agentGeometry));
+  if (initial.world.agentGeometry.terrainFunctionAvailable && initial.world.agentGeometry.belowTerrain.length > 0) throw new Error("Server agents are below the rendered terrain: " + JSON.stringify(initial.world.agentGeometry.belowTerrain));
+  if (initial.world.agentGeometry.severeOverlapPairs.length > 0) throw new Error("Severe 3D agent overlaps detected: " + JSON.stringify(initial.world.agentGeometry.severeOverlapPairs));
   if (!initial.calendar.includes("Год") || !initial.calendar.includes("День")) throw new Error("Earth-origin calendar missing");
   if (!initial.elapsed.includes("С начала рождения Земли")) throw new Error("Elapsed-from-Earth-origin label missing");
 
@@ -142,6 +166,8 @@ try {
   await page.waitForTimeout(500);
   const afterReload = await inspect("05-mobile-after-reload");
   if (!afterReload.world || afterReload.world.worldVersion < 1) throw new Error("World state did not restore after reload");
+  if (afterReload.world.worldVersion !== initial.world.worldVersion) throw new Error("World generation changed during ordinary browser reload: " + initial.world.worldVersion + " -> " + afterReload.world.worldVersion);
+  if (afterReload.world.agentGeometry?.nonFinite > 0) throw new Error("Restored world contains non-finite agent coordinates");
 
   const seriousRequestFailures = failedRequests.filter(x => !x.includes("ERR_ABORTED"));
   const result = {
@@ -149,6 +175,10 @@ try {
     checks: {
       webgl_canvas: !!initial.webgl && !!initial.canvas,
       server_world_hydrated: !!initial.world,
+      agent_coordinates_finite: !!initial.world?.agentGeometry && initial.world.agentGeometry.nonFinite === 0,
+      agents_above_terrain: !!initial.world?.agentGeometry && (!initial.world.agentGeometry.terrainFunctionAvailable || initial.world.agentGeometry.belowTerrain.length === 0),
+      no_severe_agent_overlaps: !!initial.world?.agentGeometry && initial.world.agentGeometry.severeOverlapPairs.length === 0,
+      world_generation_unchanged_after_reload: !!afterReload.world && afterReload.world.worldVersion === initial.world?.worldVersion,
       earth_origin_calendar: initial.calendar.includes("Год") && initial.calendar.includes("День") && initial.elapsed.includes("С начала рождения Земли"),
       hud_toggle: hud.panelOpen && hud.statsVisible,
       camera_input: true,
