@@ -141,7 +141,7 @@ function applyVisualWorldSeed(seed){
  let state=s;
  const rnd=()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return ((state>>>0)/4294967296);};
  const place=(g,spread=105)=>{let tries=0;while(tries++<80){const a=rnd()*Math.PI*2,d=8+rnd()*spread,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=terrainHeight(x,z);const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;if(h>-.15&&continent>.02){g.position.set(x,Math.max(h,0),z);return;}}g.position.set((rnd()-.5)*120,0,(rnd()-.5)*120);};
- staticColliders.filter(x=>x.type==='tree').forEach(s=>place(s.g));staticColliders.filter(x=>x.type==='mountain').forEach(s=>{s.g.position.y=terrainHeight(s.g.position.x,s.g.position.z);});
+ staticColliders.filter(x=>x.type==='mountain').forEach(s=>place(s.g,100));staticColliders.filter(x=>x.type==='tree').forEach(s=>place(s.g));
  naturalResources.forEach(r=>place(r.g));
  worldSettlements.forEach(q=>place(q.g));
  animals.forEach(a=>{place(a.g);a.phase=rnd()*Math.PI*2;});
