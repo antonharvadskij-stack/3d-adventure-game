@@ -44,6 +44,15 @@ const inspect = async name => {
         worldAge: Number(window.__AION_SERVER_STATE.worldAge || 0),
       } : null,
       webgl: !!document.querySelector("canvas")?.getContext("webgl2"),
+      overlaps: (() => {
+        const rects = {};
+        for (const key of ["panel", "epoch", "resetBtn", "log", "god", "cam"]) {
+          const el = document.querySelector(key === "resetBtn" ? "#resetBtn" : key === "cam" ? "#cam" : "#" + key);
+          if (el) { const r = el.getBoundingClientRect(); rects[key] = {x:r.x,y:r.y,right:r.right,bottom:r.bottom}; }
+        }
+        const overlap = (a,b) => !!rects[a] && !!rects[b] && rects[a].x < rects[b].right && rects[a].right > rects[b].x && rects[a].y < rects[b].bottom && rects[a].bottom > rects[b].y;
+        return {panel_epoch:overlap("panel","epoch"),panel_reset:overlap("panel","resetBtn"),log_god:overlap("log","god"),cam_god:overlap("cam","god")};
+      })(),
     };
   });
   await page.screenshot({ path: `artifacts/${name}.png`, fullPage: true });
@@ -87,6 +96,7 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(500);
   const mobile = await inspect("04-mobile-layout");
+  if (Object.values(mobile.overlaps || {}).some(Boolean)) throw new Error("Mobile HUD panels overlap: " + JSON.stringify(mobile.overlaps));
   const required = ["canvas", "panel", "epoch", "reset", "log", "god"];
   for (const key of required) {
     const r = key === "reset" ? mobile.reset : mobile[key];
