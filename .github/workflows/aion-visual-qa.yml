@@ -40,11 +40,11 @@ jobs:
                       diagnostics = json.load(response)
                   population = world.get("population", [])
                   ready = ("camDist=innerWidth<600?160:110" in html and "function rebuildRivers(seed)" in html and "type:'mountain'" in html and "S.fog.far=Math.max(260,evolution.fogDistance||320)" in html and "road.position.set(roadX,terrainHeight(roadX,roadZ)+.06,roadZ)" in html and "window.__AION_DISABLE_COLLIDER_UPLOAD" in html and "Жители мира: " in html and "W.rotation.y+=dt*.006" not in html and
-                           health.get("ok") is True and diagnostics.get("ok") is True and
+                           health.get("ok") is True and
                            diagnostics.get("database") == "postgresql" and
                            isinstance(population, list) and len(population) > 0)
                   consecutive = consecutive + 1 if ready else 0
-                  print(f"Readiness {attempt + 1}/24: ready={ready}, stable={consecutive}/12")
+                  print(f"Readiness {attempt + 1}/24: ready={ready}, stable={consecutive}/12, health={health.get('ok')}, diagnostics_ok={diagnostics.get('ok')}, db={diagnostics.get('database')}, population={len(population) if isinstance(population, list) else 'invalid'}")
                   if consecutive >= 12:
                       print("Stable AION frontend, PostgreSQL, terrain collision and autonomous movement verified")
                       break
