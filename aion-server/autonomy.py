@@ -330,7 +330,7 @@ def generate_mechanic(world):
         return {"name":"academy","type":"building","description":"Центр обучения ускоряет знания.","effects":{"knowledge":2.0,"stability":0.01}}
     if o["population"]>=15 and o["settlements"]>=3 and "trade_route" not in existing:
         return {"name":"trade_route","type":"network","description":"Связь поселений повышает устойчивость.","effects":{"stability":0.03,"knowledge":1.0}}
-    return {"name":"seasonal_adaptation","type":"world_event","description":"Мир адаптируется к ресурсам.","effects":{"resourceAbundance":1.02}}
+    return {"name":"seasonal_adaptation","type":"world_event","description":"Мир адаптируется к ресурсам.","effects":{"resourceAbundance":1.025}}
 
 def test_mechanic(world, mechanic):
     """Compare a mechanic against a baseline over several sandbox steps."""
