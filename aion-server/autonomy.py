@@ -371,9 +371,25 @@ def self_create_mechanic(world):
     d["lastMechanicTest"]=mechanic["sandboxTest"]
     d["lastMechanicDecision"]="accepted" if ok else "rejected"
     if ok:
+        # Adoption must change the actual world, not only record a proposal.
+        # Apply only the same bounded effect types that the sandbox validated.
+        effects=mechanic.get("effects",{})
+        eco=world.setdefault("economy",{})
+        society=world.setdefault("society",{})
+        evo=world.setdefault("evolution",{})
+        if "knowledge" in effects:
+            eco["knowledge"]=max(0.0,min(1000000.0,float(eco.get("knowledge",0))+float(effects["knowledge"])))
+        if "stability" in effects:
+            society["stability"]=max(0.0,min(1.5,float(society.get("stability",1))+float(effects["stability"])))
+        if "resourceAbundance" in effects:
+            evo["resourceAbundance"]=max(0.1,min(2.0,float(evo.get("resourceAbundance",1))*float(effects["resourceAbundance"])))
+        if "terrainScale" in effects:
+            evo["terrainScale"]=max(0.5,min(1.5,float(evo.get("terrainScale",1))*float(effects["terrainScale"])))
+        if "fogDistance" in effects:
+            evo["fogDistance"]=max(30.0,min(180.0,float(evo.get("fogDistance",90))+float(effects["fogDistance"])))
         store.append(mechanic)
-        world.setdefault("history",[]).append("AION самостоятельно создал игровую механику: "+mechanic["name"])
-        world.setdefault("evolution",{})["mechanicVersion"]=mechanic["version"]
+        world.setdefault("history",[]).append("AION самостоятельно создал и применил игровую механику: "+mechanic["name"])
+        evo["mechanicVersion"]=mechanic["version"]
     else:
         d["rejectedMechanics"]=int(d.get("rejectedMechanics",0))+1
     return ok,mechanic
