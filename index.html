@@ -99,7 +99,7 @@ function log(t){events.unshift(t);if(events.length>3)events.pop();document.getEl
 // AION visual evolution: the server's autonomous strategy is reflected in the live world.
 function applyEvolutionVisuals(){
  const q=Math.max(.7,Math.min(1.5,evolution.visualQuality||1));
- if(S.fog){S.fog.near=Math.max(55,Math.min(90,(evolution.fogDistance||320)*.28));S.fog.far=Math.max(260,evolution.fogDistance||320);}
+ if(S.fog){const fogDistance=Math.max(30,Math.min(180,Number(evolution.fogDistance)||90));S.fog.near=Math.max(8,Math.min(45,fogDistance*.25));S.fog.far=Math.max(S.fog.near+80,Math.min(540,fogDistance*3));}
  sun.intensity=2.6*(evolution.lightIntensity||1)*q;
  ground.scale.set(evolution.terrainScale||1,1,evolution.terrainScale||1);
  ocean.scale.setScalar(Math.max(0.8,Math.min(1.6,evolution.terrainScale||1)));
