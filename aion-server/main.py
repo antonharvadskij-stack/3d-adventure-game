@@ -89,9 +89,24 @@ def persistence_test(seconds:int=60):
         "population":len(persisted.get("population",[])) if persisted else None,
         "updatedAt":persisted.get("updatedAt",0) if persisted else None,
     }
+    persisted_matches = (
+        persisted is not None
+        and all(persisted_snapshot[key] == after_snapshot[key]
+                for key in ("cycle", "worldVersion", "population"))
+        and abs(float(persisted_snapshot["worldAge"] or 0)
+                - float(after_snapshot["worldAge"] or 0)) < 1e-6
+    )
+    world_advanced = (
+        float(after_snapshot["worldAge"] or 0) > float(before_snapshot["worldAge"] or 0)
+        and int(after_snapshot["cycle"] or 0) >= int(before_snapshot["cycle"] or 0)
+    )
     return {
-        "ok":persisted is not None and persisted_snapshot["worldVersion"]==after_snapshot["worldVersion"],
+        "ok": persisted_matches and world_advanced,
         "simulatedSeconds":seconds,
+        "checks": {
+            "world_advanced": world_advanced,
+            "persisted_snapshot_matches": persisted_matches,
+        },
         "before":before_snapshot,
         "after":after_snapshot,
         "persisted":persisted_snapshot,
