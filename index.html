@@ -129,10 +129,17 @@ function connectSettlements(){
  if(settlements.length<2)return;
  for(let i=0;i<settlements.length-1;i++){
   const a=settlements[i],b=settlements[i+1]; if(a.roadTo&&a.roadTo===b)continue;
-  const dx=b.g.position.x-a.g.position.x,dz=b.g.position.z-a.g.position.z,len=Math.hypot(dx,dz); if(len<4)continue;
-  const road=new THREE.Mesh(new THREE.BoxGeometry(.55,.08,len),M(0x5b5147));
-  const roadX=(a.g.position.x+b.g.position.x)/2,roadZ=(a.g.position.z+b.g.position.z)/2;road.position.set(roadX,terrainHeight(roadX,roadZ)+.06,roadZ);
-  road.rotation.y=Math.atan2(dx,dz);W.add(road);settlementRoads.push(road);a.roadTo=b;
+  const ax=a.g.position.x,az=a.g.position.z,bx=b.g.position.x,bz=b.g.position.z;
+  const dx=bx-ax,dz=bz-az,len=Math.hypot(dx,dz); if(len<4)continue;
+  const angle=Math.atan2(dx,dz),segmentLength=1.6,segments=Math.ceil(len/segmentLength);
+  for(let j=0;j<segments;j++){
+   const t0=j/segments,t1=Math.min(1,(j+1)/segments),tm=(t0+t1)/2;
+   const x=ax+dx*tm,z=az+dz*tm,segLen=len*(t1-t0);
+   const road=new THREE.Mesh(new THREE.BoxGeometry(.48,.07,segLen+.04),M(0x5b5147));
+   road.position.set(x,terrainHeight(x,z)+.045,z);road.rotation.y=angle;
+   W.add(road);settlementRoads.push(road);
+  }
+  a.roadTo=b;
  }
 }
 let appliedVisualWorldSeed=null;
