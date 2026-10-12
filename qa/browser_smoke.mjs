@@ -8,6 +8,19 @@ fs.mkdirSync("artifacts", { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const errors = [];
+page.on("pageerror", error => errors.push("pageerror: " + error.message));
+page.on("console", message => {
+  if (message.type() === "error") errors.push("console: " + message.text());
+});
+page.on("requestfailed", request => {
+  const failure = String(request.failure()?.errorText || "").toLowerCase();
+  if (!failure.includes("blocked_by_client") && !failure.includes("blockedbyclient")) {
+    errors.push("requestfailed: " + request.method() + " " + request.url() + " " + failure);
+  }
+});
+page.on("response", response => {
+  if (response.status() >= 500) errors.push("HTTP " + response.status() + ": " + response.url());
+});
 const blockedMutations = [];
 const destructiveAttempts = [];
 await page.route("https://aion-server-b80c.onrender.com/**", async route => {
