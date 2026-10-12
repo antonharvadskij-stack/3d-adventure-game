@@ -4,6 +4,12 @@ on:
   push:
     branches: ["**"]
   workflow_dispatch:
+    inputs:
+      confirm_live_persistence_test:
+        description: "Explicitly allow the live persistence endpoint to advance the production world by 5 simulated seconds"
+        required: true
+        type: boolean
+        default: false
 
 concurrency:
   group: aion-live-qa
@@ -29,7 +35,9 @@ jobs:
       - name: Run 120-second isolated agent physics regression
         run: python qa_physics_long_run.py
 
+      # This endpoint advances the live PostgreSQL-backed world; never run it automatically.
       - name: Live persistence API check
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm_live_persistence_test == true }}
         env:
           AION_SERVER_URL: https://aion-server-b80c.onrender.com
         run: |
