@@ -17,14 +17,17 @@ def run():
         z = (i // 5) * 2.0 - 3.0
         key = f"qa:agent:{i}"
         world.add_body(key, x, 0.9, z, radius=0.28, mass=1.0, height=1.3)
-        # Distinct, deterministic velocities keep the regression reproducible.
         vx = 0.65 if i % 2 == 0 else -0.65
         vz = 0.35 if i % 3 == 0 else -0.25
         world.set_velocity(key, vx, vz)
         initial[key] = (x, z)
 
+    # PhysicsWorld.step caps each call at 60 seconds. Chunk calls so the
+    # regression really advances 120 simulated seconds (7,200 fixed steps).
     duration = 120.0
-    world.step(duration)
+    for _ in range(int(duration)):
+        world.step(1.0)
+
     moved = 0
     positions = {}
     issues = []
