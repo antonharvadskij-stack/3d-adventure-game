@@ -531,8 +531,8 @@ def self_develop(world):
     return ok,module
 
 
-def _sync_universe_clock(world):
-    """Keep the durable universe clock as the high-water mark for worldAge."""
+def _sync_universe_clock(world, prefer_world_age=True):
+    """Reconcile legacy worldAge with the durable universe clock."""
     clock = world.setdefault("universeClock", {})
     try:
         age = max(0.0, float(world.get("worldAge", 0.0) or 0.0))
@@ -542,10 +542,15 @@ def _sync_universe_clock(world):
         clock_seconds = max(0.0, float(clock.get("simulatedSeconds", 0.0) or 0.0))
     except (TypeError, ValueError):
         clock_seconds = 0.0
-    clock["simulatedSeconds"] = max(age, clock_seconds)
-    clock["simulatedYears"] = clock["simulatedSeconds"] / (365.25 * 86400)
+    # On load, preserve the greatest known age from legacy persisted worlds.
+    # After tick(), the durable clock already advanced; ignore tick()'s
+    # duplicate legacy worldAge increment to prevent simulated-time drift.
+    if prefer_world_age:
+        clock_seconds = max(age, clock_seconds)
+    clock["simulatedSeconds"] = clock_seconds
+    clock["simulatedYears"] = clock_seconds / (365.25 * 86400)
     clock["rate"] = "24 real hours = 100 simulated years"
-    world["worldAge"] = clock["simulatedSeconds"]
+    world["worldAge"] = clock_seconds
     return world
 
 
@@ -569,7 +574,7 @@ def autonomous_cycle(world, now=None, forced_seconds=0):
         remaining -= step
     # tick() also advances the legacy worldAge field. The persistent universe
     # clock is authoritative, so discard that duplicate increment here.
-    _sync_universe_clock(world)
+    _sync_universe_clock(world, prefer_world_age=False)
     obs = observe(world)
     evo = world.setdefault("evolution", {})
     sd = world.setdefault("aiDiagnostics", {}).setdefault("selfDevelopment", {})
