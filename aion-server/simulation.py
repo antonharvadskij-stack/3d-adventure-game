@@ -452,6 +452,6 @@ def tick(w,seconds):
   self_repair(w)
   if w["cycle"]%30==0: run_experiment(w)
  choose_long_term_goal(w)
- simulate_physics(w, min(seconds, 0.25))
+ simulate_physics(w, min(seconds, 1.0))
  w["lastTick"]=time.time();w["updatedAt"]=time.time();w["history"]=w["history"][-100:]
  return w
