@@ -60,6 +60,22 @@ def run():
         motion.append((a["x"],a["z"]))
     checks["autonomous_agent_motion"]=math.dist(motion[0],motion[-1])>.25
 
+    # Regression: a stale legacy target must not override the current goalPosition.
+    target_priority={
+        "worldVersion":1004,
+        "universe":{"worldSeed":44444},
+        "population":[{
+            "id":9,"x":0.0,"y":3.0,"z":0.0,
+            "target":{"x":-12.0,"z":0.0},
+            "goalPosition":{"x":12.0,"z":0.0},
+            "moveSpeed":1.1
+        }],
+        "physicsColliders":[]
+    }
+    simulate_physics(target_priority,0.25)
+    priority_agent=target_priority["population"][0]
+    checks["fresh_goal_overrides_stale_target"]=priority_agent["x"] > 0.02
+
     result={"ok":all(checks.values()),"checks":checks,
             "positions":{"ground":pos,"wall":pos2,"dynamicA":x1,"dynamicB":x2,"terrain":terrain_pos,
                          "motionStart":motion[0],"motionEnd":motion[-1]}}
