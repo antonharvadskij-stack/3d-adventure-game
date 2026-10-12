@@ -69,7 +69,7 @@ jobs:
                               world.get("database") == "postgresql"
                               and diag.get("database") == "postgresql"
                           ),
-                          "population_nonempty": isinstance(population, list) and len(population) > 0,
+                          "population_nonempty": isinstance(population, int) and population > 0,
                           "self_development_ok": sd.get("ok") is True,
                           "self_development_counters_consistent": (
                               int(sd.get("version", 0))
@@ -83,7 +83,7 @@ jobs:
                           "world": {
                               "worldVersion": world.get("worldVersion"),
                               "cycle": world.get("cycle"),
-                              "populationCount": len(population) if isinstance(population, list) else None,
+                              "populationCount": population if isinstance(population, int) else None,
                               "database": world.get("database"),
                           },
                           "selfDevelopment": {
