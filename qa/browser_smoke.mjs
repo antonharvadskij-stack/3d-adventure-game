@@ -8,6 +8,15 @@ fs.mkdirSync("artifacts", { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const errors = [];
+const blockedMutations = [];
+await page.route("**/world/reset**", async route => {
+  blockedMutations.push({ url: route.request().url(), method: route.request().method() });
+  await route.abort("blockedbyclient");
+});
+await page.route("**/debug/persistence-test**", async route => {
+  blockedMutations.push({ url: route.request().url(), method: route.request().method() });
+  await route.abort("blockedbyclient");
+});
 page.on("pageerror", e => errors.push("pageerror: " + e.message));
 page.on("requestfailed", r => errors.push("requestfailed: " + r.url() + " :: " + (r.failure()?.errorText || "unknown")));
 page.on("console", m => { if (m.type() === "error") errors.push("console: " + m.text()); });
@@ -51,7 +60,7 @@ await page.screenshot({ path: "artifacts/03-after-reload.png" });
 const initial = snapshots[0].api;
 const observed = snapshots[1].api;
 const reloaded = snapshots[2].api;
-const noBrowserErrors = errors.filter(e => !e.includes("502")).length === 0;
+const noBrowserErrors = errors.filter(e => !e.includes("502") && !e.includes("blockedbyclient")).length === 0;
 const worldRemainsValid =
   Number.isFinite(Number(initial.worldAge)) &&
   Number.isFinite(Number(observed.worldAge)) &&
@@ -61,11 +70,12 @@ const worldRemainsValid =
   Number(reloaded.cycle) >= Number(observed.cycle) &&
   Number(reloaded.worldVersion) >= Number(observed.worldVersion);
 const result = {
-  ok: noBrowserErrors && worldRemainsValid,
-  safety: { no_reset_triggered: true, no_manual_world_tick_or_reset_requests: true },
+  ok: noBrowserErrors && worldRemainsValid && blockedMutations.length === 0,
+  safety: { reset_and_persistence_mutations_blocked_before_network: true, blockedMutations },
   checks: {
     server_hydration: true,
     no_browser_errors: noBrowserErrors,
+    no_blocked_mutation_attempts: blockedMutations.length === 0,
     world_state_monotonic: worldRemainsValid,
     transient_server_502: errors.some(e => e.includes("502"))
   },
