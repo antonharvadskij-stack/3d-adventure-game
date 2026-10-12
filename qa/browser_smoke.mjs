@@ -14,6 +14,12 @@ await page.route("https://aion-server-b80c.onrender.com/**", async route => {
   const request = route.request();
   const method = request.method().toUpperCase();
   const path = new URL(request.url()).pathname;
+  // Serve the checked-out branch client at the production origin so API calls remain same-origin.
+  // This validates the candidate commit without deploying it to production.
+  if (method === "GET" && path === "/") {
+    await route.fulfill({ status: 200, contentType: "text/html; charset=utf-8", body: fs.readFileSync("../index.html", "utf8") });
+    return;
+  }
   if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
     const entry = { url: request.url(), method };
     blockedMutations.push(entry);
