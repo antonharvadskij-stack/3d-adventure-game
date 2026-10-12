@@ -131,12 +131,17 @@ function connectSettlements(){
   const a=settlements[i],b=settlements[i+1]; if(a.roadTo&&a.roadTo===b)continue;
   const ax=a.g.position.x,az=a.g.position.z,bx=b.g.position.x,bz=b.g.position.z;
   const dx=bx-ax,dz=bz-az,len=Math.hypot(dx,dz); if(len<4)continue;
-  const angle=Math.atan2(dx,dz),segmentLength=1.6,segments=Math.ceil(len/segmentLength);
+  const segmentLength=1.6,segments=Math.ceil(len/segmentLength);
   for(let j=0;j<segments;j++){
-   const t0=j/segments,t1=Math.min(1,(j+1)/segments),tm=(t0+t1)/2;
-   const x=ax+dx*tm,z=az+dz*tm,segLen=len*(t1-t0);
-   const road=new THREE.Mesh(new THREE.BoxGeometry(.48,.07,segLen+.04),M(0x5b5147));
-   road.position.set(x,terrainHeight(x,z)+.045,z);road.rotation.y=angle;
+   const t0=j/segments,t1=(j+1)/segments;
+   const x0=ax+dx*t0,z0=az+dz*t0,x1=ax+dx*t1,z1=az+dz*t1;
+   const y0=terrainHeight(x0,z0)+.045,y1=terrainHeight(x1,z1)+.045;
+   const start=new THREE.Vector3(x0,y0,z0),end=new THREE.Vector3(x1,y1,z1);
+   const direction=end.clone().sub(start),segLen=direction.length();
+   if(segLen<.001)continue;
+   const road=new THREE.Mesh(new THREE.BoxGeometry(.48,.07,segLen+.025),M(0x5b5147));
+   road.position.copy(start.add(end).multiplyScalar(.5));
+   road.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),direction.normalize());
    W.add(road);settlementRoads.push(road);
   }
   a.roadTo=b;
