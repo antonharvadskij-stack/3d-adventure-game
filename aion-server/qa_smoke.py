@@ -8,6 +8,11 @@ def get(path):
     with urllib.request.urlopen(BASE+path,timeout=20) as r:
         return r.status,json.loads(r.read().decode())
 
+def post(path):
+    request=urllib.request.Request(BASE+path,data=b"",method="POST",headers={"Accept":"application/json"})
+    with urllib.request.urlopen(request,timeout=30) as r:
+        return r.status,json.loads(r.read().decode())
+
 for name,path in [("health","/health"),("world","/debug/world"),("ai","/ai/status")]:
     try:
         status,data=get(path); results[name]={"ok":status==200,"status":status,"data":data}
@@ -15,7 +20,7 @@ for name,path in [("health","/health"),("world","/debug/world"),("ai","/ai/statu
         results[name]={"ok":False,"error":str(e)}
 
 try:
-    status,data=get("/debug/persistence-test?seconds=1")
+    status,data=post("/debug/persistence-test?seconds=1")
     results["persistence"]={"ok":status==200 and data.get("ok") is True,"status":status,"data":data}
 except Exception as e:
     results["persistence"]={"ok":False,"error":str(e)}
