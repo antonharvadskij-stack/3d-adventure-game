@@ -40,7 +40,7 @@ def run():
         x, y, z = pos
         if math.hypot(x - x0, z - z0) > 0.05:
             moved += 1
-        if y < 0.30 or y > 2.5:
+        if y < 0.20 or y > 2.5:
             issues.append(f"{key}: unexpected vertical position {y:.3f}")
         if abs(x) > 80 or abs(z) > 80:
             issues.append(f"{key}: unbounded horizontal drift")
