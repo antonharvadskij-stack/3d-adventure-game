@@ -87,8 +87,10 @@ for(let i=0;i<14;i++){const a=Math.random()*Math.PI*2,d=18+Math.random()*82,x=Ma
 const animals=[];
 function animal(x,z,type){
  const g=new THREE.Group(),mat=new THREE.MeshStandardMaterial({color:type==='deer'?0x8b6545:0x596b43,roughness:1});
- const body=new THREE.Mesh(new THREE.BoxGeometry(.9,.45,.42),mat),head=new THREE.Mesh(new THREE.SphereGeometry(.27,8,6),mat);
- body.position.y=.48;head.position.set(.52,.7,0);g.add(body,head);g.position.set(x,Math.max(.05,0),z);W.add(g);animals.push({g,phase:Math.random()*6.28,speed:.15+Math.random()*.3,radius:.62,height:1.0,mass:1,velocity:new THREE.Vector3(),grounded:true});
+ const body=new THREE.Mesh(new THREE.BoxGeometry(.9,.45,.42),mat),head=new THREE.Mesh(new THREE.SphereGeometry(.27,8,6),mat),legs=[];
+ body.position.y=.48;head.position.set(.52,.7,0);g.add(body,head);
+ for(const sx of [-1,1])for(const sz of [-1,1]){const pivot=new THREE.Group(),leg=new THREE.Mesh(new THREE.BoxGeometry(.12,.34,.12),mat);pivot.position.set(sx*.29,.32,sz*.13);leg.position.y=-.14;pivot.add(leg);g.add(pivot);legs.push({pivot,phase:(sx===sz?0:Math.PI)});}
+ g.position.set(x,Math.max(.05,0),z);W.add(g);animals.push({g,legs,phase:Math.random()*6.28,speed:.15+Math.random()*.3,radius:.62,height:1.0,mass:1,velocity:new THREE.Vector3(),grounded:true});
 }
 for(let i=0;i<45;i++){const a=Math.random()*Math.PI*2,d=10+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;animal(x,z,i%2?'deer':'boar');}
 for(let i=0;i<36;i++){const m=new THREE.Mesh(mountainGeo,mountainMat),g=new THREE.Group();const a=i*2.399,d=18+(i%6)*11,x=Math.cos(a)*d,z=Math.sin(a)*d,scale=.6+(i%4)*.25;m.scale.y=scale;m.position.y=3.5*scale;g.position.set(x,terrainHeight(x,z),z);g.add(m);W.add(g);staticColliders.push({g,radius:2.2,height:7*scale,type:'mountain'});}
@@ -116,8 +118,13 @@ function resource(){let g=new THREE.Mesh(new THREE.OctahedronGeometry(.35),M(0x4
 for(let i=0;i<80;i++)resource();
 function agent(parent){
  const g=new THREE.Group(),body=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.62,5,9),M(parent?0x6878a8:0x4e8d6e)),head=new THREE.Mesh(new THREE.SphereGeometry(.25,12,9),M(0x9bc3aa));body.position.y=.62;head.position.y=1.28;g.add(body,head);
+ const limbs=[];
+ for(const side of [-1,1]){
+  const leg=new THREE.Group(),legMesh=new THREE.Mesh(new THREE.BoxGeometry(.14,.44,.14),M(0x35463d));leg.position.set(side*.15,.43,0);legMesh.position.y=-.2;leg.add(legMesh);g.add(leg);limbs.push({pivot:leg,phase:side===-1?0:Math.PI,kind:'leg'});
+  const arm=new THREE.Group(),armMesh=new THREE.Mesh(new THREE.BoxGeometry(.12,.43,.12),M(0x78927d));arm.position.set(side*.32,.94,0);arm.rotation.z=side*-.12;armMesh.position.y=-.19;arm.add(armMesh);g.add(arm);limbs.push({pivot:arm,phase:side===-1?Math.PI:0,kind:'arm'});
+ }
  let a=Math.random()*6.28,d=4+Math.random()*18;g.position.set(Math.cos(a)*d,0,Math.sin(a)*d);W.add(g);
- const x={g,name:names[agents.length%names.length]+'-'+(agents.length+1),age:0,food:80,water:80,energy:90,health:100,job:['охотник','собиратель','строитель','исследователь'][Math.floor(Math.random()*4)],goal:null,home:null,partner:null,children:0,memory:[],alive:true,radius:.38,height:1.55,mass:1,velocity:new THREE.Vector3(),grounded:true};
+ const x={g,body,head,limbs,walkPhase:Math.random()*6.28,name:names[agents.length%names.length]+'-'+(agents.length+1),age:0,food:80,water:80,energy:90,health:100,job:['охотник','собиратель','строитель','исследователь'][Math.floor(Math.random()*4)],goal:null,home:null,partner:null,children:0,memory:[],alive:true,radius:.38,height:1.55,mass:1,velocity:new THREE.Vector3(),grounded:true};
  agents.push(x);births++;log(x.name+' родился. Профессия: '+x.job);return x
 }
 function house(a){if(settlements.length>8)return;let g=new THREE.Group(),b=new THREE.Mesh(new THREE.BoxGeometry(2,1.4,2),M(0x806347)),r=new THREE.Mesh(new THREE.ConeGeometry(1.7,1.1,4),M(0x3f5360));b.position.y=.7;r.position.y=1.9;g.add(b,r);g.position.copy(a.g.position);W.add(g);const s={g,founder:a.name,pop:1,age:0};settlements.push(s);a.home=g.position.clone();log(a.name+' построил дом и основал поселение');}
@@ -178,7 +185,8 @@ function updateSettlements(dt){
  }
  connectSettlements();
 }
-function updateWildlife(dt){for(const a of animals){a.phase+=dt*a.speed;a.velocity.x=Math.sin(a.phase)*.62;a.velocity.z=Math.cos(a.phase*1.17)*.62;a.g.rotation.y=Math.atan2(a.velocity.x,a.velocity.z);}}
+function updateWildlife(dt){for(const a of animals){a.phase+=dt*a.speed;a.velocity.x=Math.sin(a.phase)*.62;a.velocity.z=Math.cos(a.phase*1.17)*.62;a.g.rotation.y=Math.atan2(a.velocity.x,a.velocity.z);for(const leg of a.legs||[])leg.pivot.rotation.x=Math.sin(a.phase*7+leg.phase)*.42;}}
+function updateAgentAnimation(dt){for(const a of agents){if(!a.alive||!a.limbs)continue;const moving=serverConnected&&a.serverId!==undefined?(a.serverTarget&&a.g.position.distanceTo(a.serverTarget)>.035):Math.hypot(a.velocity.x,a.velocity.z)>.1;if(moving)a.walkPhase+=dt*8;const swing=moving?Math.sin(a.walkPhase)*.48:0;for(const limb of a.limbs)limb.pivot.rotation.x=swing*(limb.kind==='arm'?-1:1)*Math.cos(limb.phase);a.body.position.y=.62+(moving?Math.abs(Math.sin(a.walkPhase*2))*.035:0);}}
 function terrainHeight(x,z){const k=(terrainSeed%100000)/100000;const base=Math.sin(x*.045)*1.8+Math.cos(z*.052)*1.5+Math.sin((x+z)*.085)*1.1+Math.sin(x*.17-z*.11)*.55;return Math.max(-1.15,base*.7+Math.sin(x*(.021+k*.02)+terrainSeed*.000001)*.65+Math.cos(z*(.027+k*.015)-terrainSeed*.0000013)*.55)-.05;}
 window.__AION_TERRAIN_HEIGHT=terrainHeight;
 function resolvePair(a,b){if(!a.alive&&a.alive!==undefined)return;const ax=a.g.position.x,az=a.g.position.z,bx=b.g.position.x,bz=b.g.position.z;let dx=bx-ax,dz=bz-az,d2=dx*dx+dz*dz,min=(a.radius||.5)+(b.radius||.5);if(d2>=min*min)return;let d=Math.sqrt(d2);if(d<.0001){dx=1;dz=0;d=1}const nx=dx/d,nz=dz/d,overlap=min-d;const am=a.mass||1,bm=b.mass||1,total=am+bm;a.g.position.x-=nx*overlap*(bm/total);a.g.position.z-=nz*overlap*(bm/total);b.g.position.x+=nx*overlap*(am/total);b.g.position.z+=nz*overlap*(am/total);if(a.velocity){const va=a.velocity.x*nx+a.velocity.z*nz;if(va>0){a.velocity.x-=nx*va*.7;a.velocity.z-=nz*va*.7}}if(b.velocity){const vb=b.velocity.x*nx+b.velocity.z*nz;if(vb<0){b.velocity.x-=nx*vb*.7;b.velocity.z-=nz*vb*.7}}}
@@ -319,7 +327,7 @@ function updateWorldClockUI(){
  const elapsedYears=sim/(365.25*86400);
  document.getElementById('worldElapsed').textContent='С начала рождения Земли: '+(elapsedYears<1000?elapsedYears.toFixed(3):Math.floor(elapsedYears).toLocaleString('ru-RU'))+' лет';
 }
-function loop(){requestAnimationFrame(loop);let n=performance.now();let dt=Math.min(.05,(n-(loop.last||n))/1000);loop.last=n;tick(dt);if(!loop.nextUI||n>loop.nextUI){loop.nextUI=n+500;updateWorldClockUI();const worldPopulation=Array.isArray(serverState?.population)?serverState.population.length:live().length;const strategyLabels={civilization:'цивилизация',survival:'выживание',exploration:'исследование',technology:'технологии',settlement:'поселение',population:'население'};document.getElementById('state').innerHTML='Жители мира: '+worldPopulation+' (в кадре: '+live().length+')<br>Поселения: '+settlements.length+'<br>Рождений: '+births+' · Смертей: '+deaths+'<br>Ресурсов: '+resources.filter(r=>r.g.visible).length+'<br>AION: поколение '+(evolution.generation||1)+' · '+(strategyLabels[evolution.strategy]||evolution.strategy||'исследование')+'<br>Мир: #'+(serverState?.worldVersion||0)+'<br>Память: '+events.length+' событий';}stars.rotation.y-=dt*.0008;updateWildlife(dt);updateSettlements(dt);physicsStep(dt);camDist=Math.max(35,Math.min(500,camDist));C.position.set(camTarget.x+Math.sin(camYaw)*Math.cos(camPitch)*camDist,camTarget.y+Math.sin(camPitch)*camDist,camTarget.z+Math.cos(camYaw)*Math.cos(camPitch)*camDist);C.lookAt(camTarget);R.render(S,C)}
+function loop(){requestAnimationFrame(loop);let n=performance.now();let dt=Math.min(.05,(n-(loop.last||n))/1000);loop.last=n;tick(dt);if(!loop.nextUI||n>loop.nextUI){loop.nextUI=n+500;updateWorldClockUI();const worldPopulation=Array.isArray(serverState?.population)?serverState.population.length:live().length;const strategyLabels={civilization:'цивилизация',survival:'выживание',exploration:'исследование',technology:'технологии',settlement:'поселение',population:'население'};document.getElementById('state').innerHTML='Жители мира: '+worldPopulation+' (в кадре: '+live().length+')<br>Поселения: '+settlements.length+'<br>Рождений: '+births+' · Смертей: '+deaths+'<br>Ресурсов: '+resources.filter(r=>r.g.visible).length+'<br>AION: поколение '+(evolution.generation||1)+' · '+(strategyLabels[evolution.strategy]||evolution.strategy||'исследование')+'<br>Мир: #'+(serverState?.worldVersion||0)+'<br>Память: '+events.length+' событий';}stars.rotation.y-=dt*.0008;updateWildlife(dt);updateSettlements(dt);physicsStep(dt);updateAgentAnimation(dt);camDist=Math.max(35,Math.min(500,camDist));C.position.set(camTarget.x+Math.sin(camYaw)*Math.cos(camPitch)*camDist,camTarget.y+Math.sin(camPitch)*camDist,camTarget.z+Math.cos(camYaw)*Math.cos(camPitch)*camDist);C.lookAt(camTarget);R.render(S,C)}
 agents.length=0;
 log('AION запускается. 3D-мир готов, синхронизация с сервером выполняется…');
 function camMove(dx,dz){camTarget.x+=dx;camTarget.z+=dz}
