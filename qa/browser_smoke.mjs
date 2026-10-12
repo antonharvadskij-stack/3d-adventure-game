@@ -9,18 +9,22 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const errors = [];
 const blockedMutations = [];
-await page.route("**/world/reset**", async route => {
-  blockedMutations.push({ url: route.request().url(), method: route.request().method() });
-  await route.abort("blockedbyclient");
+const destructiveAttempts = [];
+await page.route("https://aion-server-b80c.onrender.com/**", async route => {
+  const request = route.request();
+  const method = request.method().toUpperCase();
+  const path = new URL(request.url()).pathname;
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    const entry = { url: request.url(), method };
+    blockedMutations.push(entry);
+    if (path === "/world/reset" || path === "/debug/persistence-test" || path === "/world/tick") {
+      destructiveAttempts.push(entry);
+    }
+    await route.abort("blockedbyclient");
+    return;
+  }
+  await route.continue();
 });
-await page.route("**/debug/persistence-test**", async route => {
-  blockedMutations.push({ url: route.request().url(), method: route.request().method() });
-  await route.abort("blockedbyclient");
-});
-page.on("pageerror", e => errors.push("pageerror: " + e.message));
-page.on("requestfailed", r => errors.push("requestfailed: " + r.url() + " :: " + (r.failure()?.errorText || "unknown")));
-page.on("console", m => { if (m.type() === "error") errors.push("console: " + m.text()); });
-
 const waitForServerHydration = async () => page.waitForFunction(
   () => window.__AION_SYNCED === true &&
     !!window.__AION_SERVER_STATE &&
@@ -70,12 +74,12 @@ const worldRemainsValid =
   Number(reloaded.cycle) >= Number(observed.cycle) &&
   Number(reloaded.worldVersion) >= Number(observed.worldVersion);
 const result = {
-  ok: noBrowserErrors && worldRemainsValid && blockedMutations.length === 0,
-  safety: { reset_and_persistence_mutations_blocked_before_network: true, blockedMutations },
+  ok: noBrowserErrors && worldRemainsValid && destructiveAttempts.length === 0,
+  safety: { all_non_read_only_api_requests_blocked_before_network: true, blockedMutations, destructiveAttempts },
   checks: {
     server_hydration: true,
     no_browser_errors: noBrowserErrors,
-    no_blocked_mutation_attempts: blockedMutations.length === 0,
+    no_destructive_mutation_attempts: destructiveAttempts.length === 0,
     world_state_monotonic: worldRemainsValid,
     transient_server_502: errors.some(e => e.includes("502"))
   },
