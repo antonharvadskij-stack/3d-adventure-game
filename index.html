@@ -12,6 +12,9 @@ ocean.rotation.x=-Math.PI/2;ocean.position.y=-1.15;W.add(ocean);
 const geo=new THREE.PlaneGeometry(300,300,128,128), pos=geo.attributes.position;
 for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getY(i);const n=Math.sin(x*.045)*1.8+Math.cos(z*.052)*1.5+Math.sin((x+z)*.085)*1.1+Math.sin(x*.17-z*.11)*.55;const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;let h=n*.7+(continent>.05?(continent-.05)*5.0:continent*.35);h=Math.max(-1.15,h);pos.setZ(i,h);}
 let terrainSeed=0;
+const riverMeshes=[],lakeMeshes=[];
+const riverMat=new THREE.MeshStandardMaterial({color:0x2b6f8c,roughness:.58,metalness:.01,transparent:true,opacity:.9,side:THREE.DoubleSide});
+const lakeMat=new THREE.MeshStandardMaterial({color:0x2b6f8c,roughness:.5,metalness:.01,transparent:true,opacity:.88,side:THREE.DoubleSide});
 function applyTerrainSeed(seed){seed=Number(seed)||0;if(seed===terrainSeed&&window.__AION_TERRAIN_READY)return;terrainSeed=seed;for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=-pos.getY(i);pos.setZ(i,terrainHeight(x,z));}pos.needsUpdate=true;geo.computeVertexNormals();geo.computeBoundingBox();geo.computeBoundingSphere();const colorAttr=geo.getAttribute('color');if(colorAttr){const c=new THREE.Color();for(let i=0;i<pos.count;i++){const h=pos.getZ(i),x=pos.getX(i),z=-pos.getY(i);if(h<-.35)c.setHex(0x3f7078);else if(h<.08)c.setHex(0xb5a477);else if(h<1.8)c.setHex((Math.sin(x*.06)+Math.cos(z*.05))>.2?0x4f7f45:0x6f8d4e);else if(h<3.25)c.setHex(0x718b62);else c.setHex(0xc0c5c2);colorAttr.setXYZ(i,c.r,c.g,c.b);}colorAttr.needsUpdate=true;}window.__AION_TERRAIN_READY=true;rebuildRivers(seed);}
 geo.computeVertexNormals();
 const groundMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.88,metalness:.01});applyTerrainSeed(terrainSeed);const colors=new Float32Array(pos.count*3);for(let i=0;i<pos.count;i++){const h=pos.getZ(i),x=pos.getX(i),z=-pos.getY(i),c=new THREE.Color();if(h<-.15)c.setHex(0x6f9360);else if(h<.8)c.setHex((Math.sin(x*.06)+Math.cos(z*.05))>.2?0x4f7f45:0x6f8d4e);else if(h<2.3)c.setHex(0x718b62);else c.setHex(0x87918b);colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;}geo.setAttribute('color',new THREE.BufferAttribute(colors,3));const ground=new THREE.Mesh(geo,groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=0;W.add(ground);
@@ -25,9 +28,6 @@ const vegetationSeeded=Math.sin((terrainSeed||1)*0.00017);
 for(let i=0;i<180;i++){const a=Math.random()*Math.PI*2,d=8+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=Math.sin(x*.045+vegetationSeeded)*1.8+Math.cos(z*.052-vegetationSeeded)*1.5+Math.sin((x+z)*.085+vegetationSeeded)*1.1+Math.sin(x*.17-z*.11)*.55;const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;if(h>-.15&&continent>.05){const g=new THREE.Group();const t=new THREE.Mesh(treeTrunk,new THREE.MeshStandardMaterial({color:0x5b3d28,roughness:1}));const l=new THREE.Mesh(treeTop,new THREE.MeshStandardMaterial({color:0x356b3b,roughness:1}));t.position.y=.6;l.position.y=1.8;g.add(t,l);g.position.set(x,Math.max(h,0),z);g.scale.setScalar(.65+Math.random()*.7);W.add(g);staticColliders.push({g,radius:.65*g.scale.x,height:2.0*g.scale.y,type:'tree'});}}
 
 // Seeded rivers follow the terrain instead of using floating straight rectangles.
-const riverMeshes=[],lakeMeshes=[];
-const riverMat=new THREE.MeshStandardMaterial({color:0x2b6f8c,roughness:.58,metalness:.01,transparent:true,opacity:.9,side:THREE.DoubleSide});
-const lakeMat=new THREE.MeshStandardMaterial({color:0x2b6f8c,roughness:.5,metalness:.01,transparent:true,opacity:.88,side:THREE.DoubleSide});
 function rebuildRivers(seed){
  for(const mesh of [...riverMeshes,...lakeMeshes]){W.remove(mesh);mesh.geometry.dispose();}
  riverMeshes.length=0;lakeMeshes.length=0;
