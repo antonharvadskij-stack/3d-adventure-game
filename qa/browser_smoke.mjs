@@ -121,20 +121,52 @@ try {
   if (!hud.stateText.includes("Жители мира:")) throw new Error("HUD population does not report the server world count");
   if (hud.connectionLogCount > 1) throw new Error("Connection log is being duplicated on polling");
 
-  // Exercise camera input without changing server state.
+  // Verify that camera gestures change real camera state, not merely that events can be sent.
   const canvas = page.locator("canvas");
   const beforeBox = await canvas.boundingBox();
+  const cameraBefore = await page.evaluate(() => window.__AION_GET_CAMERA_STATE?.() ?? null);
+  if (!cameraBefore) throw new Error("Read-only camera QA hook is unavailable");
   await page.mouse.move(beforeBox.x + beforeBox.width * 0.5, beforeBox.y + beforeBox.height * 0.5);
   await page.mouse.down();
   await page.mouse.move(beforeBox.x + beforeBox.width * 0.62, beforeBox.y + beforeBox.height * 0.56, { steps: 5 });
   await page.mouse.up();
+  await page.waitForTimeout(150);
+  const cameraAfterDrag = await page.evaluate(() => window.__AION_GET_CAMERA_STATE());
+  if (Math.abs(cameraAfterDrag.yaw - cameraBefore.yaw) < 0.02 &&
+      Math.abs(cameraAfterDrag.pitch - cameraBefore.pitch) < 0.02) {
+    throw new Error("Mouse drag did not change camera yaw or pitch");
+  }
+  const distanceBeforeWheel = cameraAfterDrag.distance;
   await page.mouse.wheel(0, -120);
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(250);
+  const cameraAfterWheel = await page.evaluate(() => window.__AION_GET_CAMERA_STATE());
+  if (Math.abs(cameraAfterWheel.distance - distanceBeforeWheel) < 0.5) {
+    throw new Error("Mouse wheel did not change camera zoom distance");
+  }
   await inspect("03-desktop-camera-input");
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(500);
   const mobile = await inspect("04-mobile-layout");
+  // Emulate a real two-finger pinch through Chromium's touch input pipeline.
+  const touchSession = await page.context().newCDPSession(page);
+  await touchSession.send("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 2 });
+  const pinchBefore = await page.evaluate(() => window.__AION_GET_CAMERA_STATE().distance);
+  await touchSession.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ id: 1, x: 120, y: 420, radiusX: 8, radiusY: 8, force: 1 }, { id: 2, x: 250, y: 420, radiusX: 8, radiusY: 8, force: 1 }]
+  });
+  await touchSession.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [{ id: 1, x: 85, y: 420, radiusX: 8, radiusY: 8, force: 1 }, { id: 2, x: 285, y: 420, radiusX: 8, radiusY: 8, force: 1 }]
+  });
+  await touchSession.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await touchSession.detach();
+  await page.waitForTimeout(250);
+  const pinchAfter = await page.evaluate(() => window.__AION_GET_CAMERA_STATE().distance);
+  if (Math.abs(pinchAfter - pinchBefore) < 0.5) {
+    throw new Error("Two-finger pinch did not change camera zoom distance");
+  }
   if (Object.values(mobile.overlaps || {}).some(Boolean)) throw new Error("Mobile HUD panels overlap: " + JSON.stringify(mobile.overlaps));
   const startPositions = initial.world?.agentPositions || [];
   if (startPositions.length) {
@@ -183,7 +215,9 @@ try {
       world_generation_unchanged_after_reload: !!afterReload.world && afterReload.world.worldVersion === initial.world?.worldVersion,
       earth_origin_calendar: initial.calendar.includes("Год") && initial.calendar.includes("День") && initial.elapsed.includes("С начала рождения Земли"),
       hud_toggle: hud.panelOpen && hud.statsVisible,
-      camera_input: true,
+      camera_drag_changes_view: Math.abs(cameraAfterDrag.yaw - cameraBefore.yaw) >= 0.02 || Math.abs(cameraAfterDrag.pitch - cameraBefore.pitch) >= 0.02,
+      wheel_zoom_changes_distance: Math.abs(cameraAfterWheel.distance - distanceBeforeWheel) >= 0.5,
+      two_finger_pinch_changes_distance: Math.abs(pinchAfter - pinchBefore) >= 0.5,
       mobile_layout_in_viewport: true,
       world_restores_after_reload: !!afterReload.world,
       no_page_or_console_errors: errors.length === 0,
