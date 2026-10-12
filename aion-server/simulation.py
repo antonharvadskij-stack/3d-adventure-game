@@ -153,7 +153,8 @@ def simulate_physics(w,seconds):
     for i,a in enumerate(population):_ensure_agent_physics(a,i,world_token)
     # Give every inhabitant a persistent bounded exploration target; PyBullet owns motion.
     for i,a in enumerate(population):
-        goal=a.get("target") or a.get("goalPosition")
+        # Keep the generated exploration goal authoritative; stale legacy target fields must not override it.
+        goal=a.get("goalPosition") or a.get("target")
         if not isinstance(goal,dict):
             goal=None
         if goal is None or math.hypot(float(goal.get("x",a["x"]))-float(a["x"]),
