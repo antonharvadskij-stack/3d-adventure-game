@@ -531,8 +531,27 @@ def self_develop(world):
     return ok,module
 
 
+def _sync_universe_clock(world):
+    """Keep the durable universe clock as the high-water mark for worldAge."""
+    clock = world.setdefault("universeClock", {})
+    try:
+        age = max(0.0, float(world.get("worldAge", 0.0) or 0.0))
+    except (TypeError, ValueError):
+        age = 0.0
+    try:
+        clock_seconds = max(0.0, float(clock.get("simulatedSeconds", 0.0) or 0.0))
+    except (TypeError, ValueError):
+        clock_seconds = 0.0
+    clock["simulatedSeconds"] = max(age, clock_seconds)
+    clock["simulatedYears"] = clock["simulatedSeconds"] / (365.25 * 86400)
+    clock["rate"] = "24 real hours = 100 simulated years"
+    world["worldAge"] = clock["simulatedSeconds"]
+    return world
+
+
 def autonomous_cycle(world, now=None, forced_seconds=0):
     """Advance the persistent universe and let AION observe, adapt, experiment and decide."""
+    _sync_universe_clock(world)
     if forced_seconds > 0:
         sim_seconds = float(forced_seconds)
         clock = world.setdefault("universeClock", {})
@@ -548,6 +567,9 @@ def autonomous_cycle(world, now=None, forced_seconds=0):
         step = min(chunk, remaining)
         world = tick(world, step)
         remaining -= step
+    # tick() also advances the legacy worldAge field. The persistent universe
+    # clock is authoritative, so discard that duplicate increment here.
+    _sync_universe_clock(world)
     obs = observe(world)
     evo = world.setdefault("evolution", {})
     sd = world.setdefault("aiDiagnostics", {}).setdefault("selfDevelopment", {})
