@@ -36,7 +36,7 @@ await waitForServerHydration();
 snapshots.push({ name: "initial", data: await read(), api: await apiRead() });
 await page.screenshot({ path: "artifacts/01-initial.png" });
 
-// Read-only lifecycle check: never click reset, trigger a world tick, or call a mutating API.
+// Read-only lifecycle check: the test harness never clicks reset or manually triggers a world tick. The app may register runtime colliders on load.
 await page.waitForTimeout(15000);
 await waitForServerHydration();
 snapshots.push({ name: "after_observation", data: await read(), api: await apiRead() });
@@ -62,7 +62,7 @@ const worldRemainsValid =
   Number(reloaded.worldVersion) >= Number(observed.worldVersion);
 const result = {
   ok: noBrowserErrors && worldRemainsValid,
-  safety: { no_reset_triggered: true, no_mutating_api_calls: true },
+  safety: { no_reset_triggered: true, no_manual_world_tick_or_reset_requests: true },
   checks: {
     server_hydration: true,
     no_browser_errors: noBrowserErrors,
