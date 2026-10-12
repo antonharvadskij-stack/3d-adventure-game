@@ -1,0 +1,113 @@
+name: AION dual-environment health checks
+
+on:
+  push:
+    branches:
+      - aion/dual-environment-healthcheck
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aion-dual-environment-healthcheck
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check test and main AION endpoints (read-only)
+        env:
+          AION_TEST_URL: https://aion-server-test.onrender.com
+          AION_MAIN_URL: https://aion-server-b80c.onrender.com
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import sys
+          import time
+          import urllib.request
+
+          environments = {
+              "test": os.environ["AION_TEST_URL"].rstrip("/"),
+              "main": os.environ["AION_MAIN_URL"].rstrip("/"),
+          }
+          paths = ["/health", "/ai/diagnostics", "/debug/world", "/ai/self-development"]
+
+          def get_json(base, path):
+              req = urllib.request.Request(
+                  base + path,
+                  headers={"User-Agent": "AION-dual-healthcheck/1.0"},
+                  method="GET",
+              )
+              with urllib.request.urlopen(req, timeout=15) as response:
+                  body = response.read().decode("utf-8")
+                  if response.status != 200:
+                      raise RuntimeError(f"{path}: HTTP {response.status}")
+                  return json.loads(body)
+
+          last_error = None
+          for attempt in range(6):
+              reports = {}
+              try:
+                  for name, base in environments.items():
+                      endpoints = {path: get_json(base, path) for path in paths}
+                      health = endpoints["/health"]
+                      diag = endpoints["/ai/diagnostics"]
+                      world = endpoints["/debug/world"]
+                      sd = endpoints["/ai/self-development"]
+                      population = world.get("population")
+                      checks = {
+                          "health_ok": health.get("ok") is True,
+                          "diagnostics_ok": diag.get("ok") is True,
+                          "world_loaded": world.get("ok") is True,
+                          "postgresql_consistent": (
+                              world.get("database") == "postgresql"
+                              and diag.get("database") == "postgresql"
+                          ),
+                          "population_nonempty": isinstance(population, list) and len(population) > 0,
+                          "self_development_ok": sd.get("ok") is True,
+                          "self_development_counters_consistent": (
+                              int(sd.get("version", 0))
+                              >= int(sd.get("accepted", 0)) + int(sd.get("rejected", 0))
+                          ),
+                      }
+                      reports[name] = {
+                          "ok": all(checks.values()),
+                          "baseUrl": base,
+                          "checks": checks,
+                          "world": {
+                              "worldVersion": world.get("worldVersion"),
+                              "cycle": world.get("cycle"),
+                              "populationCount": len(population) if isinstance(population, list) else None,
+                              "database": world.get("database"),
+                          },
+                          "selfDevelopment": {
+                              "version": sd.get("version"),
+                              "accepted": sd.get("accepted"),
+                              "rejected": sd.get("rejected"),
+                              "lastDecision": sd.get("lastDecision"),
+                          },
+                          "diagnostics": diag,
+                      }
+                  summary = {
+                      "ok": len(reports) == len(environments) and all(r["ok"] for r in reports.values()),
+                      "checkedAtUtc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                      "environments": reports,
+                  }
+                  print(json.dumps(summary, ensure_ascii=False, indent=2))
+                  if summary["ok"]:
+                      sys.exit(0)
+                  last_error = "One or more checks returned false"
+              except Exception as exc:
+                  last_error = repr(exc)
+                  print(f"Attempt {attempt + 1}/6 failed: {last_error}", file=sys.stderr)
+              if attempt < 5:
+                  time.sleep(10)
+          print(f"AION dual-environment health checks failed after retries: {last_error}", file=sys.stderr)
+          sys.exit(1)
+          PY
