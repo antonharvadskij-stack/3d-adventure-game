@@ -1,1 +1,10 @@
-{"name":"aion-browser-qa","private":true,"scripts":{"test":"node browser_smoke.mjs"},"devDependencies":{"playwright":"^1.55.0"}}
+{
+  "name": "aion-browser-qa",
+  "private": true,
+  "scripts": {
+    "test": "node browser_smoke.mjs && node browser_physics_regression.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.55.0"
+  }
+}
