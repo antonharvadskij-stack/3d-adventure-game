@@ -9,6 +9,14 @@ class PhysicsWorld:
         self.bodies={}
         self.dt=1.0/60.0
         self.terrain_seed=None
+        self.world_generation=None
+    def reset_world_generation(self,generation):
+        """Discard cached bodies when a new persistent universe replaces the old one."""
+        if self.world_generation==generation:
+            return
+        for key in [k for k in self.bodies if k.startswith("agent:") or k.startswith("static:")]:
+            p.removeBody(self.bodies.pop(key),physicsClientId=self.client)
+        self.world_generation=generation
     def set_terrain(self,seed):
         """Install a deterministic concave mesh matching the browser terrain height function."""
         seed=int(seed or 0) & 0xffffffff
@@ -95,6 +103,8 @@ def _ensure_world_colliders(w):
 
 def simulate_physics(w,seconds):
     universe=w.get("universe",{}) if isinstance(w,dict) else {}
+    generation=(int(w.get("worldVersion",0) or 0),int(universe.get("worldSeed",0) or 0))
+    physics.reset_world_generation(generation)
     physics.set_terrain(universe.get("worldSeed",0))
     _ensure_world_colliders(w)
     population=w.get("population",[])
