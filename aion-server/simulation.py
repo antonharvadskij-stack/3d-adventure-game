@@ -1,4 +1,4 @@
-import random,time,secrets
+import random,time,secrets,math
 import pybullet as p
 # Server-authoritative rigid-body physics. The simulation owns the canonical transforms.
 class PhysicsWorld:
@@ -8,6 +8,40 @@ class PhysicsWorld:
         p.setPhysicsEngineParameter(fixedTimeStep=1.0/60.0,numSolverIterations=12,physicsClientId=self.client)
         self.bodies={}
         self.dt=1.0/60.0
+        self.terrain_seed=None
+    def set_terrain(self,seed):
+        """Install a deterministic concave mesh matching the browser terrain height function."""
+        seed=int(seed or 0) & 0xffffffff
+        if self.terrain_seed==seed and "terrain" in self.bodies:
+            return
+        old=self.bodies.pop("terrain",None)
+        if old is not None:
+            p.removeBody(old,physicsClientId=self.client)
+        rows=61
+        step=300.0/(rows-1)
+        vertices=[]
+        indices=[]
+        k=(seed%100000)/100000.0
+        for row in range(rows):
+            z=-150.0+row*step
+            for col in range(rows):
+                x=-150.0+col*step
+                base=math.sin(x*.045)*1.8+math.cos(z*.052)*1.5+math.sin((x+z)*.085)*1.1+math.sin(x*.17-z*.11)*.55
+                continent=math.sin(x*.031+z*.018)+math.sin(x*.017-z*.027)*.7+math.cos(x*.013+z*.041)*.6
+                land=max(0.0,min(1.0,(continent+.3)/.65))
+                detail=math.sin(x*(.021+k*.02)+seed*.000001)*.22+math.cos(z*(.027+k*.015)-seed*.0000013)*.18
+                y=max(-1.15,-1.15+land*(1.15+base*.38+max(0.0,continent)**1.35*.95+detail))-.05
+                vertices.append([x,y,z])
+        for row in range(rows-1):
+            for col in range(rows-1):
+                i=row*rows+col
+                # Winding gives upward-facing triangles in the world's Y-up coordinate system.
+                indices.extend((i,i+rows,i+1,i+1,i+rows,i+rows+1))
+        shape=p.createCollisionShape(p.GEOM_MESH,vertices=vertices,indices=indices,
+                                     flags=p.GEOM_FORCE_CONCAVE_TRIMESH,physicsClientId=self.client)
+        body=p.createMultiBody(baseMass=0,baseCollisionShapeIndex=shape,basePosition=[0,0,0],physicsClientId=self.client)
+        self.bodies["terrain"]=body
+        self.terrain_seed=seed
     def _shape(self,radius,height,kind="capsule"):
         if kind=="box":
             return p.createCollisionShape(p.GEOM_BOX,halfExtents=[radius,max(.05,height/2),radius],physicsClientId=self.client)
@@ -48,11 +82,20 @@ def _ensure_agent_physics(agent,index):
                      radius=float(agent.get("radius",.38)),mass=1,height=1.55)
 
 def _ensure_world_colliders(w):
-    for item in w.get("physicsColliders",[]):
+    items=w.get("physicsColliders",[])
+    desired={'static:'+str(item.get('id')) for item in items}
+    # Remove stale static bodies when the world generation changes, rather than retaining old-world obstacles.
+    for key in [k for k in physics.bodies if k.startswith('static:') and k not in desired]:
+        p.removeBody(physics.bodies.pop(key),physicsClientId=physics.client)
+    for item in items:
         key='static:'+str(item.get('id'))
-        physics.add_static(key,float(item.get("x",0)),float(item.get("y",0)),float(item.get("z",0)),float(item.get("radius",.5)),float(item.get("height",1.0)),item.get("kind","box"))
+        x,y,z=float(item.get("x",0)),float(item.get("y",0)),float(item.get("z",0))
+        physics.add_static(key,x,y,z,float(item.get("radius",.5)),float(item.get("height",1.0)),item.get("kind","box"))
+        physics.set_position(key,x,y,z)
 
 def simulate_physics(w,seconds):
+    universe=w.get("universe",{}) if isinstance(w,dict) else {}
+    physics.set_terrain(universe.get("worldSeed",0))
     _ensure_world_colliders(w)
     population=w.get("population",[])
     # Create canonical dynamic bodies once; never teleport them every tick.
