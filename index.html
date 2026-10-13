@@ -27,10 +27,10 @@ const vegetationSeeded=Math.sin((terrainSeed||1)*0.00017);
 for(let i=0;i<180;i++){const a=Math.random()*Math.PI*2,d=8+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=Math.sin(x*.045+vegetationSeeded)*1.8+Math.cos(z*.052-vegetationSeeded)*1.5+Math.sin((x+z)*.085+vegetationSeeded)*1.1+Math.sin(x*.17-z*.11)*.55;const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;if(h>-.15&&continent>.05){const g=new THREE.Group();const t=new THREE.Mesh(treeTrunk,new THREE.MeshStandardMaterial({color:0x5b3d28,roughness:1}));const l=new THREE.Mesh(treeTop,new THREE.MeshStandardMaterial({color:0x356b3b,roughness:1}));t.position.y=.6;l.position.y=1.8;g.add(t,l);g.position.set(x,Math.max(h,0),z);g.scale.setScalar(.65+Math.random()*.7);W.add(g);staticColliders.push({g,radius:.65*g.scale.x,height:2.0*g.scale.y,type:'tree'});}}
 
 // Rivers and lakes: procedural water features carved visually across the continents.
-const riverMat=new THREE.MeshStandardMaterial({color:0x2e91c7,roughness:.28,metalness:.08});
+const riverMat=new THREE.MeshStandardMaterial({color:0x1c6687,roughness:.42,metalness:.01});
 const riverPaths=[];
-function rebuildRivers(){for(const river of riverPaths){river.mesh.geometry.dispose();const points=river.points.map(([x,z])=>new THREE.Vector3(x,terrainHeight(x,z)+.11,z));const curve=new THREE.CatmullRomCurve3(points);river.mesh.geometry=new THREE.TubeGeometry(curve,Math.max(32,river.points.length*8),.16,5,false);}}
-for(let i=0;i<10;i++){const angle=Math.random()*Math.PI*2,start=8+Math.random()*30;let x=Math.cos(angle)*start,z=Math.sin(angle)*start;const points=[];for(let j=0;j<8;j++){const t=j/7;const bend=Math.sin(t*Math.PI*1.6+i*.7)*5;const px=Math.max(-125,Math.min(125,x+Math.cos(angle)*j*5+Math.cos(angle+Math.PI/2)*bend));const pz=Math.max(-125,Math.min(125,z+Math.sin(angle)*j*5+Math.sin(angle+Math.PI/2)*bend));points.push([px,pz]);}const curve=new THREE.CatmullRomCurve3(points.map(([px,pz])=>new THREE.Vector3(px,terrainHeight(px,pz)+.11,pz)));const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,56,.16,5,false),riverMat);W.add(mesh);riverPaths.push({points,mesh});}
+function rebuildRivers(){for(const river of riverPaths){river.mesh.geometry.dispose();const points=river.points.map(([x,z])=>new THREE.Vector3(x,terrainHeight(x,z)+.035,z));const curve=new THREE.CatmullRomCurve3(points);river.mesh.geometry=new THREE.TubeGeometry(curve,Math.max(32,river.points.length*8),.10,5,false);}}
+for(let i=0;i<10;i++){const angle=Math.random()*Math.PI*2,start=8+Math.random()*30;let x=Math.cos(angle)*start,z=Math.sin(angle)*start;const points=[];for(let j=0;j<8;j++){const t=j/7;const bend=Math.sin(t*Math.PI*1.6+i*.7)*5;const px=Math.max(-125,Math.min(125,x+Math.cos(angle)*j*5+Math.cos(angle+Math.PI/2)*bend));const pz=Math.max(-125,Math.min(125,z+Math.sin(angle)*j*5+Math.sin(angle+Math.PI/2)*bend));points.push([px,pz]);}const curve=new THREE.CatmullRomCurve3(points.map(([px,pz])=>new THREE.Vector3(px,terrainHeight(px,pz)+.035,pz)));const mesh=new THREE.Mesh(new THREE.TubeGeometry(curve,56,.10,5,false),riverMat);W.add(mesh);riverPaths.push({points,mesh});}
 const worldLakes=[];for(let i=0;i<9;i++){const x=(Math.random()-.5)*110,z=(Math.random()-.5)*110,lake=new THREE.Mesh(new THREE.CircleGeometry(1.2+Math.random()*1.8,32),riverMat);lake.rotation.x=-Math.PI/2;lake.position.set(x,terrainHeight(x,z)+.045,z);W.add(lake);worldLakes.push(lake);}
 
 
@@ -127,20 +127,21 @@ function applyVisualWorldSeed(seed){
  // coordinates untouched made water tubes float over the ocean after terrain reseeding.
  const isLand=(x,z)=>{const h=terrainHeight(x,z),continent=sampleContinent(x,z,terrainSeed);return h>.18&&continent>.08;};
  const findLandPoint=()=>{for(let n=0;n<120;n++){const a=rnd()*Math.PI*2,d=10+rnd()*95,x=Math.cos(a)*d,z=Math.sin(a)*d;if(isLand(x,z))return [x,z];}return [0,0];};
+ const findFlatLandPoint=()=>{for(let n=0;n<180;n++){const [x,z]=findLandPoint();const sx=Math.abs(terrainHeight(x+1.5,z)-terrainHeight(x-1.5,z)),sz=Math.abs(terrainHeight(x,z+1.5)-terrainHeight(x,z-1.5));if(sx<.5&&sz<.5)return [x,z];}return findLandPoint();};
  for(let ri=0;ri<riverPaths.length;ri++){
   const river=riverPaths[ri],start=findLandPoint();let x=start[0],z=start[1],angle=rnd()*Math.PI*2;const points=[[x,z]];
   for(let j=1;j<10;j++){
    let found=false;
    for(let attempt=0;attempt<12;attempt++){
     const bend=(rnd()-.5)*1.15;angle+=bend*.35;const nx=x+Math.cos(angle)*3.6, nz=z+Math.sin(angle)*3.6;
-    if(isLand(nx,nz)){x=nx;z=nz;points.push([x,z]);found=true;break;}
+    if(isLand(nx,nz)&&Math.abs(terrainHeight(nx+1.5,nz)-terrainHeight(nx-1.5,nz))<1.15&&Math.abs(terrainHeight(nx,nz+1.5)-terrainHeight(nx,nz-1.5))<1.15){x=nx;z=nz;points.push([x,z]);found=true;break;}
     angle+=Math.PI*.22*(rnd()>.5?1:-1);
    }
    if(!found)break;
   }
-  if(points.length>=3)river.points=points;
+  if(points.length>=3){river.points=points;river.mesh.visible=true;}else river.mesh.visible=false;
  }
- worldLakes.forEach(lake=>{const [x,z]=findLandPoint();lake.position.set(x,terrainHeight(x,z)+.045,z);});
+ worldLakes.forEach(lake=>{const [x,z]=findFlatLandPoint();lake.position.set(x,terrainHeight(x,z)+.02,z);});
  rebuildRivers();
 }
 function updateSettlements(dt){
