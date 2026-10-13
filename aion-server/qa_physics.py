@@ -17,7 +17,7 @@ def run():
     # Current AION bodies use a ~0.4m collision half-height, so allow a small solver epsilon.
     ground_clearance = pos[1] if pos else -math.inf
     checks={
-        "ground_contact": bool(pos and ground_clearance >= 0.35),
+        "ground_contact": bool(pos and 0.60 <= ground_clearance <= 0.90),
         "finite_position": bool(pos and all(math.isfinite(v) for v in pos)),
     }
 
@@ -44,7 +44,8 @@ def run():
     terrain_world.add_body("qa:terrain-agent",0,5,0,.4,1,1.5)
     terrain_world.step(2.0)
     terrain_pos=terrain_world.position("qa:terrain-agent")
-    x=z=0.0
+    x=float(terrain_pos[0]) if terrain_pos else 0.0
+    z=float(terrain_pos[2]) if terrain_pos else 0.0
     k=(terrain_seed%100000)/100000.0
     base=math.sin(x*.045)*1.8+math.cos(z*.052)*1.5+math.sin((x+z)*.085)*1.1+math.sin(x*.17-z*.11)*.55
     continent=math.sin(x*.031+z*.018)+math.sin(x*.017-z*.027)*.7+math.cos(x*.013+z*.041)*.6
