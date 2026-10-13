@@ -54,6 +54,16 @@ def run():
     terrain_contact=bool(terrain_pos and abs(terrain_pos[1]-(terrain_surface+.75))<.18)
     checks["seeded_terrain_collision"]=terrain_contact
 
+    generation_world=PhysicsWorld()
+    generation_world.reset_world_generation((1,111))
+    generation_world.add_body("agent:old",0,1,0,.4,1,1.5)
+    generation_world.add_static("static:old",2,1,0,.5,1.0,"box")
+    generation_world.reset_world_generation((2,222))
+    checks["new_world_clears_cached_bodies"]=(
+        "agent:old" not in generation_world.bodies and
+        "static:old" not in generation_world.bodies
+    )
+
     result={"ok":all(checks.values()),"checks":checks,
             "positions":{"ground":pos,"wall":pos2,"dynamicA":x1,"dynamicB":x2,
                          "terrain":terrain_pos,"terrain_surface":terrain_surface}}
