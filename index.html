@@ -77,7 +77,17 @@ function M(c){return new THREE.MeshStandardMaterial({color:c,roughness:.72,metal
 function resource(){let g=new THREE.Mesh(new THREE.OctahedronGeometry(.35),M(0x44c9df));let a=Math.random()*6.28,d=3+Math.random()*22;g.position.set(Math.cos(a)*d,.35,Math.sin(a)*d);W.add(g);resources.push({g,amount:100})}
 for(let i=0;i<80;i++)resource();
 function agent(parent){
- const g=new THREE.Group(),body=new THREE.Mesh(new THREE.CapsuleGeometry(.32,.62,5,9),M(parent?0x6878a8:0x4e8d6e)),head=new THREE.Mesh(new THREE.SphereGeometry(.25,12,9),M(0x9bc3aa));body.position.y=.62;head.position.y=1.28;g.add(body,head);g.scale.setScalar(1.12);
+ const g=new THREE.Group(),cloth=M(parent?0x6878a8:0x4e8d6e),skin=M(0x9bc3aa);
+ const body=new THREE.Mesh(new THREE.CapsuleGeometry(.22,.48,5,9),cloth),head=new THREE.Mesh(new THREE.SphereGeometry(.22,12,9),skin);
+ body.position.y=.88;head.position.y=1.52;
+ const armGeo=new THREE.CapsuleGeometry(.07,.34,3,6),legGeo=new THREE.CapsuleGeometry(.09,.34,3,6);
+ for(const side of [-1,1]){
+  const arm=new THREE.Mesh(armGeo,cloth),leg=new THREE.Mesh(legGeo,cloth);
+  arm.position.set(side*.32,.93,0);arm.rotation.z=-side*.16;
+  leg.position.set(side*.12,.26,0);leg.rotation.z=side*.04;
+  g.add(arm,leg);
+ }
+ g.add(body,head);
  let a=Math.random()*6.28,d=4+Math.random()*18;g.position.set(Math.cos(a)*d,0,Math.sin(a)*d);W.add(g);
  const x={g,name:names[agents.length%names.length]+'-'+(agents.length+1),age:0,food:80,water:80,energy:90,health:100,job:['охотник','собиратель','строитель','исследователь'][Math.floor(Math.random()*4)],goal:null,home:null,partner:null,children:0,memory:[],alive:true,radius:.38,height:1.55,mass:1,velocity:new THREE.Vector3(),grounded:true};
  agents.push(x);births++;log(x.name+' родился. Профессия: '+x.job);return x
