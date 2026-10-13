@@ -23,7 +23,7 @@ jobs:
       - name: Run AION visual smoke test
         working-directory: qa
         env:
-          AION_CLIENT_URL: https://aion-server-b80c.onrender.com
+          AION_CLIENT_URL: https://aion-server-test.onrender.com/?server=https%3A%2F%2Faion-server-test.onrender.com
         run: npm test
       - name: Publish lifecycle report even on failure
         if: always()
@@ -35,4 +35,4 @@ jobs:
           name: aion-visual-qa
           path: qa/artifacts/
 
-# force new workflow run
+# QA must never target the production API
