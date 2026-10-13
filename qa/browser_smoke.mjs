@@ -13,7 +13,11 @@ const destructiveAttempts = [];
 
 page.on("pageerror", error => errors.push("pageerror: " + error.message));
 page.on("console", message => {
-  if (message.type() === "error") errors.push("console: " + message.text());
+  if (message.type() !== "error") return;
+  const text = message.text();
+  // Chromium emits console errors for requests intentionally aborted by the QA safety guard.
+  if (/ERR_BLOCKED_BY_CLIENT|blocked_by_client|blockedbyclient/i.test(text)) return;
+  errors.push("console: " + text);
 });
 page.on("requestfailed", request => {
   const failure = String(request.failure()?.errorText || "").toLowerCase();
