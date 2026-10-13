@@ -15,6 +15,19 @@ jobs:
     timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
+      - name: Validate AION client JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("index.html").read_text(encoding="utf-8")
+          match = re.search(r'<script type="module">([\\s\\S]*?)</script>', html)
+          if not match:
+              raise SystemExit("AION module script was not found")
+          script = re.sub(r"^import\\*as THREE from[^;]+;\\s*", "", match.group(1))
+          Path("/tmp/aion-client.mjs").write_text(script, encoding="utf-8")
+          PY
+          node --check /tmp/aion-client.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: 20
