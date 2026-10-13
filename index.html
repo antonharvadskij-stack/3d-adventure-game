@@ -128,7 +128,7 @@ function applyVisualWorldSeed(seed){
  const s=(Number(seed)>>>0)||1;
  let state=s;
  const rnd=()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return ((state>>>0)/4294967296);};
- const place=(g,spread=105)=>{let tries=0;while(tries++<80){const a=rnd()*Math.PI*2,d=8+rnd()*spread,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=terrainHeight(x,z),continent=sampleContinent(x,z,terrainSeed);if(h>-.15&&continent>.02){g.position.set(x,Math.max(h,0),z);return;}}g.position.set((rnd()-.5)*120,0,(rnd()-.5)*120);};
+ const place=(g,spread=105)=>{let tries=0;while(tries++<80){const a=rnd()*Math.PI*2,d=8+rnd()*spread,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=terrainHeight(x,z),continent=sampleContinent(x,z,terrainSeed);if(h>-.15&&continent>.02){g.position.set(x,Math.max(h,0),z);return;}}for(let n=0;n<400;n++){const x=(rnd()-.5)*220,z=(rnd()-.5)*220,h=terrainHeight(x,z),continent=sampleContinent(x,z,terrainSeed);if(h>-.15&&continent>.02){g.position.set(x,Math.max(h,0),z);return;}}const h=terrainHeight(0,0);g.position.set(0,Math.max(h,0),0);};
  staticColliders.filter(x=>x.type==='tree').forEach(s=>place(s.g));
  staticColliders.filter(x=>x.type==='mountain').forEach(s=>{place(s.g);s.g.position.y=terrainHeight(s.g.position.x,s.g.position.z)+2.2*s.g.scale.y;});
  naturalResources.forEach(r=>place(r.g));
@@ -156,7 +156,7 @@ function applyVisualWorldSeed(seed){
  rebuildRivers();
  // Frame the camera on the seeded settlement when a new universe appears;
  // otherwise a changed continent can leave the initial view staring at empty ocean.
- if(framedWorldSeed!==s&&worldSettlements.length){const focus=worldSettlements[0].g.position;camTarget.set(focus.x,terrainHeight(focus.x,focus.z)+.75,focus.z);camDist=32;camPitch=.68;framedWorldSeed=s;}
+ if(framedWorldSeed!==s&&worldSettlements.length){let best=worldSettlements[0],bestScore=-1;for(const q of worldSettlements){const p=q.g.position;let score=0;for(const radius of [8,16,24])for(let i=0;i<12;i++){const a=i*Math.PI/6;if(isLand(p.x+Math.cos(a)*radius,p.z+Math.sin(a)*radius))score++;}if(score>bestScore){best=q;bestScore=score;}}const focus=best.g.position;camTarget.set(focus.x,terrainHeight(focus.x,focus.z)+.75,focus.z);camDist=42;camPitch=.95;framedWorldSeed=s;}
 }
 function updateSettlements(dt){
  for(const q of worldSettlements)q.g.rotation.y+=dt*.05;
