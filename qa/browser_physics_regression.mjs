@@ -30,6 +30,8 @@ try {
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction(() => window.__AION_SYNCED === true && !!window.__AION_QA, null, { timeout: 125000, polling: 500 });
   const before = await page.evaluate(() => window.__AION_QA.snapshot());
+  fs.mkdirSync("artifacts", { recursive: true });
+  await page.screenshot({ path: "artifacts/04-physics-before.png" });
   await page.waitForTimeout(10000);
   const after = await page.evaluate(() => window.__AION_QA.snapshot());
   const dist = (a, b) => Math.hypot(a.x-b.x, a.y-b.y, a.z-b.z);
@@ -64,6 +66,8 @@ try {
     before: { worldVersion: before.worldVersion, residents: before.agents.length },
     after: { worldVersion: after.worldVersion, residents: after.agents.length }
   };
+  fs.writeFileSync("artifacts/aion-physics-regression.json", JSON.stringify(result, null, 2));
+  await page.screenshot({ path: "artifacts/05-physics-after.png" });
   console.log(JSON.stringify(result, null, 2));
   process.exitCode = result.ok ? 0 : 1;
 } finally {
