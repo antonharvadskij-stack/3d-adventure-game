@@ -37,8 +37,26 @@ def run():
     dist=math.dist(x1,x2) if x1 and x2 else 0
     checks["dynamic_collision"]=dist >= .65
 
+    # Verify the same seeded, non-flat terrain used by the browser is a real server-side collider.
+    terrain_world=PhysicsWorld()
+    terrain_seed=12345
+    terrain_world.set_terrain(terrain_seed)
+    terrain_world.add_body("qa:terrain-agent",0,5,0,.4,1,1.5)
+    terrain_world.step(2.0)
+    terrain_pos=terrain_world.position("qa:terrain-agent")
+    x=z=0.0
+    k=(terrain_seed%100000)/100000.0
+    base=math.sin(x*.045)*1.8+math.cos(z*.052)*1.5+math.sin((x+z)*.085)*1.1+math.sin(x*.17-z*.11)*.55
+    continent=math.sin(x*.031+z*.018)+math.sin(x*.017-z*.027)*.7+math.cos(x*.013+z*.041)*.6
+    land=max(0.0,min(1.0,(continent+.3)/.65))
+    detail=math.sin(x*(.021+k*.02)+terrain_seed*.000001)*.22+math.cos(z*(.027+k*.015)-terrain_seed*.0000013)*.18
+    terrain_surface=max(-1.15,-1.15+land*(1.15+base*.38+max(0.0,continent)**1.35*.95+detail))-.05
+    terrain_contact=bool(terrain_pos and abs(terrain_pos[1]-(terrain_surface+.75))<.18)
+    checks["seeded_terrain_collision"]=terrain_contact
+
     result={"ok":all(checks.values()),"checks":checks,
-            "positions":{"ground":pos,"wall":pos2,"dynamicA":x1,"dynamicB":x2}}
+            "positions":{"ground":pos,"wall":pos2,"dynamicA":x1,"dynamicB":x2,
+                         "terrain":terrain_pos,"terrain_surface":terrain_surface}}
     print(json.dumps(result,ensure_ascii=False))
     return 0 if result["ok"] else 1
 
