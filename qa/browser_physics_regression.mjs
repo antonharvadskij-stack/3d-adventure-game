@@ -32,6 +32,33 @@ try {
   const before = await page.evaluate(() => window.__AION_QA.snapshot());
   fs.mkdirSync("artifacts", { recursive: true });
   await page.screenshot({ path: "artifacts/04-physics-before.png" });
+
+  // Verify actual camera input paths, including a two-pointer pinch gesture.
+  const cameraStart = before.cameraDistance;
+  await page.locator("canvas").hover();
+  await page.mouse.wheel(0, 100);
+  await page.waitForTimeout(100);
+  const afterWheel = await page.evaluate(() => window.__AION_QA.snapshot().cameraDistance);
+  const wheelZoomWorks = Number.isFinite(afterWheel) && afterWheel > cameraStart;
+
+  const pinchStart = await page.evaluate(() => window.__AION_QA.snapshot().cameraDistance);
+  await page.evaluate(() => {
+    const canvas = document.querySelector("canvas");
+    // Synthetic pointers do not own browser pointer capture; neutralize capture only for this test.
+    canvas.setPointerCapture = () => {};
+    canvas.releasePointerCapture = () => {};
+    const fire = (target, type, pointerId, x, y) => target.dispatchEvent(new PointerEvent(type, {
+      pointerId, pointerType: "touch", clientX: x, clientY: y, bubbles: true
+    }));
+    fire(canvas, "pointerdown", 101, 100, 100);
+    fire(canvas, "pointerdown", 102, 200, 100);
+    fire(window, "pointermove", 102, 240, 100);
+    fire(canvas, "pointerup", 102, 240, 100);
+    fire(canvas, "pointerup", 101, 100, 100);
+  });
+  await page.waitForTimeout(100);
+  const afterPinch = await page.evaluate(() => window.__AION_QA.snapshot().cameraDistance);
+  const pinchZoomWorks = Number.isFinite(afterPinch) && afterPinch < pinchStart;
   await page.waitForTimeout(10000);
   const after = await page.evaluate(() => window.__AION_QA.snapshot());
   const dist = (a, b) => Math.hypot(a.x-b.x, a.y-b.y, a.z-b.z);
@@ -58,11 +85,11 @@ try {
   const noUnexpectedMutation = blockedMutations.every(x => x.path === "/physics/colliders");
   const result = {
     ok: before.serverConnected && after.serverConnected && after.agents.length > 0 &&
-      moved > 0 && finite && speedBounded && noTeleport && severeOverlapCount === 0 && sameWorld && noUnexpectedMutation && errors.length === 0,
+      moved > 0 && finite && speedBounded && noTeleport && severeOverlapCount === 0 && sameWorld && noUnexpectedMutation && wheelZoomWorks && pinchZoomWorks && errors.length === 0,
     checks: { hydrated: !!after.serverConnected, residentCount: after.agents.length, residentsMoved: moved,
       finiteTransforms: finite, maxHorizontalSpeed: Number(maxHorizontalSpeed.toFixed(4)),
       speedBounded, maxDisplacement10s: Number(maxDisplacement.toFixed(3)), noTeleport,
-      severeOverlapCount, overlaps: overlaps.slice(0,30), sameWorld, blockedMutationAttempts: blockedMutations, noUnexpectedMutation, browserErrors: errors },
+      severeOverlapCount, overlaps: overlaps.slice(0,30), sameWorld, camera: { start: cameraStart, afterWheel, wheelZoomWorks, pinchStart, afterPinch, pinchZoomWorks }, blockedMutationAttempts: blockedMutations, noUnexpectedMutation, browserErrors: errors },
     before: { worldVersion: before.worldVersion, residents: before.agents.length },
     after: { worldVersion: after.worldVersion, residents: after.agents.length }
   };
