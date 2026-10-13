@@ -61,8 +61,9 @@ function applyEvolutionVisuals(){
  const q=Math.max(.7,Math.min(1.5,evolution.visualQuality||1));
  if(S.fog) S.fog.far=Math.max(60,evolution.fogDistance||90);
  sun.intensity=2.2*(evolution.lightIntensity||1)*q;
- ground.scale.set(evolution.terrainScale||1,1,evolution.terrainScale||1);
- ocean.scale.setScalar(Math.max(0.8,Math.min(1.6,evolution.terrainScale||1)));
+ // Keep terrain in the same coordinate space as terrainHeight() and physics colliders.
+  ground.scale.set(1,1,1);
+ ocean.scale.setScalar(1);
  const mood=evolution.colorMood||'balanced';
  const moodColors={balanced:[0x02040a,0x123c61],civilization:[0x07101a,0x164a70],expansion:[0x08150d,0x174d3a],survival:[0x160d08,0x5a351e]};
  const mc=moodColors[mood]||moodColors.balanced;
