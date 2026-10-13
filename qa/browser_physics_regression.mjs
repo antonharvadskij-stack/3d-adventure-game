@@ -39,14 +39,28 @@ try {
   const finite = allBodies.every(a => [a.x,a.y,a.z,a.vx,a.vy,a.vz].every(Number.isFinite));
   const maxHorizontalSpeed = Math.max(0, ...allBodies.map(a => Math.hypot(a.vx,a.vz)));
   const speedBounded = maxHorizontalSpeed <= 2.21;
+  const maxDisplacement = Math.max(0, ...after.agents.filter(a => old.has(a.id)).map(a => dist(a, old.get(a.id))));
+  const noTeleport = maxDisplacement <= 2.2 * 10 + 1.0;
+  const overlaps = [];
+  for (let i = 0; i < allBodies.length; i++) for (let j = i + 1; j < allBodies.length; j++) {
+    const a = allBodies[i], b = allBodies[j];
+    const d = Math.hypot(a.x-b.x, a.z-b.z);
+    if (d < (a.radius||.38) + (b.radius||.38) - .12) overlaps.push({type:"body-body",a:a.id,b:b.id,penetration:Number(((a.radius||.38)+(b.radius||.38)-d).toFixed(3))});
+  }
+  for (const a of allBodies) for (const s of after.colliders) {
+    const d = Math.hypot(a.x-s.x, a.z-s.z);
+    if (d < (a.radius||.38) + (s.radius||.5) - .12) overlaps.push({type:"body-collider",body:a.id,collider:s.id,penetration:Number(((a.radius||.38)+(s.radius||.5)-d).toFixed(3))});
+  }
+  const severeOverlapCount = overlaps.length;
   const sameWorld = before.worldVersion === after.worldVersion;
   const noUnexpectedMutation = blockedMutations.every(x => x.path === "/physics/colliders");
   const result = {
     ok: before.serverConnected && after.serverConnected && after.agents.length > 0 &&
-      moved > 0 && finite && speedBounded && sameWorld && noUnexpectedMutation && errors.length === 0,
+      moved > 0 && finite && speedBounded && noTeleport && severeOverlapCount === 0 && sameWorld && noUnexpectedMutation && errors.length === 0,
     checks: { hydrated: !!after.serverConnected, residentCount: after.agents.length, residentsMoved: moved,
       finiteTransforms: finite, maxHorizontalSpeed: Number(maxHorizontalSpeed.toFixed(4)),
-      speedBounded, sameWorld, blockedMutationAttempts: blockedMutations, noUnexpectedMutation, browserErrors: errors },
+      speedBounded, maxDisplacement10s: Number(maxDisplacement.toFixed(3)), noTeleport,
+      severeOverlapCount, overlaps: overlaps.slice(0,30), sameWorld, blockedMutationAttempts: blockedMutations, noUnexpectedMutation, browserErrors: errors },
     before: { worldVersion: before.worldVersion, residents: before.agents.length },
     after: { worldVersion: after.worldVersion, residents: after.agents.length }
   };
