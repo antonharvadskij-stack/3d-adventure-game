@@ -29,13 +29,13 @@ page.on("response", response => {
   if (response.status() >= 500) errors.push("HTTP " + response.status() + ": " + response.url());
 });
 
-await page.route("https://aion-server-b80c.onrender.com/**", async route => {
+await page.route(`${new URL(url).origin}/**`, async route => {
   const request = route.request();
   const method = request.method().toUpperCase();
   const path = new URL(request.url()).pathname;
 
-  // Serve the checked-out branch client at the production origin so API calls remain same-origin.
-  // This validates the candidate commit without deploying it to production.
+  // Serve the checked-out branch client at the isolated test origin so API calls remain same-origin.
+  // All API reads stay on the test service; mutation requests are blocked before network access.
   if (method === "GET" && path === "/") {
     await route.fulfill({
       status: 200,
