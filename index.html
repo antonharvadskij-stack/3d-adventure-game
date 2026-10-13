@@ -193,6 +193,7 @@ async function aionFetch(path, options={}, attempts=12){
 }
 let serverState=null;let aionLoadSeq=0;let appliedWorldVersion=-1;window.__AION_SYNCED=false;window.__AION_SERVER_STATE=null;
 async function bigBang(){
+ if(!window.confirm('Большой взрыв необратимо изменит сохранённый мир. Вы уверены, что хотите создать новую вселенную?'))return;
  const b=document.getElementById('resetBtn');
  b.disabled=true;
  try{
