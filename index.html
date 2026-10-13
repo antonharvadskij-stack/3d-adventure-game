@@ -10,12 +10,12 @@ const W=new THREE.Group();S.add(W);
 const ocean=new THREE.Mesh(new THREE.PlaneGeometry(320,320,1,1),new THREE.MeshStandardMaterial({color:0x123c61,roughness:.58,metalness:.06}));
 ocean.rotation.x=-Math.PI/2;ocean.position.y=-1.15;W.add(ocean);
 const geo=new THREE.PlaneGeometry(300,300,192,192), pos=geo.attributes.position;
-function sampleTerrainHeight(x,z,seed){const s=Number(seed)||0,k=(s%100000)/100000,base=Math.sin(x*.045)*1.8+Math.cos(z*.052)*1.5+Math.sin((x+z)*.085)*1.1+Math.sin(x*.17-z*.11)*.55,continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6,land=Math.max(0,Math.min(1,(continent+.3)/.65)),detail=Math.sin(x*(.021+k*.02)+s*.000001)*.22+Math.cos(z*(.027+k*.015)-s*.0000013)*.18;return Math.max(-1.15,-1.15+land*(1.15+base*.38+Math.pow(Math.max(0,continent),1.35)*.95+detail));}
+function sampleTerrainHeight(x,z,seed){const s=Number(seed)||0,k=(s%100000)/100000,base=Math.sin(x*.045)*1.8+Math.cos(z*.052)*1.5+Math.sin((x+z)*.085)*1.1+Math.sin(x*.17-z*.11)*.55,continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6,land=Math.max(0,Math.min(1,(continent+.3)/.65)),detail=Math.sin(x*(.021+k*.02)+s*.000001)*.22+Math.cos(z*(.027+k*.015)-s*.0000013)*.18;return Math.max(-1.15,-1.15+land*(1.15+base*.58+Math.pow(Math.max(0,continent),1.35)*2.05+detail));}
 for(let i=0;i<pos.count;i++)pos.setZ(i,sampleTerrainHeight(pos.getX(i),pos.getY(i),0));
 let terrainSeed=0;
 function applyTerrainSeed(seed){seed=Number(seed)||0;if(!seed||seed===terrainSeed)return;terrainSeed=seed;for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getY(i);pos.setZ(i,sampleTerrainHeight(x,z,seed));const h=pos.getZ(i),c=new THREE.Color();if(h<-.15)c.setHex(0x6f9360);else if(h<.8)c.setHex((Math.sin(x*.06)+Math.cos(z*.05))>.2?0x4f7f45:0x6f8d4e);else if(h<4.5)c.setHex(0x718b62);else c.setHex(0x87918b);colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;}geo.attributes.color.needsUpdate=true;geo.computeVertexNormals();rebuildRivers();}
 geo.computeVertexNormals();
-const groundMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.88,metalness:.01});applyTerrainSeed(terrainSeed);const colors=new Float32Array(pos.count*3);for(let i=0;i<pos.count;i++){const h=pos.getZ(i),x=pos.getX(i),z=pos.getY(i),c=new THREE.Color();if(h<-.15)c.setHex(0x6f9360);else if(h<.8)c.setHex((Math.sin(x*.06)+Math.cos(z*.05))>.2?0x4f7f45:0x6f8d4e);else if(h<4.5)c.setHex(0x718b62);else c.setHex(0x87918b);colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;}geo.setAttribute('color',new THREE.BufferAttribute(colors,3));const ground=new THREE.Mesh(geo,groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=-.05;W.add(ground);
+const groundMat=new THREE.MeshStandardMaterial({vertexColors:true,roughness:.88,metalness:.01});applyTerrainSeed(terrainSeed);const colors=new Float32Array(pos.count*3);for(let i=0;i<pos.count;i++){const h=pos.getZ(i),x=pos.getX(i),z=pos.getY(i),c=new THREE.Color();if(h<-.15)c.setHex(0x6f9360);else if(h<.8)c.setHex((Math.sin(x*.06)+Math.cos(z*.05))>.2?0x4f7f45:0x6f8d4e);else if(h<4.5)c.setHex(0x718b62);else c.setHex(0x87918b);const variation=(Math.sin(x*.18+z*.07)*Math.cos(z*.16-x*.04)+Math.sin((x-z)*.11))*.09;c.multiplyScalar(1+variation);colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;}geo.setAttribute('color',new THREE.BufferAttribute(colors,3));const ground=new THREE.Mesh(geo,groundMat);ground.rotation.x=-Math.PI/2;ground.position.y=-.05;W.add(ground);
 // Removed the full-map transparent shore overlay: it washed out the terrain and water.
 const mountainGeo=new THREE.ConeGeometry(2.2,4.4,8),mountainMat=new THREE.MeshStandardMaterial({color:0x65716a,roughness:1});
 
@@ -48,7 +48,7 @@ const animals=[];
 function animal(x,z,type){
  const g=new THREE.Group(),mat=new THREE.MeshStandardMaterial({color:type==='deer'?0x8b6545:0x596b43,roughness:1});
  const body=new THREE.Mesh(new THREE.BoxGeometry(.9,.45,.42),mat),head=new THREE.Mesh(new THREE.SphereGeometry(.27,8,6),mat);
- body.position.y=.48;head.position.set(.52,.7,0);g.add(body,head);g.position.set(x,Math.max(.05,0),z);W.add(g);animals.push({g,phase:Math.random()*6.28,speed:.15+Math.random()*.3,radius:.62,height:1.0,mass:1});
+ body.position.y=.48;head.position.set(.52,.7,0);g.add(body,head,hair,eyeL,eyeR);g.position.set(x,Math.max(.05,0),z);W.add(g);animals.push({g,phase:Math.random()*6.28,speed:.15+Math.random()*.3,radius:.62,height:1.0,mass:1});
 }
 for(let i=0;i<45;i++){const a=Math.random()*Math.PI*2,d=10+Math.random()*105,x=Math.cos(a)*d,z=Math.sin(a)*d;animal(x,z,i%2?'deer':'boar');}
 for(let i=0;i<24;i++){const m=new THREE.Mesh(mountainGeo,mountainMat);const a=i*2.399,d=28+(i%8)*13;m.scale.y=.65+(i%4)*.15;const x=Math.cos(a)*d,z=Math.sin(a)*d;m.position.set(x,terrainHeight(x,z)+2.2*m.scale.y,z);W.add(m);staticColliders.push({g:m,radius:2.2,height:4.4*m.scale.y,type:'mountain'});}
@@ -77,9 +77,9 @@ function M(c){return new THREE.MeshStandardMaterial({color:c,roughness:.72,metal
 function resource(){let g=new THREE.Mesh(new THREE.OctahedronGeometry(.35),M(0x44c9df));let a=Math.random()*6.28,d=3+Math.random()*22;g.position.set(Math.cos(a)*d,.35,Math.sin(a)*d);W.add(g);resources.push({g,amount:100})}
 for(let i=0;i<80;i++)resource();
 function agent(parent){
- const g=new THREE.Group(),cloth=M(parent?0x6878a8:0x4e8d6e),skin=M(0x9bc3aa);
- const body=new THREE.Mesh(new THREE.CapsuleGeometry(.25,.52,6,10),cloth),head=new THREE.Mesh(new THREE.SphereGeometry(.24,14,10),skin);
- body.position.y=.92;head.position.y=1.59;
+ const g=new THREE.Group(),cloth=M(parent?0x4f86cc:0x3d8c5a),skin=M(0xd8aa83),hairMat=M(0x352a25),eyeMat=M(0x211d1b);
+ const body=new THREE.Mesh(new THREE.CapsuleGeometry(.25,.52,6,10),cloth),head=new THREE.Mesh(new THREE.SphereGeometry(.24,14,10),skin),hair=new THREE.Mesh(new THREE.SphereGeometry(.245,10,7),hairMat),eyeL=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),eyeMat),eyeR=new THREE.Mesh(new THREE.SphereGeometry(.035,8,6),eyeMat);
+ body.position.y=.92;head.position.y=1.59;hair.position.set(0,1.76,-.025);hair.scale.y=.48;eyeL.position.set(-.08,1.62,.205);eyeR.position.set(.08,1.62,.205);
  const armGeo=new THREE.CapsuleGeometry(.085,.38,4,7),legGeo=new THREE.CapsuleGeometry(.105,.38,4,7),limbs=[];
  for(const side of [-1,1]){
   const arm=new THREE.Mesh(armGeo,cloth),leg=new THREE.Mesh(legGeo,cloth);
