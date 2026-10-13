@@ -53,7 +53,7 @@ class PhysicsWorld:
     def _shape(self,radius,height,kind="capsule"):
         if kind=="box":
             return p.createCollisionShape(p.GEOM_BOX,halfExtents=[radius,max(.05,height/2),radius],physicsClientId=self.client)
-        return p.createCollisionShape(p.GEOM_CAPSULE,radius=max(.05,radius),height=max(.05,height),physicsClientId=self.client)
+        return p.createCollisionShape(p.GEOM_CAPSULE,radius=max(.05,radius),height=max(.05,height),collisionFrameOrientation=p.getQuaternionFromEuler([-math.pi/2,0,0]),physicsClientId=self.client)
     def add_body(self,key,x,y,z,radius=.4,mass=1.0,height=1.5,kind="capsule"):
         if key in self.bodies:return self.bodies[key]
         shape=self._shape(radius,height,kind)
