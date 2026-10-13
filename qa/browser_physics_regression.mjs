@@ -10,7 +10,7 @@ const blockedMutations = [];
 page.on("pageerror", e => errors.push(e.message));
 page.on("console", m => { if (m.type() === "error" && !/ERR_BLOCKED_BY_CLIENT|blocked_by_client/i.test(m.text())) errors.push(m.text()); });
 
-await page.route("https://aion-server-b80c.onrender.com/**", async route => {
+await page.route(`${new URL(url).origin}/**`, async route => {
   const request = route.request();
   const method = request.method().toUpperCase();
   const path = new URL(request.url()).pathname;
