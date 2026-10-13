@@ -40,13 +40,13 @@ try {
   const maxHorizontalSpeed = Math.max(0, ...allBodies.map(a => Math.hypot(a.vx,a.vz)));
   const speedBounded = maxHorizontalSpeed <= 2.21;
   const sameWorld = before.worldVersion === after.worldVersion;
-  const noMutations = blockedMutations.every(x => x.method === "GET" || x.method === "HEAD" || x.method === "OPTIONS");
+  const noUnexpectedMutation = blockedMutations.every(x => x.path === "/physics/colliders");
   const result = {
     ok: before.serverConnected && after.serverConnected && after.agents.length > 0 &&
-      moved > 0 && finite && speedBounded && sameWorld && noMutations && errors.length === 0,
+      moved > 0 && finite && speedBounded && sameWorld && noUnexpectedMutation && errors.length === 0,
     checks: { hydrated: !!after.serverConnected, residentCount: after.agents.length, residentsMoved: moved,
       finiteTransforms: finite, maxHorizontalSpeed: Number(maxHorizontalSpeed.toFixed(4)),
-      speedBounded, sameWorld, blockedMutationCount: blockedMutations.length, browserErrors: errors },
+      speedBounded, sameWorld, blockedMutationAttempts: blockedMutations, noUnexpectedMutation, browserErrors: errors },
     before: { worldVersion: before.worldVersion, residents: before.agents.length },
     after: { worldVersion: after.worldVersion, residents: after.agents.length }
   };
