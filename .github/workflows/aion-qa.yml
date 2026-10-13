@@ -49,7 +49,7 @@ jobs:
       - name: Run browser smoke and movement/collision regression
         working-directory: qa
         env:
-          AION_CLIENT_URL: https://aion-server-test.onrender.com
+          AION_CLIENT_URL: https://aion-server-test.onrender.com/?server=https%3A%2F%2Faion-server-test.onrender.com
         run: npm test
       - name: Upload browser QA reports and screenshots
         if: always()
