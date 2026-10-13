@@ -6,7 +6,7 @@ on:
     branches: ["**"]
 
 concurrency:
-  group: aion-visual-qa
+  group: aion-visual-qa-v2
   cancel-in-progress: true
 
 jobs:
