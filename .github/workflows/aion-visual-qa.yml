@@ -21,10 +21,10 @@ jobs:
           from pathlib import Path
           import re
           html = Path("index.html").read_text(encoding="utf-8")
-          match = re.search(r'<script type="module">([\\s\\S]*?)</script>', html)
+          match = re.search(r'<script type="module">([\s\S]*?)</script>', html)
           if not match:
               raise SystemExit("AION module script was not found")
-          script = re.sub(r"^import\\*as THREE from[^;]+;\\s*", "", match.group(1))
+          script = re.sub(r"^import\*as THREE from[^;]+;\s*", "", match.group(1))
           Path("/tmp/aion-client.mjs").write_text(script, encoding="utf-8")
           PY
           node --check /tmp/aion-client.mjs
