@@ -10,7 +10,8 @@ const W=new THREE.Group();S.add(W);
 const ocean=new THREE.Mesh(new THREE.PlaneGeometry(320,320,1,1),new THREE.MeshStandardMaterial({color:0x123c61,roughness:.58,metalness:.06}));
 ocean.rotation.x=-Math.PI/2;ocean.position.y=-1.15;W.add(ocean);
 const geo=new THREE.PlaneGeometry(300,300,192,192), pos=geo.attributes.position;
-function sampleTerrainHeight(x,z,seed){const s=Number(seed)||0,k=(s%100000)/100000,base=Math.sin(x*.045)*1.8+Math.cos(z*.052)*1.5+Math.sin((x+z)*.085)*1.1+Math.sin(x*.17-z*.11)*.55,continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6,land=Math.max(0,Math.min(1,(continent+.3)/.65)),detail=Math.sin(x*(.021+k*.02)+s*.000001)*.22+Math.cos(z*(.027+k*.015)-s*.0000013)*.18;return Math.max(-1.15,-1.15+land*(1.15+base*.62+Math.pow(Math.max(0,continent),1.35)*2.8+detail));}
+function sampleContinent(x,z,seed){const s=Number(seed)>>>0,phaseA=(s%65536)/65536*Math.PI*2,phaseB=((s>>>16)%65536)/65536*Math.PI*2;return Math.sin(x*.031+z*.018+phaseA)+Math.sin(x*.017-z*.027+phaseB)*.7+Math.cos(x*.013+z*.041+phaseA*1.3-phaseB*.4)*.6;}
+function sampleTerrainHeight(x,z,seed){const s=Number(seed)>>>0,k=(s%100000)/100000,phaseA=(s%65536)/65536*Math.PI*2,phaseB=((s>>>16)%65536)/65536*Math.PI*2,base=Math.sin(x*.045+phaseA*.6)*1.8+Math.cos(z*.052+phaseB*.7)*1.5+Math.sin((x+z)*.085+phaseA)*1.1+Math.sin(x*.17-z*.11+phaseB)*.55,continent=sampleContinent(x,z,s),land=Math.max(0,Math.min(1,(continent+.3)/.65)),detail=Math.sin(x*(.021+k*.02)+s*.000001)*.22+Math.cos(z*(.027+k*.015)-s*.0000013)*.18;return Math.max(-1.15,-1.15+land*(1.15+base*.62+Math.pow(Math.max(0,continent),1.35)*2.8+detail));}
 for(let i=0;i<pos.count;i++)pos.setZ(i,sampleTerrainHeight(pos.getX(i),pos.getY(i),0));
 let terrainSeed=0;
 function applyTerrainSeed(seed){seed=Number(seed)||0;if(!seed||seed===terrainSeed)return;terrainSeed=seed;for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getY(i);pos.setZ(i,sampleTerrainHeight(x,z,seed));const h=pos.getZ(i),c=new THREE.Color();if(h<-.15)c.setHex(0x668c5c);else if(h<1.0)c.setHex((Math.sin(x*.06)+Math.cos(z*.05))>.2?0x477a3e:0x729354);else if(h<5.2)c.setHex((Math.sin(x*.06)+Math.cos(z*.05))>.2?0x63864d:0x7e955f);else if(h<7.5)c.setHex(0x827f70);else c.setHex(0xb3b5b0);const variation=(Math.sin(x*.18+z*.07)*Math.cos(z*.16-x*.04)+Math.sin((x-z)*.11))*.09;c.multiplyScalar(1+variation);colors[i*3]=c.r;colors[i*3+1]=c.g;colors[i*3+2]=c.b;}geo.attributes.color.needsUpdate=true;geo.computeVertexNormals();rebuildRivers();}
@@ -116,7 +117,7 @@ function applyVisualWorldSeed(seed){
  const s=(Number(seed)>>>0)||1;
  let state=s;
  const rnd=()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return ((state>>>0)/4294967296);};
- const place=(g,spread=105)=>{let tries=0;while(tries++<80){const a=rnd()*Math.PI*2,d=8+rnd()*spread,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=terrainHeight(x,z);const continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;if(h>-.15&&continent>.02){g.position.set(x,Math.max(h,0),z);return;}}g.position.set((rnd()-.5)*120,0,(rnd()-.5)*120);};
+ const place=(g,spread=105)=>{let tries=0;while(tries++<80){const a=rnd()*Math.PI*2,d=8+rnd()*spread,x=Math.cos(a)*d,z=Math.sin(a)*d;const h=terrainHeight(x,z),continent=sampleContinent(x,z,terrainSeed);if(h>-.15&&continent>.02){g.position.set(x,Math.max(h,0),z);return;}}g.position.set((rnd()-.5)*120,0,(rnd()-.5)*120);};
  staticColliders.filter(x=>x.type==='tree').forEach(s=>place(s.g));
  staticColliders.filter(x=>x.type==='mountain').forEach(s=>{place(s.g);s.g.position.y=terrainHeight(s.g.position.x,s.g.position.z)+2.2*s.g.scale.y;});
  naturalResources.forEach(r=>place(r.g));
@@ -124,7 +125,7 @@ function applyVisualWorldSeed(seed){
  animals.forEach(a=>{place(a.g);a.phase=rnd()*Math.PI*2;});
  // Rivers and lakes belong to the seeded landmass too. Leaving their initial random
  // coordinates untouched made water tubes float over the ocean after terrain reseeding.
- const isLand=(x,z)=>{const h=terrainHeight(x,z),continent=Math.sin(x*.031+z*.018)+Math.sin(x*.017-z*.027)*.7+Math.cos(x*.013+z*.041)*.6;return h>.18&&continent>.08;};
+ const isLand=(x,z)=>{const h=terrainHeight(x,z),continent=sampleContinent(x,z,terrainSeed);return h>.18&&continent>.08;};
  const findLandPoint=()=>{for(let n=0;n<120;n++){const a=rnd()*Math.PI*2,d=10+rnd()*95,x=Math.cos(a)*d,z=Math.sin(a)*d;if(isLand(x,z))return [x,z];}return [0,0];};
  for(let ri=0;ri<riverPaths.length;ri++){
   const river=riverPaths[ri],start=findLandPoint();let x=start[0],z=start[1],angle=rnd()*Math.PI*2;const points=[[x,z]];
