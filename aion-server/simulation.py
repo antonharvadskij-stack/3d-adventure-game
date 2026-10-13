@@ -76,12 +76,12 @@ class PhysicsWorld:
         if key in self.bodies:return self.bodies[key]
         shape=self._shape(radius,height,kind)
         bid=p.createMultiBody(baseMass=mass,baseCollisionShapeIndex=shape,basePosition=[x,y,z],physicsClientId=self.client)
-        p.changeDynamics(bid,-1,lateralFriction=.85,restitution=.02,linearDamping=.08,angularDamping=.9,physicsClientId=self.client)
+        p.changeDynamics(bid,-1,lateralFriction=.85,restitution=.02,linearDamping=.08,angularDamping=.9,localInertiaDiagonal=[0,0,0],physicsClientId=self.client)
         self.bodies[key]=bid
         return bid
     def set_velocity(self,key,vx,vz):
         bid=self.bodies.get(key)
-        if bid is not None:p.resetBaseVelocity(bid,linearVelocity=[vx,0,vz],physicsClientId=self.client)
+        if bid is not None:p.resetBaseVelocity(bid,linearVelocity=[vx,0,vz],angularVelocity=[0,0,0],physicsClientId=self.client)
     def set_position(self,key,x,y,z):
         bid=self.bodies.get(key)
         if bid is not None:p.resetBasePositionAndOrientation(bid,[x,y,z],[0,0,0,1],physicsClientId=self.client)
