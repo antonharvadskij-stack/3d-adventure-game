@@ -13,11 +13,12 @@ on:
 
 concurrency:
   group: aion-live-qa
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   physics:
     runs-on: ubuntu-22.04
+    timeout-minutes: 6
     defaults:
       run:
         working-directory: aion-server
