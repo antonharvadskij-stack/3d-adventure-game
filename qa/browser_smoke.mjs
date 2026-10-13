@@ -63,7 +63,7 @@ const waitForServerHydration = async () => {
         !!window.__AION_SERVER_STATE &&
         Number.isFinite(Number(window.__AION_SERVER_STATE.worldVersion)),
       undefined,
-      { timeout: 45000, polling: 500 }
+      { timeout: 125000, polling: 500 }
     );
     return true;
   } catch (error) {
