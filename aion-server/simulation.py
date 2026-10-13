@@ -53,7 +53,25 @@ class PhysicsWorld:
     def _shape(self,radius,height,kind="capsule"):
         if kind=="box":
             return p.createCollisionShape(p.GEOM_BOX,halfExtents=[radius,max(.05,height/2),radius],physicsClientId=self.client)
-        return p.createCollisionShape(p.GEOM_CAPSULE,radius=max(.05,radius),height=max(.05,height),collisionFrameOrientation=p.getQuaternionFromEuler([-math.pi/2,0,0]),physicsClientId=self.client)
+        # Build a convex capsule hull explicitly in Y-up coordinates. Bullet's primitive
+        # capsule axis is Z-up; using it unrotated made characters collide as spheres.
+        r=max(.05,float(radius))
+        h=max(2*r,float(height))
+        cylinder_half=max(0.0,h/2-r)
+        vertices=[]
+        ring_count=12
+        for i in range(5):
+            angle=(math.pi/2)*i/4
+            radial=r*math.cos(angle)
+            top_y=cylinder_half+r*math.sin(angle)
+            bottom_y=-cylinder_half-r*math.sin(angle)
+            for j in range(ring_count):
+                phi=2*math.pi*j/ring_count
+                x=radial*math.cos(phi)
+                z=radial*math.sin(phi)
+                vertices.append([x,top_y,z])
+                vertices.append([x,bottom_y,z])
+        return p.createCollisionShape(p.GEOM_MESH,vertices=vertices,physicsClientId=self.client)
     def add_body(self,key,x,y,z,radius=.4,mass=1.0,height=1.5,kind="capsule"):
         if key in self.bodies:return self.bodies[key]
         shape=self._shape(radius,height,kind)
