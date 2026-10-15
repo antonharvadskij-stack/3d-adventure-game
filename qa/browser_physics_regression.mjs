@@ -65,7 +65,8 @@ try {
   const old = new Map(before.agents.map(a => [a.id, a]));
   const moved = after.agents.filter(a => old.has(a.id) && dist(a, old.get(a.id)) > 0.15).length;
   const allBodies = [...after.agents, ...after.animals];
-  const finite = allBodies.every(a => [a.x,a.y,a.z,a.floorY,a.height,a.vx,a.vy,a.vz].every(Number.isFinite));\n  const terrainSupport = allBodies.map(a => ({ id: a.id, gap: a.y - a.floorY })).filter(a => Math.abs(a.gap) > 0.20);\n  const groundedOnTerrain = terrainSupport.length === 0;
+  const finite = allBodies.every(a => [a.x,a.y,a.z,a.floorY,a.height,a.vx,a.vy,a.vz].every(Number.isFinite));
+  const terrainSupport = allBodies.map(a => ({ id: a.id, gap: a.y - a.floorY })).filter(a => Math.abs(a.gap) > 0.20);\n  const groundedOnTerrain = terrainSupport.length === 0;
   const maxHorizontalSpeed = Math.max(0, ...allBodies.map(a => Math.hypot(a.vx,a.vz)));
   const speedBounded = maxHorizontalSpeed <= 2.21;
   const maxDisplacement = Math.max(0, ...after.agents.filter(a => old.has(a.id)).map(a => dist(a, old.get(a.id))));
@@ -74,11 +75,13 @@ try {
   for (let i = 0; i < allBodies.length; i++) for (let j = i + 1; j < allBodies.length; j++) {
     const a = allBodies[i], b = allBodies[j];
     const d = Math.hypot(a.x-b.x, a.z-b.z);
-    const verticalOverlap = a.y < b.y + (b.height||1.0) && b.y < a.y + (a.height||1.0);\n    if (verticalOverlap && d < (a.radius||.38) + (b.radius||.38) - .12) overlaps.push({type:"body-body",a:a.id,b:b.id,penetration:Number(((a.radius||.38)+(b.radius||.38)-d).toFixed(3))});
+    const verticalOverlap = a.y < b.y + (b.height||1.0) && b.y < a.y + (a.height||1.0);
+    if (verticalOverlap && d < (a.radius||.38) + (b.radius||.38) - .12) overlaps.push({type:"body-body",a:a.id,b:b.id,penetration:Number(((a.radius||.38)+(b.radius||.38)-d).toFixed(3))});
   }
   for (const a of allBodies) for (const s of after.colliders) {
     const d = Math.hypot(a.x-s.x, a.z-s.z);
-    const verticalOverlap = a.y < s.y + (s.height||1.0) && s.y < a.y + (a.height||1.0);\n    if (verticalOverlap && d < (a.radius||.38) + (s.radius||.5) - .12) overlaps.push({type:"body-collider",body:a.id,collider:s.id,penetration:Number(((a.radius||.38)+(s.radius||.5)-d).toFixed(3))});
+    const verticalOverlap = a.y < s.y + (s.height||1.0) && s.y < a.y + (a.height||1.0);
+    if (verticalOverlap && d < (a.radius||.38) + (s.radius||.5) - .12) overlaps.push({type:"body-collider",body:a.id,collider:s.id,penetration:Number(((a.radius||.38)+(s.radius||.5)-d).toFixed(3))});
   }
   const severeOverlapCount = overlaps.length;
   const sameWorld = before.worldVersion === after.worldVersion;
