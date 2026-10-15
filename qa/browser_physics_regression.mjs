@@ -66,7 +66,8 @@ try {
   const moved = after.agents.filter(a => old.has(a.id) && dist(a, old.get(a.id)) > 0.15).length;
   const allBodies = [...after.agents, ...after.animals];
   const finite = allBodies.every(a => [a.x,a.y,a.z,a.floorY,a.height,a.vx,a.vy,a.vz].every(Number.isFinite));
-  const terrainSupport = allBodies.map(a => ({ id: a.id, gap: a.y - a.floorY })).filter(a => Math.abs(a.gap) > 0.20);\n  const groundedOnTerrain = terrainSupport.length === 0;
+  const terrainSupport = allBodies.map(a => ({ id: a.id, gap: a.y - a.floorY })).filter(a => Math.abs(a.gap) > 0.20);
+  const groundedOnTerrain = terrainSupport.length === 0;
   const maxHorizontalSpeed = Math.max(0, ...allBodies.map(a => Math.hypot(a.vx,a.vz)));
   const speedBounded = maxHorizontalSpeed <= 2.21;
   const maxDisplacement = Math.max(0, ...after.agents.filter(a => old.has(a.id)).map(a => dist(a, old.get(a.id))));
