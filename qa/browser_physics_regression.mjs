@@ -28,7 +28,9 @@ await page.route(`${new URL(url).origin}/**`, async route => {
 
 try {
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
-  await page.waitForFunction(() => window.__AION_SYNCED === true && !!window.__AION_QA, null, { timeout: 125000, polling: 500 });
+  await page.waitForFunction(() => (window.__AION_SYNCED === true && !!window.__AION_QA) || !!window.__AION_SYNC_ERROR, null, { timeout: 125000, polling: 500 });
+  const syncError = await page.evaluate(() => window.__AION_SYNC_ERROR);
+  if (syncError) throw new Error(`AION server hydration failed: ${syncError}`);
   const before = await page.evaluate(() => window.__AION_QA.snapshot());
   fs.mkdirSync("artifacts", { recursive: true });
   await page.screenshot({ path: "artifacts/04-physics-before.png" });
