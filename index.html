@@ -194,19 +194,19 @@ function act(a,dt){
  if(Math.random()<dt*.012)a.memory.push({cycle,message:'исследовал новую область'});
 }
 const AION_SERVER=new URLSearchParams(location.search).get('server')==='https://aion-server-test.onrender.com'?'https://aion-server-test.onrender.com':'https://aion-server-b80c.onrender.com';
-async function aionFetch(path, options={}, attempts=12){
+async function aionFetch(path, options={}, attempts=4){
   let lastError;
   for(let i=0;i<attempts;i++){
     try{
-      const r=await fetch(AION_SERVER+path,{...options,cache:'no-store'});
+      const r=await fetch(AION_SERVER+path,{...options,cache:'no-store',signal:options.signal||AbortSignal.timeout(8000)});
       if(r.ok) return r;
       lastError=new Error('HTTP '+r.status);
     }catch(e){ lastError=e; }
-    if(i+1<attempts) await new Promise(resolve=>setTimeout(resolve,Math.min(15000,2500*Math.pow(1.35,i))));
+    if(i+1<attempts) await new Promise(resolve=>setTimeout(resolve,Math.min(4000,1000*Math.pow(2,i))));
   }
   throw lastError || new Error('AION server unavailable');
 }
-let serverState=null;let aionLoadSeq=0;let appliedWorldVersion=-1;window.__AION_SYNCED=false;window.__AION_SERVER_STATE=null;window.__AION_SYNC_ERROR=null;
+let serverState=null;let aionLoadSeq=0;let appliedWorldVersion=-1;let aionLoadInFlight=false;window.__AION_SYNCED=false;window.__AION_SERVER_STATE=null;window.__AION_SYNC_ERROR=null;
 async function bigBang(){
  if(!window.confirm('Большой взрыв необратимо изменит сохранённый мир. Вы уверены, что хотите создать новую вселенную?'))return;
  const b=document.getElementById('resetBtn');
@@ -241,6 +241,8 @@ async function bigBang(){
  }finally{b.disabled=false}
 }
 async function loadAION(){
+ if(aionLoadInFlight)return;
+ aionLoadInFlight=true;
  const seq=++aionLoadSeq;
  window.__AION_SYNC_ERROR=null;
  try{
@@ -269,6 +271,7 @@ async function loadAION(){
   }
   log('AION подключён к постоянному серверному миру. Состояние мира сохранено. Поколение автономии: '+(evolution.generation||1)+'.');
  }catch(e){serverConnected=false;window.__AION_SYNCED=false;window.__AION_SYNC_ERROR=String(e?.message||e);console.error('AION loadAION failed:',e);log('AION Server временно недоступен. Ожидание синхронизации…')}
+ finally{aionLoadInFlight=false}
 }
 
 async function uploadPhysicsColliders(){try{const colliders=staticColliders.map((s,i)=>({id:s.id||(`${s.type||'object'}-${i}`),x:s.g.position.x,y:s.g.position.y+(s.type==='mountain'?0:(s.height||1)/2),z:s.g.position.z,radius:s.radius||.5,height:s.height||1}));await aionFetch('/physics/colliders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({colliders}),cache:'no-store'});}catch(e){}}
