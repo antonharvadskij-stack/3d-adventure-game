@@ -28,9 +28,20 @@ await page.route(`${new URL(url).origin}/**`, async route => {
 
 try {
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
-  await page.waitForFunction(() => (window.__AION_SYNCED === true && !!window.__AION_QA) || !!window.__AION_SYNC_ERROR, null, { timeout: 125000, polling: 500 });
-  const syncError = await page.evaluate(() => window.__AION_SYNC_ERROR);
-  if (syncError) throw new Error(`AION server hydration failed: ${syncError}`);
+  // Separate server hydration from the client diagnostics hook so a missing hook
+  // fails quickly with useful runtime evidence instead of a generic 125s timeout.
+  await page.waitForFunction(() => window.__AION_SYNCED === true || !!window.__AION_SYNC_ERROR, null, { timeout: 125000, polling: 500 });
+  const startup = await page.evaluate(() => ({
+    synced: window.__AION_SYNCED === true,
+    hasServerState: !!window.__AION_SERVER_STATE,
+    hasQaHook: !!window.__AION_QA && typeof window.__AION_QA.snapshot === "function",
+    syncError: window.__AION_SYNC_ERROR,
+    readyState: document.readyState,
+    title: document.title,
+    canvasCount: document.querySelectorAll("canvas").length
+  }));
+  if (startup.syncError) throw new Error(`AION server hydration failed: ${startup.syncError}`);
+  if (!startup.hasQaHook) throw new Error(`AION QA diagnostics hook missing after hydration: ${JSON.stringify(startup)}; browserErrors=${JSON.stringify(errors)}`);
   const before = await page.evaluate(() => window.__AION_QA.snapshot());
   fs.mkdirSync("artifacts", { recursive: true });
   await page.screenshot({ path: "artifacts/04-physics-before.png" });
