@@ -206,7 +206,7 @@ async function aionFetch(path, options={}, attempts=12){
   }
   throw lastError || new Error('AION server unavailable');
 }
-let serverState=null;let aionLoadSeq=0;let appliedWorldVersion=-1;window.__AION_SYNCED=false;window.__AION_SERVER_STATE=null;
+let serverState=null;let aionLoadSeq=0;let appliedWorldVersion=-1;window.__AION_SYNCED=false;window.__AION_SERVER_STATE=null;window.__AION_SYNC_ERROR=null;
 async function bigBang(){
  if(!window.confirm('Большой взрыв необратимо изменит сохранённый мир. Вы уверены, что хотите создать новую вселенную?'))return;
  const b=document.getElementById('resetBtn');
@@ -242,6 +242,7 @@ async function bigBang(){
 }
 async function loadAION(){
  const seq=++aionLoadSeq;
+ window.__AION_SYNC_ERROR=null;
  try{
   const r=await aionFetch('/world');
   if(!r.ok) throw new Error('AION '+r.status);
@@ -267,7 +268,7 @@ async function loadAION(){
     incoming.forEach((x,i)=>{const a=agents[i];if(!a)return;a.serverId=x.id;a.name=x.name||a.name;a.age=x.age||a.age;a.job=x.job||a.job;a.health=x.health||a.health;a.children=x.children??a.children;/* Same-generation snapshots update metadata only. Re-applying transforms every poll teleports locally simulated residents and cancels their movement. Positions are applied only when a new worldVersion creates a new generation above. */});
   }
   log('AION подключён к постоянному серверному миру. Состояние мира сохранено. Поколение автономии: '+(evolution.generation||1)+'.');
- }catch(e){serverConnected=false;window.__AION_SYNCED=false;console.error('AION loadAION failed:',e);log('AION Server временно недоступен. Ожидание синхронизации…')}
+ }catch(e){serverConnected=false;window.__AION_SYNCED=false;window.__AION_SYNC_ERROR=String(e?.message||e);console.error('AION loadAION failed:',e);log('AION Server временно недоступен. Ожидание синхронизации…')}
 }
 
 async function uploadPhysicsColliders(){try{const colliders=staticColliders.map((s,i)=>({id:s.id||(`${s.type||'object'}-${i}`),x:s.g.position.x,y:s.g.position.y+(s.type==='mountain'?0:(s.height||1)/2),z:s.g.position.z,radius:s.radius||.5,height:s.height||1}));await aionFetch('/physics/colliders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({colliders}),cache:'no-store'});}catch(e){}}
