@@ -33,8 +33,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
-          cache-dependency-path: package-lock.json
 
       - name: Install dependencies when npm manifest exists
         shell: bash
@@ -51,7 +49,7 @@ jobs:
         shell: bash
         run: |
           if [[ -f package.json ]] && node -e "process.exit(require('./package.json').scripts?.test ? 0 : 1)"; then
-            npm test -- --runInBand
+            npm test
           else
             echo "No npm test script found; no test command executed."
           fi
