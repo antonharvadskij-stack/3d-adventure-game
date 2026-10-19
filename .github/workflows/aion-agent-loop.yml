@@ -58,14 +58,14 @@ jobs:
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_browser_qa }}
         shell: bash
         env:
-          AION_TEST_URL: https://aion-server-test.onrender.com/
+          AION_CLIENT_URL: https://aion-server-test.onrender.com/
         run: |
           if [[ -f qa/browser_smoke.mjs ]]; then
             if [[ -f package.json ]] && node -e "process.exit(require('./package.json').devDependencies?.playwright || require('./package.json').dependencies?.playwright ? 0 : 1)"; then
-              node qa/browser_smoke.mjs
+              (cd qa && node browser_smoke.mjs)
             elif [[ -f package.json ]] && node -e "process.exit(require('./package.json').devDependencies?.['@playwright/test'] || require('./package.json').dependencies?.['@playwright/test'] ? 0 : 1)"; then
               npx playwright install --with-deps chromium
-              node qa/browser_smoke.mjs
+              (cd qa && node browser_smoke.mjs)
             else
               echo "Browser smoke script exists but Playwright dependency is not declared; refusing implicit dependency mutation."
               exit 1
