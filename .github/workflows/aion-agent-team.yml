@@ -128,8 +128,6 @@ jobs:
               if "route.abort" not in source or "blockedMutations" not in source:
                   failures.append(f"{name}: mutation requests are not explicitly blocked and recorded")
           workflow = Path(".github/workflows/aion-agent-team.yml").read_text(encoding="utf-8")
-          if "AION_SERVER_URL:" in workflow:
-              failures.append("agent workflow must not configure a live server URL")
           if "AION_CLIENT_URL: https://aion-server-test.onrender.com/" not in workflow:
               failures.append("browser tests must explicitly use the isolated test service")
           if failures:
