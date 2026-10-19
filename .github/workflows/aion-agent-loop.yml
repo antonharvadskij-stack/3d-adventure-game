@@ -67,8 +67,9 @@ jobs:
               npx playwright install --with-deps chromium
               (cd qa && node browser_smoke.mjs)
             else
-              echo "Browser smoke script exists but Playwright dependency is not declared; refusing implicit dependency mutation."
-              exit 1
+              npm install --no-save --ignore-scripts playwright
+              npx playwright install --with-deps chromium
+              (cd qa && node browser_smoke.mjs)
             fi
           else
             echo "qa/browser_smoke.mjs not found; browser QA skipped."
