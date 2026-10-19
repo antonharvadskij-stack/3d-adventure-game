@@ -111,7 +111,7 @@ if (hydration[0]) {
 const initial = snapshots[0]?.api;
 const observed = snapshots[1]?.api;
 const reloaded = snapshots[2]?.api;
-const noBrowserErrors = errors.filter(e => !e.includes("502")).length === 0;
+const noBrowserErrors = errors.length === 0;
 const worldRemainsValid = !!initial && !!observed && !!reloaded &&
   Number.isFinite(Number(initial.worldAge)) &&
   Number.isFinite(Number(observed.worldAge)) &&
