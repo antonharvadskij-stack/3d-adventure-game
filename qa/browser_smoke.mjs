@@ -111,7 +111,7 @@ if (hydration[0]) {
 const initial = snapshots[0]?.api;
 const observed = snapshots[1]?.api;
 const reloaded = snapshots[2]?.api;
-const noBrowserErrors = errors.filter(e => !e.includes("502")).length === 0;
+const noBrowserErrors = errors.length === 0;
 const worldRemainsValid = !!initial && !!observed && !!reloaded &&
   Number.isFinite(Number(initial.worldAge)) &&
   Number.isFinite(Number(observed.worldAge)) &&
@@ -121,6 +121,8 @@ const worldRemainsValid = !!initial && !!observed && !!reloaded &&
   Number(reloaded.cycle) >= Number(observed.cycle) &&
   Number(reloaded.worldVersion) >= Number(observed.worldVersion);
 const result = {
+  candidate_sha: process.env.AION_CANDIDATE_SHA || null,
+  test_target: url,
   ok: hydration.length === 3 && hydration.every(Boolean) &&
     noBrowserErrors && worldRemainsValid && destructiveAttempts.length === 0,
   safety: { all_non_read_only_api_requests_blocked_before_network: true, blockedMutations, destructiveAttempts },
@@ -129,7 +131,7 @@ const result = {
     no_browser_errors: noBrowserErrors,
     no_destructive_mutation_attempts: destructiveAttempts.length === 0,
     world_state_monotonic: worldRemainsValid,
-    transient_server_502: errors.some(e => e.includes("502"))
+    transient_server_5xx: errors.some(e => /HTTP 5\\d\\d:/.test(e))
   },
   hydration,
   snapshots,
