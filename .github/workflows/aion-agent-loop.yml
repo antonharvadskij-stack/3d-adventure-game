@@ -82,6 +82,7 @@ jobs:
           name: aion-agent-qa-${{ github.run_id }}
           path: |
             artifacts/
+            qa/artifacts/
             test-results/
             playwright-report/
             aion-browser-qa/
