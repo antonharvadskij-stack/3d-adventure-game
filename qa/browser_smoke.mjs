@@ -131,7 +131,7 @@ const result = {
     no_browser_errors: noBrowserErrors,
     no_destructive_mutation_attempts: destructiveAttempts.length === 0,
     world_state_monotonic: worldRemainsValid,
-    transient_server_5xx: errors.some(e => /HTTP 5\\d\\d:/.test(e))
+    transient_server_5xx: errors.some(e => /HTTP 5\d\d:/.test(e))
   },
   hydration,
   snapshots,
