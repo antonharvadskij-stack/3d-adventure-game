@@ -21,6 +21,9 @@ page.on("console", message => {
 });
 page.on("requestfailed", request => {
   const failure = String(request.failure()?.errorText || "").toLowerCase();
+  // Chromium reports fetches cancelled by page.reload()/navigation as net::ERR_ABORTED.
+  // This is expected during the read-only lifecycle test, not a browser/server failure.
+  if (failure.includes("err_aborted") || failure.includes("aborted_by_navigation")) return;
   if (!failure.includes("blocked_by_client") && !failure.includes("blockedbyclient")) {
     errors.push("requestfailed: " + request.method() + " " + request.url() + " " + failure);
   }
