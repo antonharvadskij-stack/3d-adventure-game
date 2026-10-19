@@ -46,8 +46,14 @@ Reviews the diff for correctness, scope, security, performance, and test quality
 9. REPORT: summarize changed files, evidence, remaining risks, and explicit deployment/merge status.
 
 ## Current checkpoint (2026-10-19)
-- Candidate commit: f3343d4ae6b8a81a2718f2851f273daf2d0b74a6
-- Physics CI: PASS (checkpoint supplied by project operator; not independently re-run here)
-- Visual QA CI: PASS (checkpoint supplied by project operator; artifacts still need inspection)
+- Agent workflow branch: aion/agent-team-workflows
+- Latest candidate commit at checkpoint: 026d7a96f86257b64e40c6855d6a24b165599e10
+- PR: #7, OPEN DRAFT, NOT MERGED
+- Prior physics/visual CI PASS values belong to operator-supplied checkpoint f3343d4ae6b8a81a2718f2851f273daf2d0b74a6; they were not re-run against this candidate.
+- Current candidate CI: NOT VERIFIED (no statuses reported; available run lookup found no PR-triggered runs and does not cover all events).
+- Browser QA: patched to fail on HTTP 5xx and to report candidate SHA/test target; static file inspection only, runtime not executed/verified.
+- Test service aion-server-test auto-deploys from aion-self-mechanics, with live commit 163741870743ec89b463258d4984f177353c043b at last deploy inspection. Browser test therefore combines candidate client with live test API.
+- Latest read-only Render log queries returned no matching error or 500/502/503/504 request logs in the queried window; absence of log entries does not prove the endpoint is healthy.
 - Hydration root cause: NOT CONFIRMED
-- Next: inspect aion-browser-qa and aion-visual-qa artifacts, confirm test harness commands, then run the controlled loop.
+- Safety: production DO NOT DEPLOY; PostgreSQL PROTECTED; BIG_BANG DO NOT RUN; PR6 DO NOT MERGE.
+- Next: trigger the workflow through GitHub Actions UI, inspect the exact-SHA artifact, then decide whether a coordinated test-service revision is necessary.
