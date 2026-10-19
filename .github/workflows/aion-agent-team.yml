@@ -132,6 +132,10 @@ jobs:
           workflow = Path(".github/workflows/aion-agent-team.yml").read_text(encoding="utf-8")
           if "AION_CLIENT_URL: https://aion-server-test.onrender.com/" not in workflow:
               failures.append("browser tests must explicitly use the isolated test service")
+          if 'errors.filter(e => !e.includes("502"))' in smoke:
+              failures.append("browser smoke must not suppress HTTP 502 errors")
+          if "const noBrowserErrors = errors.length === 0;" not in smoke:
+              failures.append("browser smoke must fail on every captured browser/HTTP error")
           if failures:
               print("\n".join(failures))
               sys.exit(1)
