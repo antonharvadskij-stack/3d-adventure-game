@@ -89,6 +89,8 @@ jobs:
           checks = report.get("checks", {})
           print(json.dumps({"ok": report.get("ok"), "checks": checks, "hydration": report.get("hydration")}, indent=2, ensure_ascii=False))
           failed = [name for name in ("server_hydration", "no_browser_errors", "no_destructive_mutation_attempts", "world_state_monotonic") if checks.get(name) is not True]
+          if checks.get("transient_server_502") is True:
+              failed.append("transient_server_502")
           if report.get("ok") is not True or failed:
               pathlib.Path("diagnostic-result.txt").write_text("FAIL: " + ", ".join(failed or ["report.ok"]) + "\n")
               sys.exit(1)
