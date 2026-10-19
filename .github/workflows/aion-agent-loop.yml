@@ -59,6 +59,7 @@ jobs:
         shell: bash
         env:
           AION_CLIENT_URL: https://aion-server-test.onrender.com/
+          AION_CANDIDATE_SHA: ${{ github.sha }}
         run: |
           if [[ -f qa/browser_smoke.mjs ]]; then
             if [[ -f package.json ]] && node -e "process.exit(require('./package.json').devDependencies?.playwright || require('./package.json').dependencies?.playwright ? 0 : 1)"; then
