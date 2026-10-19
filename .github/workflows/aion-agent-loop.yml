@@ -1,0 +1,91 @@
+name: AION Agent Test-Fix-Verify Loop
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_browser_qa:
+        description: "Run browser QA when the repository script is present"
+        required: false
+        type: boolean
+        default: true
+  push:
+    branches:
+      - "aion/agent-team-workflows"
+      - "aion/long-run-agent-physics-regression"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aion-agent-loop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  inspect-and-test:
+    name: Inspect, test, and publish QA evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout candidate commit
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies when npm manifest exists
+        shell: bash
+        run: |
+          if [[ -f package-lock.json ]]; then
+            npm ci
+          elif [[ -f package.json ]]; then
+            npm install --ignore-scripts
+          else
+            echo "No package.json found; skipping npm installation."
+          fi
+
+      - name: Run repository test script when available
+        shell: bash
+        run: |
+          if [[ -f package.json ]] && node -e "process.exit(require('./package.json').scripts?.test ? 0 : 1)"; then
+            npm test -- --runInBand
+          else
+            echo "No npm test script found; no test command executed."
+          fi
+
+      - name: Run browser smoke QA when available
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.run_browser_qa }}
+        shell: bash
+        env:
+          AION_TEST_URL: https://aion-server-test.onrender.com/
+        run: |
+          if [[ -f qa/browser_smoke.mjs ]]; then
+            if [[ -f package.json ]] && node -e "process.exit(require('./package.json').devDependencies?.playwright || require('./package.json').dependencies?.playwright ? 0 : 1)"; then
+              node qa/browser_smoke.mjs
+            elif [[ -f package.json ]] && node -e "process.exit(require('./package.json').devDependencies?.['@playwright/test'] || require('./package.json').dependencies?.['@playwright/test'] ? 0 : 1)"; then
+              npx playwright install --with-deps chromium
+              node qa/browser_smoke.mjs
+            else
+              echo "Browser smoke script exists but Playwright dependency is not declared; refusing implicit dependency mutation."
+              exit 1
+            fi
+          else
+            echo "qa/browser_smoke.mjs not found; browser QA skipped."
+          fi
+
+      - name: Upload AION QA artifacts when present
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aion-agent-qa-${{ github.run_id }}
+          path: |
+            artifacts/
+            test-results/
+            playwright-report/
+            aion-browser-qa/
+            aion-visual-qa/
+          if-no-files-found: ignore
+          retention-days: 14
