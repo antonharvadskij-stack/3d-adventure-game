@@ -4,14 +4,21 @@ on:
   push:
     branches: ["**"]
   workflow_dispatch:
+    inputs:
+      confirm_live_persistence_test:
+        description: "Explicitly allow the live persistence endpoint to advance the production world by 5 simulated seconds"
+        required: true
+        type: boolean
+        default: false
 
 concurrency:
-  group: aion-live-qa
-  cancel-in-progress: false
+  group: aion-live-qa-v2
+  cancel-in-progress: true
 
 jobs:
   physics:
     runs-on: ubuntu-22.04
+    timeout-minutes: 6
     defaults:
       run:
         working-directory: aion-server
@@ -26,8 +33,37 @@ jobs:
         run: python -m pip install "numpy<2" "pybullet==3.2.7"
       - name: Run deterministic physics QA
         run: python qa_physics.py
+      - name: Run 120-second isolated agent physics regression
+        run: python qa_physics_long_run.py
 
+      # Browser tests serve this branch's index.html locally and only read the isolated test API.
+      # Playwright blocks all non-GET/HEAD/OPTIONS requests before they reach the server.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install browser QA dependencies
+        working-directory: qa
+        run: npm install
+      - name: Install Chromium for browser QA
+        working-directory: qa
+        run: npx playwright install --with-deps chromium
+      - name: Run browser smoke and movement/collision regression
+        working-directory: qa
+        env:
+          AION_CLIENT_URL: https://aion-server-test.onrender.com/?server=https%3A%2F%2Faion-server-test.onrender.com
+        run: npm test
+      - name: Upload browser QA reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aion-browser-qa
+          path: qa/artifacts/
+          if-no-files-found: warn
+          retention-days: 7
+
+      # This endpoint advances the live PostgreSQL-backed world; never run it automatically.
       - name: Live persistence API check
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm_live_persistence_test == true }}
         env:
           AION_SERVER_URL: https://aion-server-b80c.onrender.com
         run: |

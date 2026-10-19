@@ -6,14 +6,28 @@ on:
     branches: ["**"]
 
 concurrency:
-  group: aion-live-qa
-  cancel-in-progress: false
+  group: aion-visual-qa-v2
+  cancel-in-progress: true
 
 jobs:
   browser:
     runs-on: ubuntu-latest
+    timeout-minutes: 6
     steps:
       - uses: actions/checkout@v4
+      - name: Validate AION client JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("index.html").read_text(encoding="utf-8")
+          match = re.search(r'<script type="module">([\s\S]*?)</script>', html)
+          if not match:
+              raise SystemExit("AION module script was not found")
+          script = re.sub(r"^import\*as THREE from[^;]+;\s*", "", match.group(1))
+          Path("/tmp/aion-client.mjs").write_text(script, encoding="utf-8")
+          PY
+          node --check /tmp/aion-client.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -23,7 +37,7 @@ jobs:
       - name: Run AION visual smoke test
         working-directory: qa
         env:
-          AION_CLIENT_URL: https://aion-server-b80c.onrender.com
+          AION_CLIENT_URL: https://aion-server-test.onrender.com/?server=https%3A%2F%2Faion-server-test.onrender.com
         run: npm test
       - name: Publish lifecycle report even on failure
         if: always()
@@ -35,4 +49,4 @@ jobs:
           name: aion-visual-qa
           path: qa/artifacts/
 
-# force new workflow run
+# QA must never target the production API
