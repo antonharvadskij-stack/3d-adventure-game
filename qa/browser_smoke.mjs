@@ -44,9 +44,13 @@ await page.route("**/*", async route => {
   const requestUrl = new URL(request.url());
   const path = requestUrl.pathname;
 
-  // Never allow the QA browser to contact production or any other origin.
-  // This is a global guard: restricting only the test origin would miss cross-origin API calls.
-  if (requestUrl.origin !== testOrigin) {
+  // Permit only the pinned public Three.js CDN asset required by index.html.
+  // All other cross-origin traffic remains blocked; production is never allowlisted.
+  const allowedStaticCdnRequest =
+    requestUrl.origin === "https://cdn.jsdelivr.net" &&
+    method === "GET" &&
+    requestUrl.pathname === "/npm/three@0.180.0/build/three.module.js";
+  if (requestUrl.origin !== testOrigin && !allowedStaticCdnRequest) {
     const entry = { url: request.url(), method, origin: requestUrl.origin };
     crossOriginRequests.push(entry);
     if (requestUrl.origin === productionOrigin) forbiddenProductionRequests.push(entry);
