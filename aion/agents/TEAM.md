@@ -57,3 +57,12 @@ Reviews the diff for correctness, scope, security, performance, and test quality
 - Hydration root cause: NOT CONFIRMED
 - Safety: production DO NOT DEPLOY; PostgreSQL PROTECTED; BIG_BANG DO NOT RUN; PR6 DO NOT MERGE.
 - Next: trigger the workflow through GitHub Actions UI, inspect the exact-SHA artifact, then decide whether a coordinated test-service revision is necessary.
+
+## Current checkpoint (2026-10-20 — run #11 reviewed)
+- Run #11: https://github.com/antonharvadskij-stack/3d-adventure-game/actions/runs/39277710376
+- Artifact `aion-agent-qa-39277710376` was inspected directly; report candidate SHA is `1328fa87cb6660a93984b9f7f857b50b19b2ed9`.
+- Report assertions were all green: hydration true at all three checkpoints; no recorded browser errors; world-age/cycle/version monotonicity true; no HTTP 5xx recorded.
+- Important QA isolation defect found during source review: the browser route guard covered only the test origin, while `index.html` selects production API by default unless the exact `?server=https://aion-server-test.onrender.com` query parameter is present. The test page was opened without that query. The client schedules a POST to `/physics/colliders`; that request could therefore have reached production and would not appear in the test-origin-only `blockedMutations` list. Whether the production endpoint accepted it is NOT CONFIRMED from the artifact. Do not infer that production data changed; do treat the previous run as invalid for test-isolation assurance.
+- Safety fix committed as `3dbf9ba41441e7934b31f10e7875d84b45ecb62d`: browser QA now adds the explicit test-server query parameter, globally blocks cross-origin requests, records forbidden production requests, and fails if any cross-origin request is attempted.
+- Next: inspect the new push-triggered workflow/artifact for commit `3dbf9ba41441e7934b31f10e7875d84b45ecb62d`; confirm no production-origin requests and verify the browser lifecycle again.
+- Deployment status unchanged: no production deployment, no merge, no PostgreSQL mutation, no BIG_BANG.
