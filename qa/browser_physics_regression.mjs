@@ -83,7 +83,9 @@ try {
   const groundedOnTerrain = terrainSupport.length === 0;
   const maxHorizontalSpeed = Math.max(0, ...allBodies.map(a => Math.hypot(a.vx,a.vz)));
   const speedBounded = maxHorizontalSpeed <= 2.21;
-  const maxDisplacement = Math.max(0, ...after.agents.filter(a => old.has(a.id)).map(a => dist(a, old.get(a.id))));
+  const displacementRows = after.agents.filter(a => old.has(a.id)).map(a => ({ id: a.id, from: old.get(a.id), to: a, distance: dist(a, old.get(a.id)) }));
+  const maxDisplacementRow = displacementRows.reduce((best, row) => !best || row.distance > best.distance ? row : best, null);
+  const maxDisplacement = maxDisplacementRow?.distance || 0;
   const noTeleport = maxDisplacement <= 2.2 * 10 + 1.0;
   const overlaps = [];
   for (let i = 0; i < allBodies.length; i++) for (let j = i + 1; j < allBodies.length; j++) {
@@ -106,6 +108,7 @@ try {
     checks: { hydrated: !!after.serverConnected, residentCount: after.agents.length, residentsMoved: moved,
       finiteTransforms: finite, groundedOnTerrain, terrainSupportIssues: terrainSupport, maxHorizontalSpeed: Number(maxHorizontalSpeed.toFixed(4)),
       speedBounded, maxDisplacement10s: Number(maxDisplacement.toFixed(3)), noTeleport,
+      maxDisplacementAgent: maxDisplacementRow ? { id: maxDisplacementRow.id, distance: Number(maxDisplacementRow.distance.toFixed(3)), from: { x: maxDisplacementRow.from.x, y: maxDisplacementRow.from.y, z: maxDisplacementRow.from.z, vx: maxDisplacementRow.from.vx, vy: maxDisplacementRow.from.vy, vz: maxDisplacementRow.from.vz }, to: { x: maxDisplacementRow.to.x, y: maxDisplacementRow.to.y, z: maxDisplacementRow.to.z, vx: maxDisplacementRow.to.vx, vy: maxDisplacementRow.to.vy, vz: maxDisplacementRow.to.vz } } : null,
       severeOverlapCount, overlaps: overlaps.slice(0,30), sameWorld, camera: { start: cameraStart, afterWheel, wheelZoomWorks, pinchStart, afterPinch, pinchZoomWorks }, blockedMutationAttempts: blockedMutations, noUnexpectedMutation, browserErrors: errors },
     before: { worldVersion: before.worldVersion, residents: before.agents.length },
     after: { worldVersion: after.worldVersion, residents: after.agents.length }
