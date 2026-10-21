@@ -18,7 +18,7 @@ const probeReadOnlyEndpoint = async path => {
     const response = await fetch(testOrigin + path, {
       method: "GET",
       cache: "no-store",
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout(15000)
     });
     const result = {
       path,
