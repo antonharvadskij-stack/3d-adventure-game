@@ -1,5 +1,6 @@
 # AION isolated timing-diagnostics Blueprint.
-# Apply only after Render allows a separate QA PostgreSQL instance.
+# Requires explicit billing approval before applying: basic_256mb PostgreSQL is a paid plan.
+# Estimated database compute: USD 6/month plus storage.
 # This file intentionally defines no production service or production database.
 services:
   - type: web
@@ -21,5 +22,5 @@ services:
 
 databases:
   - name: aion-qa-timing-db
-    plan: free
+    plan: basic_256mb
     region: singapore
