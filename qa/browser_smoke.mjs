@@ -44,12 +44,17 @@ await page.route("**/*", async route => {
   const requestUrl = new URL(request.url());
   const path = requestUrl.pathname;
 
-  // Permit only the pinned public Three.js CDN asset required by index.html.
+  // Permit only the pinned Three.js CDN modules required by index.html.
+  // Three.js imports three.core.js from three.module.js; no other CDN paths are allowed.
   // All other cross-origin traffic remains blocked; production is never allowlisted.
+  const allowedThreeJsAssets = new Set([
+    "/npm/three@0.180.0/build/three.module.js",
+    "/npm/three@0.180.0/build/three.core.js"
+  ]);
   const allowedStaticCdnRequest =
     requestUrl.origin === "https://cdn.jsdelivr.net" &&
     method === "GET" &&
-    requestUrl.pathname === "/npm/three@0.180.0/build/three.module.js";
+    allowedThreeJsAssets.has(requestUrl.pathname);
   if (requestUrl.origin !== testOrigin && !allowedStaticCdnRequest) {
     const entry = { url: request.url(), method, origin: requestUrl.origin };
     crossOriginRequests.push(entry);
