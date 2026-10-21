@@ -12,6 +12,26 @@ logging.basicConfig(level=logging.INFO)
 log=logging.getLogger("aion")
 
 app=FastAPI(title="AION Persistent Universe", version="1.0")
+
+@app.middleware("http")
+async def request_timing_diagnostics(request, call_next):
+    # QA-only instrumentation: records elapsed time without request bodies,
+    # query strings, credentials, or world state.
+    started = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        return response
+    except Exception:
+        log.exception("http_request_failed method=%s path=%s", request.method, request.url.path)
+        raise
+    finally:
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        log.info(
+            "http_request_timing method=%s path=%s status=%s duration_ms=%.1f",
+            request.method, request.url.path, status_code, elapsed_ms
+        )
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 init()
 if not os.getenv("DATABASE_URL"):
