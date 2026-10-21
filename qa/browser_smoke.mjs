@@ -3,6 +3,10 @@ import fs from "node:fs";
 
 const url = process.env.AION_CLIENT_URL;
 if (!url) throw new Error("AION_CLIENT_URL is required");
+const testOrigin = new URL(url).origin;
+const productionOrigin = "https://aion-server-b80c.onrender.com";
+const qaUrl = new URL(url);
+qaUrl.searchParams.set("server", testOrigin);
 
 fs.mkdirSync("artifacts", { recursive: true });
 const browser = await chromium.launch({ headless: true });
@@ -10,6 +14,8 @@ const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, dev
 const errors = [];
 const blockedMutations = [];
 const destructiveAttempts = [];
+const crossOriginRequests = [];
+const forbiddenProductionRequests = [];
 
 page.on("pageerror", error => errors.push("pageerror: " + error.message));
 page.on("console", message => {
@@ -32,13 +38,34 @@ page.on("response", response => {
   if (response.status() >= 500) errors.push("HTTP " + response.status() + ": " + response.url());
 });
 
-await page.route(`${new URL(url).origin}/**`, async route => {
+await page.route("**/*", async route => {
   const request = route.request();
   const method = request.method().toUpperCase();
-  const path = new URL(request.url()).pathname;
+  const requestUrl = new URL(request.url());
+  const path = requestUrl.pathname;
 
-  // Serve the checked-out branch client at the isolated test origin so API calls remain same-origin.
-  // All API reads stay on the test service; mutation requests are blocked before network access.
+  // Permit only the pinned Three.js CDN modules required by index.html.
+  // Three.js imports three.core.js from three.module.js; no other CDN paths are allowed.
+  // All other cross-origin traffic remains blocked; production is never allowlisted.
+  const allowedThreeJsAssets = new Set([
+    "/npm/three@0.180.0/build/three.module.js",
+    "/npm/three@0.180.0/build/three.core.js"
+  ]);
+  const allowedStaticCdnRequest =
+    requestUrl.origin === "https://cdn.jsdelivr.net" &&
+    method === "GET" &&
+    allowedThreeJsAssets.has(requestUrl.pathname);
+  if (requestUrl.origin !== testOrigin && !allowedStaticCdnRequest) {
+    const entry = { url: request.url(), method, origin: requestUrl.origin };
+    crossOriginRequests.push(entry);
+    if (requestUrl.origin === productionOrigin) forbiddenProductionRequests.push(entry);
+    errors.push("blocked cross-origin request: " + method + " " + request.url());
+    await route.abort("blockedbyclient");
+    return;
+  }
+
+  // Serve the checked-out branch client at the isolated test origin.
+  // The query parameter explicitly selects the test API in index.html.
   if (method === "GET" && path === "/") {
     await route.fulfill({
       status: 200,
@@ -88,7 +115,7 @@ const apiRead = async () => page.evaluate(() =>
 const snapshots = [];
 const hydration = [];
 
-await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
+await page.goto(qaUrl.toString(), { waitUntil: "domcontentloaded", timeout: 60000 });
 hydration.push(await waitForServerHydration());
 snapshots.push({ name: "initial", data: await read(), api: await apiRead() });
 await page.screenshot({ path: "artifacts/01-initial.png" });
@@ -121,15 +148,23 @@ const worldRemainsValid = !!initial && !!observed && !!reloaded &&
   Number(reloaded.cycle) >= Number(observed.cycle) &&
   Number(reloaded.worldVersion) >= Number(observed.worldVersion);
 const result = {
+  candidate_sha: process.env.AION_CANDIDATE_SHA || null,
+  test_target: url,
+  browser_url: qaUrl.toString(),
   ok: hydration.length === 3 && hydration.every(Boolean) &&
-    noBrowserErrors && worldRemainsValid && destructiveAttempts.length === 0,
-  safety: { all_non_read_only_api_requests_blocked_before_network: true, blockedMutations, destructiveAttempts },
+    noBrowserErrors && worldRemainsValid && destructiveAttempts.length === 0 &&
+    crossOriginRequests.length === 0 && forbiddenProductionRequests.length === 0,
+  safety: {
+    all_non_read_only_api_requests_blocked_before_network: true,
+    cross_origin_requests_blocked_before_network: true,
+    blockedMutations, destructiveAttempts, crossOriginRequests, forbiddenProductionRequests
+  },
   checks: {
     server_hydration: hydration.length === 3 && hydration.every(Boolean),
     no_browser_errors: noBrowserErrors,
     no_destructive_mutation_attempts: destructiveAttempts.length === 0,
     world_state_monotonic: worldRemainsValid,
-    transient_server_502: errors.some(e => e.includes("502"))
+    transient_server_5xx: errors.some(e => /HTTP 5\d\d:/.test(e))
   },
   hydration,
   snapshots,
