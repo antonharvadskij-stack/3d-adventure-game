@@ -9,6 +9,49 @@ const qaUrl = new URL(url);
 qaUrl.searchParams.set("server", testOrigin);
 
 fs.mkdirSync("artifacts", { recursive: true });
+
+// Independent, read-only server probes run before Chromium. They distinguish
+// server/API availability from client hydration failures without changing state.
+const probeReadOnlyEndpoint = async path => {
+  const started = Date.now();
+  try {
+    const response = await fetch(testOrigin + path, {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000)
+    });
+    const result = {
+      path,
+      status: response.status,
+      ok: response.ok,
+      duration_ms: Date.now() - started,
+      content_type: response.headers.get("content-type")
+    };
+    if (path === "/world" && response.ok) {
+      try {
+        const payload = await response.json();
+        result.json_object = !!payload && typeof payload === "object" && !Array.isArray(payload);
+        result.top_level_keys = result.json_object ? Object.keys(payload).slice(0, 40) : [];
+        result.world_version_finite = Number.isFinite(Number(payload?.worldVersion));
+      } catch (error) {
+        result.body_parse_error = String(error?.name || "Error");
+      }
+    }
+    return result;
+  } catch (error) {
+    return {
+      path,
+      ok: false,
+      duration_ms: Date.now() - started,
+      error_name: String(error?.name || "Error"),
+      error_message: String(error?.message || error).slice(0, 240)
+    };
+  }
+};
+const serverProbes = [];
+serverProbes.push(await probeReadOnlyEndpoint("/health"));
+serverProbes.push(await probeReadOnlyEndpoint("/world"));
+
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
 const errors = [];
@@ -149,6 +192,7 @@ const worldRemainsValid = !!initial && !!observed && !!reloaded &&
   Number(reloaded.worldVersion) >= Number(observed.worldVersion);
 const result = {
   candidate_sha: process.env.AION_CANDIDATE_SHA || null,
+  server_probes: serverProbes,
   test_target: url,
   browser_url: qaUrl.toString(),
   ok: hydration.length === 3 && hydration.every(Boolean) &&
