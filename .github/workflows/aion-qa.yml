@@ -12,7 +12,7 @@ on:
         default: false
 
 concurrency:
-  group: aion-live-qa-v2
+  group: aion-live-qa-v2-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
