@@ -1,4 +1,6 @@
-import os, json, sqlite3, threading, time
+import os, json, sqlite3, threading, time, logging
+
+log = logging.getLogger("aion.database")
 LOCK=threading.Lock()
 DATABASE_URL=os.getenv("DATABASE_URL")
 if not DATABASE_URL:
@@ -16,12 +18,32 @@ def init():
         c.commit(); c.close()
 
 def load():
-    c=_pg()
-    with c.cursor() as cur:
-        cur.execute("SELECT state FROM world WHERE id=1")
-        r=cur.fetchone()
-    c.close()
-    return r[0] if r else None
+    started = time.perf_counter()
+    connect_ms = None
+    query_ms = None
+    c = None
+    try:
+        connect_started = time.perf_counter()
+        c = _pg()
+        connect_ms = (time.perf_counter() - connect_started) * 1000
+        query_started = time.perf_counter()
+        with c.cursor() as cur:
+            cur.execute("SELECT state FROM world WHERE id=1")
+            r = cur.fetchone()
+        query_ms = (time.perf_counter() - query_started) * 1000
+        return r[0] if r else None
+    except Exception:
+        log.exception("postgres_load_failed")
+        raise
+    finally:
+        if c is not None:
+            c.close()
+        log.info(
+            "postgres_load_timing connect_ms=%s query_ms=%s total_ms=%.1f",
+            "n/a" if connect_ms is None else f"{connect_ms:.1f}",
+            "n/a" if query_ms is None else f"{query_ms:.1f}",
+            (time.perf_counter() - started) * 1000,
+        )
 
 def atomic_update(updater):
     with LOCK:
