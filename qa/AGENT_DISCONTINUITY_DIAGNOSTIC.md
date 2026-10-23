@@ -11,6 +11,14 @@ The browser QA run `39623297955` failed at “Run browser smoke and movement/col
 
 The client `index.html` currently polls `loadAION()` every 5 seconds. In the same-world-version branch, the client updates metadata and intentionally does not reapply transforms. On a world-version change, incoming state is applied to a new generation. This is a diagnostic lead, not a confirmed root cause.
 
+## Artifact findings (run 39623297955)
+The downloaded `aion-browser-qa` artifact confirms:
+- Agent key `270`: from `(-51.205828, 0.163487, 77.144664)` to `(-19.394308, 2.434463, -101.996542)`, reported endpoint distance `181.958`.
+- Reported max horizontal speed is `1.15`; the same world version `1564` and resident count `20` were observed before and after.
+- The lifecycle artifact snapshots show server population IDs `263..282` in the same order across its three snapshots. This does not establish that order stayed stable during the separate 10-second physics interval.
+- The QA compares snapshots by `String(a.serverId ?? a.name)`. The client assigns `serverId` by incoming array index in the same-world branch. This is a plausible identity-confounding risk and must be tested with a stable local instance ID before concluding a physical teleport occurred.
+- The QA run's blocked POSTs to `/physics/colliders` were blocked by the harness; no unexpected mutation was reported.
+
 ## Prototype
 Run:
 
