@@ -28,12 +28,18 @@ node qa/isolated_genesis_prototype.mjs
 
 The deterministic baseline runs 8 agents for 120 simulated seconds at a fixed 1/60-second timestep. A separate controlled fault-injection run adds a 50-unit jump to one agent; the regression detector must catch it. The script asserts both outcomes and prints bounded telemetry. The script logic was executed locally with Node.js: baseline passed all 7,200 ticks with zero faults; fault injection was detected at tick 600 (measured step 49.981, allowed 0.019267). This validates the isolated detector only, not the production browser simulation.
 
-## Next investigation against browser QA
-1. Download artifact `aion-browser-qa` from run `39623297955` and read `aion-physics-regression.json` to capture agent 270's actual `from` and `to` transforms.
-2. Inspect `index.html` for every write to `a.g.position`, every `serverId` assignment, and every code path that clears/rebuilds `agents`.
-3. Add opt-in, read-only telemetry at each transform writer: monotonic timestamp, agent ID and object identity, worldVersion, old/new xyz, velocity, delta time, caller/reason.
-4. Run the browser test with per-tick trajectory samples and correlate the first discontinuity with poll/hydration timestamps. Do not infer the cause from endpoint displacement alone.
-5. Fix only after a minimal reproduction proves the responsible writer; rerun isolated physics and browser QA repeatedly.
+## Current next step: execute safe branch QA
+The repository has two relevant workflows on this branch:
+- `.github/workflows/aion-qa.yml` runs on every branch push. Its normal path runs isolated physics and browser QA against the test server; the PostgreSQL-backed persistence POST is guarded by `workflow_dispatch` plus an explicit boolean input and is not part of a push run.
+- `.github/workflows/aion-visual-qa.yml` also runs on branch pushes and validates client syntax plus the browser smoke test against the test server.
+
+Therefore, push a documentation-only update to this diagnostic branch to trigger normal QA, then inspect both workflow results and download the generated artifacts. Do not manually dispatch the persistence workflow, do not enable its live-persistence input, and do not deploy production.
+
+When the new artifact is available:
+1. Read `aion-physics-regression.json` fields `trajectorySampleCount`, `trajectoryFaultCount`, `firstTrajectoryFault`, and `noTeleport`.
+2. If a first fault exists, correlate timestamp, stable `instanceId`, `serverId`, worldVersion, coordinates, and velocity before editing simulation code.
+3. If no trajectory fault exists but endpoint displacement still fails, inspect identity matching and the sampling window before concluding there was a teleport.
+4. Only patch a transform writer after evidence identifies the responsible code path; rerun QA and the isolated 120-second test.
 
 ## Stable-identity browser trace (isolated diagnostics branch)
 The branch `aion/identity-trace-diagnostics-20261023` adds a read-only `instanceId` to each live client-agent object via a `WeakMap`. The ID is distinct from server-provided `serverId`, persists for the lifetime of that local object, and is not used to drive simulation behavior. The browser regression harness now samples transforms every 50 ms during its 10-second observation window and reports the first per-instance jump above the conservative per-sample threshold, including before/after server IDs, world versions, coordinates, velocities, and sample interval. The existing endpoint displacement check remains as a second signal.
