@@ -95,6 +95,31 @@ try {
   const displacementRows = after.agents.filter(a => old.has(a.id)).map(a => ({ id: a.id, from: old.get(a.id), to: a, distance: dist(a, old.get(a.id)) }));
   const maxDisplacementRow = displacementRows.reduce((best, row) => !best || row.distance > best.distance ? row : best, null);
   const maxDisplacement = maxDisplacementRow?.distance || 0;
+  const sampleIntervalsMs = trace.slice(1).map((cur, i) => Math.max(0, cur.t - trace[i].t)).sort((a,b) => a-b);
+  const percentile = (values, p) => values.length ? Number(values[Math.min(values.length - 1, Math.floor((values.length - 1) * p))].toFixed(1)) : null;
+  const instanceCounts = trace.map(s => new Set(s.agents.map(a => a.instanceId)).size);
+  let serverIdChangeCount = 0, worldVersionTransitionCount = 0;
+  const serverIdChanges = [];
+  for (let i = 1; i < trace.length; i++) {
+    const prev = trace[i - 1], cur = trace[i];
+    if (prev.worldVersion !== cur.worldVersion) worldVersionTransitionCount++;
+    const prior = new Map(prev.agents.map(a => [a.instanceId, a]));
+    for (const a of cur.agents) {
+      const p = prior.get(a.instanceId);
+      if (p && p.serverId !== a.serverId) {
+        serverIdChangeCount++;
+        if (serverIdChanges.length < 20) serverIdChanges.push({ t: cur.t, instanceId: a.instanceId, serverIdBefore: p.serverId, serverIdAfter: a.serverId, worldVersionBefore: prev.worldVersion, worldVersionAfter: cur.worldVersion });
+      }
+    }
+  }
+  const traceStats = {
+    requestedIntervalMs: 50,
+    intervalMs: { min: percentile(sampleIntervalsMs, 0), median: percentile(sampleIntervalsMs, 0.5), p95: percentile(sampleIntervalsMs, 0.95), max: percentile(sampleIntervalsMs, 1) },
+    intervalsOver150ms: sampleIntervalsMs.filter(ms => ms > 150).length,
+    uniqueInstanceCount: { min: instanceCounts.length ? Math.min(...instanceCounts) : 0, max: instanceCounts.length ? Math.max(...instanceCounts) : 0 },
+    serverIdChangeCount, serverIdChanges,
+    worldVersionTransitionCount
+  };
   const trajectoryFaults = [];
   for (let i = 1; i < trace.length; i++) {
     const prev = trace[i - 1], cur = trace[i], dt = Math.max(0.001, (cur.t - prev.t) / 1000);
@@ -129,7 +154,7 @@ try {
       finiteTransforms: finite, groundedOnTerrain, terrainSupportIssues: terrainSupport, maxHorizontalSpeed: Number(maxHorizontalSpeed.toFixed(4)),
       speedBounded, maxDisplacement10s: Number(maxDisplacement.toFixed(3)), noTeleport,
       maxDisplacementAgent: maxDisplacementRow ? { id: maxDisplacementRow.id, distance: Number(maxDisplacementRow.distance.toFixed(3)), from: { x: maxDisplacementRow.from.x, y: maxDisplacementRow.from.y, z: maxDisplacementRow.from.z, vx: maxDisplacementRow.from.vx, vy: maxDisplacementRow.from.vy, vz: maxDisplacementRow.from.vz }, to: { x: maxDisplacementRow.to.x, y: maxDisplacementRow.to.y, z: maxDisplacementRow.to.z, vx: maxDisplacementRow.to.vx, vy: maxDisplacementRow.to.vy, vz: maxDisplacementRow.to.vz } } : null,
-      trajectorySampleCount: trace.length, trajectoryFaultCount: trajectoryFaults.length, firstTrajectoryFault, trajectoryFaults: trajectoryFaults.slice(0,20), severeOverlapCount, overlaps: overlaps.slice(0,30), sameWorld, camera: { start: cameraStart, afterWheel, wheelZoomWorks, pinchStart, afterPinch, pinchZoomWorks }, blockedMutationAttempts: blockedMutations, noUnexpectedMutation, browserErrors: errors },
+      trajectorySampleCount: trace.length, traceStats, trajectoryFaultCount: trajectoryFaults.length, firstTrajectoryFault, trajectoryFaults: trajectoryFaults.slice(0,20), severeOverlapCount, overlaps: overlaps.slice(0,30), sameWorld, camera: { start: cameraStart, afterWheel, wheelZoomWorks, pinchStart, afterPinch, pinchZoomWorks }, blockedMutationAttempts: blockedMutations, noUnexpectedMutation, browserErrors: errors },
     before: { worldVersion: before.worldVersion, residents: before.agents.length },
     after: { worldVersion: after.worldVersion, residents: after.agents.length }
   };
