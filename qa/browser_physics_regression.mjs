@@ -4,7 +4,7 @@ import fs from "node:fs";
 const url = process.env.AION_CLIENT_URL;
 if (!url) throw new Error("AION_CLIENT_URL is required");
 const browser = await chromium.launch({ headless: true });
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+const page = await browser.newPage({ viewport: { width: 800, height: 450 }, deviceScaleFactor: 1 });
 const errors = [];
 const blockedMutations = [];
 page.on("pageerror", e => errors.push(e.message));
