@@ -35,6 +35,15 @@ The deterministic baseline runs 8 agents for 120 simulated seconds at a fixed 1/
 4. Run the browser test with per-tick trajectory samples and correlate the first discontinuity with poll/hydration timestamps. Do not infer the cause from endpoint displacement alone.
 5. Fix only after a minimal reproduction proves the responsible writer; rerun isolated physics and browser QA repeatedly.
 
+## Stable-identity browser trace (isolated diagnostics branch)
+The branch `aion/identity-trace-diagnostics-20261023` adds a read-only `instanceId` to each live client-agent object via a `WeakMap`. The ID is distinct from server-provided `serverId`, persists for the lifetime of that local object, and is not used to drive simulation behavior. The browser regression harness now samples transforms every 50 ms during its 10-second observation window and reports the first per-instance jump above the conservative per-sample threshold, including before/after server IDs, world versions, coordinates, velocities, and sample interval. The existing endpoint displacement check remains as a second signal.
+
+Interpretation:
+- If the endpoint displacement is large but no same-instance per-sample jump occurs, investigate the QA comparison window / sampling and trajectory path before calling it a teleport.
+- If a large jump occurs while `instanceId` stays stable, inspect the first recorded sample's transform writers and world-version changes; this is evidence of a local transform discontinuity, not yet proof of which writer caused it.
+- If `serverId` changes while `instanceId` remains stable, investigate incoming-population ordering and index-based metadata reassignment.
+- This patch adds observation only. It does not fix simulation logic and must not be deployed as a production change.
+
 ## Acceptance criteria
 - Baseline 120-second deterministic run passes.
 - Injected discontinuity is detected and reports the offending agent and before/after coordinates.
