@@ -26,7 +26,7 @@ Run:
 node qa/isolated_genesis_prototype.mjs
 ```
 
-The deterministic baseline runs 8 agents for 120 simulated seconds at a fixed 1/60-second timestep. A separate controlled fault-injection run adds a 50-unit jump to one agent; the regression detector must catch it. The script asserts both outcomes and prints bounded telemetry.
+The deterministic baseline runs 8 agents for 120 simulated seconds at a fixed 1/60-second timestep. A separate controlled fault-injection run adds a 50-unit jump to one agent; the regression detector must catch it. The script asserts both outcomes and prints bounded telemetry. The script logic was executed locally with Node.js: baseline passed all 7,200 ticks with zero faults; fault injection was detected at tick 600 (measured step 49.981, allowed 0.019267). This validates the isolated detector only, not the production browser simulation.
 
 ## Next investigation against browser QA
 1. Download artifact `aion-browser-qa` from run `39623297955` and read `aion-physics-regression.json` to capture agent 270's actual `from` and `to` transforms.
