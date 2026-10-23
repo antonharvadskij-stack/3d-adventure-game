@@ -72,7 +72,16 @@ try {
   await page.waitForTimeout(100);
   const afterPinch = await page.evaluate(() => window.__AION_QA.snapshot().cameraDistance);
   const pinchZoomWorks = Number.isFinite(afterPinch) && afterPinch < pinchStart;
+  // Sample trajectories throughout the observation window, keyed by stable local object identity.
+  await page.evaluate(() => {
+    window.__AION_TRACE = [];
+    window.__AION_TRACE_TIMER = setInterval(() => {
+      const s = window.__AION_QA.snapshot();
+      window.__AION_TRACE.push({ t: performance.now(), worldVersion: s.worldVersion, agents: s.agents.map(a => ({ instanceId: a.instanceId, serverId: a.serverId, name: a.name, x: a.x, y: a.y, z: a.z, vx: a.vx, vy: a.vy, vz: a.vz })) });
+    }, 50);
+  });
   await page.waitForTimeout(10000);
+  const trace = await page.evaluate(() => { clearInterval(window.__AION_TRACE_TIMER); return window.__AION_TRACE || []; });
   const after = await page.evaluate(() => window.__AION_QA.snapshot());
   const dist = (a, b) => Math.hypot(a.x-b.x, a.y-b.y, a.z-b.z);
   const old = new Map(before.agents.map(a => [a.id, a]));
@@ -86,7 +95,18 @@ try {
   const displacementRows = after.agents.filter(a => old.has(a.id)).map(a => ({ id: a.id, from: old.get(a.id), to: a, distance: dist(a, old.get(a.id)) }));
   const maxDisplacementRow = displacementRows.reduce((best, row) => !best || row.distance > best.distance ? row : best, null);
   const maxDisplacement = maxDisplacementRow?.distance || 0;
-  const noTeleport = maxDisplacement <= 2.2 * 10 + 1.0;
+  const trajectoryFaults = [];
+  for (let i = 1; i < trace.length; i++) {
+    const prev = trace[i - 1], cur = trace[i], dt = Math.max(0.001, (cur.t - prev.t) / 1000);
+    const prior = new Map(prev.agents.map(a => [a.instanceId, a]));
+    for (const a of cur.agents) {
+      const p = prior.get(a.instanceId); if (!p) continue;
+      const d = Math.hypot(a.x-p.x, a.y-p.y, a.z-p.z);
+      if (d > Math.max(1.0, 2.2 * dt + 0.25)) trajectoryFaults.push({ t: cur.t, dt: Number(dt.toFixed(4)), instanceId: a.instanceId, serverIdBefore: p.serverId, serverIdAfter: a.serverId, worldVersionBefore: prev.worldVersion, worldVersionAfter: cur.worldVersion, distance: Number(d.toFixed(3)), from: {x:p.x,y:p.y,z:p.z,vx:p.vx,vy:p.vy,vz:p.vz}, to: {x:a.x,y:a.y,z:a.z,vx:a.vx,vy:a.vy,vz:a.vz} });
+    }
+  }
+  const firstTrajectoryFault = trajectoryFaults[0] || null;
+  const noTeleport = maxDisplacement <= 2.2 * 10 + 1.0 && trajectoryFaults.length === 0;
   const overlaps = [];
   for (let i = 0; i < allBodies.length; i++) for (let j = i + 1; j < allBodies.length; j++) {
     const a = allBodies[i], b = allBodies[j];
@@ -109,7 +129,7 @@ try {
       finiteTransforms: finite, groundedOnTerrain, terrainSupportIssues: terrainSupport, maxHorizontalSpeed: Number(maxHorizontalSpeed.toFixed(4)),
       speedBounded, maxDisplacement10s: Number(maxDisplacement.toFixed(3)), noTeleport,
       maxDisplacementAgent: maxDisplacementRow ? { id: maxDisplacementRow.id, distance: Number(maxDisplacementRow.distance.toFixed(3)), from: { x: maxDisplacementRow.from.x, y: maxDisplacementRow.from.y, z: maxDisplacementRow.from.z, vx: maxDisplacementRow.from.vx, vy: maxDisplacementRow.from.vy, vz: maxDisplacementRow.from.vz }, to: { x: maxDisplacementRow.to.x, y: maxDisplacementRow.to.y, z: maxDisplacementRow.to.z, vx: maxDisplacementRow.to.vx, vy: maxDisplacementRow.to.vy, vz: maxDisplacementRow.to.vz } } : null,
-      severeOverlapCount, overlaps: overlaps.slice(0,30), sameWorld, camera: { start: cameraStart, afterWheel, wheelZoomWorks, pinchStart, afterPinch, pinchZoomWorks }, blockedMutationAttempts: blockedMutations, noUnexpectedMutation, browserErrors: errors },
+      trajectorySampleCount: trace.length, trajectoryFaultCount: trajectoryFaults.length, firstTrajectoryFault, trajectoryFaults: trajectoryFaults.slice(0,20), severeOverlapCount, overlaps: overlaps.slice(0,30), sameWorld, camera: { start: cameraStart, afterWheel, wheelZoomWorks, pinchStart, afterPinch, pinchZoomWorks }, blockedMutationAttempts: blockedMutations, noUnexpectedMutation, browserErrors: errors },
     before: { worldVersion: before.worldVersion, residents: before.agents.length },
     after: { worldVersion: after.worldVersion, residents: after.agents.length }
   };
