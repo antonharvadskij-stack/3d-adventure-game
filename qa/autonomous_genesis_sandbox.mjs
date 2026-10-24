@@ -73,6 +73,8 @@ function observe(sim, agent) {
     organismCount: sim.world.organisms.length,
     ownEnergy: agent.energy,
     meanOrganismEnergy,
+    livingOrganismRatio: sim.world.organisms.length
+      ? sim.world.organisms.filter(organism => organism.energy > 0).length / sim.world.organisms.length : 0,
     tick: sim.tick,
   };
 }
@@ -81,7 +83,7 @@ function chooseGoal(agent, o) {
   // Goals are recalculated from current conditions, role, energy, and peer reports.
   const peerSignals = agent.inbox.slice(-4).map(message => message.signal);
   if (o.ownEnergy <= 2) return 'recover-energy';
-  if (peerSignals.includes('ecosystem-stress') && o.organismCount > 0) return 'restore-ecosystem';
+  if ((peerSignals.includes('ecosystem-stress') || o.livingOrganismRatio < 0.6) && o.organismCount > 0) return 'restore-ecosystem';
   if (peerSignals.includes('need-biomes') && o.terrainCount >= 2 && o.biomeCount < 5) return 'establish-biomes';
   if (peerSignals.includes('need-life') && o.biomeCount > 0 && o.organismCount < 12) return 'seed-life';
   // Goals are recalculated from current conditions, role and energy on every decision.
@@ -119,7 +121,7 @@ function chooseIntent(sim, agent, observation) {
   if (observation.organismCount < 12 && observation.biomeCount > 0 && (agent.role === 'botanist' || agent.role === 'ecologist' || sim.random() < 0.24)) {
     return { type: 'create-organism', kind: ['moss', 'grass', 'shrub', 'grazer', 'pollinator'][Math.floor(sim.random() * 5)] };
   }
-  if (observation.organismCount > 0 && observation.meanOrganismEnergy < 2) return { type: 'restore-ecosystem' };
+  if (observation.organismCount > 0 && (observation.meanOrganismEnergy < 2 || observation.livingOrganismRatio < 0.6)) return { type: 'restore-ecosystem' };
   return { type: 'observe-and-replan' };
 }
 
@@ -199,6 +201,8 @@ function recordWorldQuality(sim) {
     organismCount: organisms.length,
     livingOrganismRatio: organisms.length ? living / organisms.length : 0,
     meanOrganismEnergy: organisms.length ? totalEnergy / organisms.length : 0,
+    ecosystemStabilityScore: organisms.length
+      ? Number((0.5 * (living / organisms.length) + 0.5 * Math.min(1, (totalEnergy / organisms.length) / 8)).toFixed(4)) : 0,
     dependencyIntegrity: organisms.every(organism => sim.world.biomes.some(biome => biome.id === organism.biomeRef))
       && sim.world.biomes.every(biome => sim.world.terrain.some(terrain => terrain.id === biome.terrainRef)),
   });
@@ -216,7 +220,6 @@ function stepSimulation(sim, tick) {
     // Small per-tick regeneration makes resources bounded but recoverable.
     for (const agent of sim.agents) agent.resources = Math.min(8, agent.resources + 1);
     applyEcologicalFeedback(sim);
-    recordWorldQuality(sim);
     // Rotate starting agent each tick to avoid array-order privilege.
     const offset = (tick - 1) % sim.agents.length;
     const proposals = [];
@@ -293,6 +296,8 @@ function stepSimulation(sim, tick) {
       sim.world.acknowledgements.push(acknowledgement);
       agent.acknowledgements++;
     }
+    // Capture the post-resolution world, not the previous tick's state.
+    recordWorldQuality(sim);
 }
 
 function run(seed = 0xA10A, ticks = 80) {
@@ -328,6 +333,8 @@ assert.ok(a.world.ecology.length === a.tick, 'ecological feedback should run eve
 assert.equal(a.world.qualityMetrics.length, a.tick, 'world quality metrics must be recorded every tick');
 assert.ok(a.world.qualityMetrics.every(m => m.biomeKindDiversity >= 0 && m.biomeKindDiversity <= m.biomeCount), 'biome diversity must be bounded by biome count');
 assert.ok(a.world.qualityMetrics.every(m => m.livingOrganismRatio >= 0 && m.livingOrganismRatio <= 1), 'living-organism ratio must remain bounded');
+assert.ok(a.world.qualityMetrics.every(m => m.ecosystemStabilityScore >= 0 && m.ecosystemStabilityScore <= 1), 'ecosystem stability score must remain bounded');
+assert.equal(a.world.qualityMetrics.at(-1).organismCount, a.world.organisms.length, 'final quality snapshot must describe the post-resolution world');
 assert.ok(a.world.qualityMetrics.every(m => m.dependencyIntegrity), 'all recorded world snapshots must preserve terrain/biome/organism references');
 assert.ok(a.world.ecology.some(e => e.totalEnergy > 0), 'ecosystem feedback should affect organism energy');
 assert.ok(a.world.messages.length > 0, 'agents should exchange observations and needs');
@@ -368,6 +375,7 @@ console.log(JSON.stringify({
   worldQualitySnapshots: a.world.qualityMetrics.length,
   finalBiomeKindDiversity: a.world.qualityMetrics.at(-1).biomeKindDiversity,
   finalLivingOrganismRatio: a.world.qualityMetrics.at(-1).livingOrganismRatio,
+  finalEcosystemStabilityScore: a.world.qualityMetrics.at(-1).ecosystemStabilityScore,
   dependencyIntegrity: a.world.qualityMetrics.every(metric => metric.dependencyIntegrity),
   totalPlanRetries: a.agents.reduce((sum, agent) => sum + agent.planRetries, 0),
   planBlockReasons: a.agents.reduce((summary, agent) => {
