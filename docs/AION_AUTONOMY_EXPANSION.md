@@ -29,6 +29,8 @@ Current prototype:
 - runs a negotiation phase in which peer signals endorse compatible biome, life, or ecosystem-restoration proposals;
 - gives each agent a dependency-aware Genesis plan with stages for terrain, then biomes, then organisms; stages advance only when the observed world meets the stage target;
 - records each proposal's plan step and exposes per-agent plan-stage advancement metrics;
+- counts plan retries by explicit rejection reason (conflict, resource exhaustion, or invalid world reference), making blocked work inspectable;
+- records a per-tick world-quality snapshot with terrain/biome/organism counts, biome-kind diversity, living-organism ratio, mean organism energy, and dependency integrity;
 - records endorsements and negotiated priorities, caps the influence of endorsements, and uses stable agent IDs for deterministic tie-breaking; negotiation cannot bypass world validation or resource budgets;
 - tests resource bounds, acknowledgement coverage, and deterministic resource-budget rejection accounting;
 - lets received peer signals influence goal selection (e.g. biome needs, life needs, ecosystem stress);
@@ -36,7 +38,8 @@ Current prototype:
 - builds terrain, biomes, and organisms incrementally;
 - uses a seeded RNG and asserts that two identical runs produce the same trace;
 - checks identity uniqueness, event provenance, organism-to-biome references, goal adaptation, bounded agent energy and resource budgets, ecological-feedback execution, valid communication sender/recipient identities, proposal/negotiation/acknowledgement accounting, valid endorsements and negotiated priorities, resolution reasons, and exact checkpoint restoration plus deterministic mid-run replay;
-- reports goal-change and ecology-tick counts in its test output;
+- reports goal-change, ecology, retry-reason, and world-quality metrics in its test output;
+- asserts quality metric bounds, dependency integrity, and retry accounting;
 - has no network, persistence, production imports, or external side effects.
 
 **Important limitation:** this is still a deterministic heuristic/role-policy prototype, not yet an LLM-driven agent society, a full 3D terrain generator, or a self-modifying code system. Dynamic goals and ecological feedback are deliberately simplified; the passing test demonstrates deterministic sandbox behavior, not open-ended intelligence.
@@ -93,7 +96,7 @@ These boundaries keep experiments reversible; they do not constrain what agents 
 1. Introduce a typed action schema for movement, world generation, resource use, communication, and policy proposals.
 2. Extend proposal arbitration to multi-round negotiation, dependency-aware multi-step plans, and shared-resource coordination; current endorsements are a bounded first negotiation phase, not full deliberation.
 3. Extend checkpoint coverage to long-running simulations and injected failures, then verify restoration and deterministic replay.
-4. Upgrade the current sequential world targets into explicit dependency graphs with blocked-step reasons, retries, and plan completion criteria.
+4. Upgrade the current sequential world targets into explicit dependency graphs with plan completion criteria; retry accounting and blocked-step reasons are now recorded, but dependency scheduling is still a simple ordered sequence.
 5. Add a scheduler for goal evaluation, action selection, rationale, and metrics.
 6. Add generated terrain geometry and climate/ecosystem simulation.
 7. Add candidate-policy execution in a separate process with time, memory, and filesystem limits.
