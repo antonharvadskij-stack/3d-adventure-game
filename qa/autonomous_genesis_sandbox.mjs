@@ -30,7 +30,9 @@ function createSimulation(seed = 0xA10A, agentCount = 8) {
       resources: 8,
       resourcesSpent: 0,
       acknowledgements: 0,
-    })),
+      planStep: 0,
+      planCompletions: 0,
+    })), 
     random,
   };
 }
@@ -93,6 +95,18 @@ function chooseGoal(agent, o) {
 
 function chooseIntent(sim, agent, observation) {
   if (agent.energy <= 2) return { type: 'recover-energy' };
+  // Dependency-aware plan: terrain -> biomes -> organisms. A stage advances
+  // only after its world precondition is met or its action is accepted.
+  const stages = [
+    { key: 'terrain', complete: observation.terrainCount >= 6, intent: () => ({ type: 'create-terrain', kind: ['plain', 'hill', 'valley', 'ridge'][Math.floor(sim.random() * 4)] }) },
+    { key: 'biomes', complete: observation.biomeCount >= 5, intent: () => ({ type: 'create-biome', kind: ['temperate', 'wetland', 'dryland', 'boreal'][Math.floor(sim.random() * 4)] }) },
+    { key: 'organisms', complete: observation.organismCount >= 12, intent: () => ({ type: 'create-organism', kind: ['moss', 'grass', 'shrub', 'grazer', 'pollinator'][Math.floor(sim.random() * 5)] }) },
+  ];
+  while (agent.planStep < stages.length && stages[agent.planStep].complete) {
+    agent.planStep++;
+    agent.planCompletions++;
+  }
+  if (agent.planStep < stages.length) return stages[agent.planStep].intent();
   if (observation.terrainCount < 6 && (agent.role === 'geologist' || sim.random() < 0.18)) {
     return { type: 'create-terrain', kind: ['plain', 'hill', 'valley', 'ridge'][Math.floor(sim.random() * 4)] };
   }
@@ -199,7 +213,8 @@ function stepSimulation(sim, tick) {
         : intent.type === 'create-organism' && observation.organismCount < 12 ? 60
         : intent.type === 'recover-energy' ? 50 : 10;
       proposals.push({ tick: sim.tick, agentId: agent.id, role: agent.role, goal: agent.goal,
-        intent, previousGoal: oldGoal, priority, observation, resourceCost: intentResourceCost(intent) });
+        intent, previousGoal: oldGoal, priority, observation, planStep: agent.planStep,
+        resourceCost: intentResourceCost(intent) });
     }
     // Negotiation phase: agents endorse proposals that match signals in their inbox.
     // Endorsements are bounded, inspectable, and cannot bypass validation or budgets.
@@ -237,6 +252,11 @@ function stepSimulation(sim, tick) {
         endorsements: [...proposal.endorsements], resourceCost: proposal.resourceCost, accepted, reason });
       if (accepted) {
         if (conflictKey) claimed.add(conflictKey);
+        if (proposal.intent.type === 'create-terrain' && proposal.planStep === 0
+          || proposal.intent.type === 'create-biome' && proposal.planStep === 1
+          || proposal.intent.type === 'create-organism' && proposal.planStep === 2) {
+          agent.planStep = Math.max(agent.planStep, proposal.planStep + 1);
+        }
         agent.resources -= proposal.resourceCost;
         agent.resourcesSpent += proposal.resourceCost;
         applyIntent(sim, agent, proposal.intent, proposal.previousGoal);
@@ -293,6 +313,9 @@ assert.ok(a.world.negotiations.every(n => n.negotiatedPriority >= n.basePriority
 assert.ok(a.world.acknowledgements.every(ack => a.agents.some(agent => agent.id === ack.agentId)), 'acknowledgements must identify the responsible agent');
 assert.ok(a.world.acknowledgements.every(ack => ack.resourcesAfter >= 0 && ack.resourcesAfter <= 8), 'acknowledged resource balances must stay bounded');
 assert.ok(a.agents.every(agent => agent.resources >= 0 && agent.resources <= 8), 'agent resource budgets must remain bounded');
+assert.ok(a.agents.every(agent => agent.planStep >= 0 && agent.planStep <= 3), 'dependency-aware plan step must remain within bounds');
+assert.ok(a.agents.every(agent => agent.planCompletions >= 0), 'plan completion counters must remain nonnegative');
+assert.ok(a.world.proposals.every(p => p.planStep >= 0 && p.planStep <= 3), 'every proposal must record its plan step');
 assert.ok(a.agents.every(agent => agent.acknowledgements > 0), 'every agent should receive proposal-resolution acknowledgements');
 assert.ok(a.world.messages.every(m => a.agents.some(agent => agent.id === m.from) && a.agents.some(agent => agent.id === m.to)), 'messages must have valid sender and recipient');
 assert.ok(a.agents.some(agent => agent.inbox.length > 0), 'agents should receive peer signals');
@@ -302,6 +325,8 @@ console.log(JSON.stringify({
   agents: a.agents.length, terrain: a.world.terrain.length, biomes: a.world.biomes.length,
   organisms: a.world.organisms.length, decisions: a.world.events.length, proposals: a.world.proposals.length, acknowledgements: a.world.acknowledgements.length,
   negotiatedProposals: a.world.negotiations.length,
+  agentsCompletingGenesisPlan: a.agents.filter(agent => agent.planStep === 3).length,
+  totalPlanStageAdvances: a.agents.reduce((sum, agent) => sum + agent.planCompletions, 0),
   totalEndorsements: a.world.negotiations.reduce((sum, item) => sum + item.endorsements.length, 0),
   totalResourcesSpent: a.agents.reduce((sum, agent) => sum + agent.resourcesSpent, 0),
   resourceBudgetRejections: a.world.proposals.filter(proposal => proposal.reason === 'resource-budget-exhausted').length,
