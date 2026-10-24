@@ -225,7 +225,7 @@ checkpointProbe.world.terrain.push({ id: 'mutation-after-checkpoint', kind: 'inv
 checkpointProbe.agents[0].energy = 0;
 checkpointProbe.random();
 restoreCheckpoint(checkpointProbe, checkpoint);
-assert.deepEqual(checkpointState(checkpointProbe), { ...checkpoint, random: undefined });
+assert.deepEqual(checkpointState(checkpointProbe), checkpoint, 'checkpoint must restore the exact simulation state');
 // Confirm restoration includes the RNG stream as well as mutable world and agent state.
 const restoredRandomValue = checkpointProbe.random();
 const replayProbe = createSimulation(20261024);
