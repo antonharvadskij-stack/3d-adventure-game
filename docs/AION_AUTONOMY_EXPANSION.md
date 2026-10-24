@@ -20,10 +20,12 @@ Current prototype:
 - recalculates agent goals from current observations, role, and energy (including recovery and world-stabilization goals);
 - lets role-aware policies choose terrain, biome, organism, ecosystem-restoration, or observe/replan intents from current world observations;
 - applies bounded ecological feedback every tick: organisms gain energy in fertile biomes and lose energy otherwise;
+- exchanges bounded peer messages carrying world-state signals between agents of different roles;
+- lets received peer signals influence goal selection (e.g. biome needs, life needs, ecosystem stress);
 - records the agent, tick, intent, and outcome for every decision;
 - builds terrain, biomes, and organisms incrementally;
 - uses a seeded RNG and asserts that two identical runs produce the same trace;
-- checks identity uniqueness, event provenance, organism-to-biome references, goal adaptation, bounded agent energy, and ecological-feedback execution;
+- checks identity uniqueness, event provenance, organism-to-biome references, goal adaptation, bounded agent energy, ecological-feedback execution, and valid communication sender/recipient identities;
 - reports goal-change and ecology-tick counts in its test output;
 - has no network, persistence, production imports, or external side effects.
 
@@ -79,7 +81,7 @@ These boundaries keep experiments reversible; they do not constrain what agents 
 ## Next implementation steps
 
 1. Introduce a typed action schema for movement, world generation, resource use, communication, and policy proposals.
-2. Add resource/ecology feedback so agents respond to consequences rather than only feature counts.
+2. Add structured proposals, acknowledgements, and conflict resolution for shared world-building decisions.
 3. Add checkpoints and exact state restoration.
 4. Add a scheduler for goal evaluation, action selection, rationale, and metrics.
 5. Add generated terrain geometry and climate/ecosystem simulation.
