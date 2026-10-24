@@ -14,7 +14,7 @@ function createSimulation(seed = 0xA10A, agentCount = 8) {
   const random = rng(seed);
   return {
     seed, tick: 0,
-    world: { terrain: [], biomes: [], organisms: [], events: [], ecology: [], messages: [] },
+    world: { terrain: [], biomes: [], organisms: [], events: [], ecology: [], messages: [], proposals: [] },
     agents: Array.from({ length: agentCount }, (_, i) => ({
       id: `genesis-agent-${String(i + 1).padStart(3, '0')}`,
       role: ['geologist', 'climatologist', 'botanist', 'ecologist'][i % 4],
@@ -147,13 +147,45 @@ function run(seed = 0xA10A, ticks = 80) {
     applyEcologicalFeedback(sim);
     // Rotate starting agent each tick to avoid array-order privilege.
     const offset = (tick - 1) % sim.agents.length;
+    const proposals = [];
     for (let n = 0; n < sim.agents.length; n++) {
       const agent = sim.agents[(offset + n) % sim.agents.length];
       const observation = observe(sim, agent);
       communicate(sim, agent);
       const oldGoal = agent.goal;
       agent.goal = chooseGoal(agent, observation);
-      applyIntent(sim, agent, chooseIntent(sim, agent, observation), oldGoal);
+      const intent = chooseIntent(sim, agent, observation);
+      // Proposals are recorded before any world mutation, so every agent in this
+      // round competes against the same pre-resolution world state.
+      const priority = intent.type === 'create-terrain' && observation.terrainCount < 6 ? 100
+        : intent.type === 'create-biome' && observation.biomeCount < 5 ? 80
+        : intent.type === 'restore-ecosystem' ? 90
+        : intent.type === 'create-organism' && observation.organismCount < 12 ? 60
+        : intent.type === 'recover-energy' ? 50 : 10;
+      proposals.push({ tick: sim.tick, agentId: agent.id, role: agent.role, goal: agent.goal,
+        intent, previousGoal: oldGoal, priority, observation });
+    }
+    // One winning world mutation per intent class per tick. Priority resolves
+    // competing needs; stable agent ID breaks ties and makes replay deterministic.
+    proposals.sort((x, y) => y.priority - x.priority || x.agentId.localeCompare(y.agentId));
+    const claimed = new Set();
+    for (const proposal of proposals) {
+      const worldMutation = ['create-terrain', 'create-biome', 'create-organism', 'restore-ecosystem'].includes(proposal.intent.type);
+      const conflictKey = worldMutation ? proposal.intent.type : null;
+      const valid = proposal.intent.type !== 'create-biome' || sim.world.terrain.length > 0
+        ? proposal.intent.type !== 'create-organism' || sim.world.biomes.length > 0
+        : false;
+      const accepted = valid && (!conflictKey || !claimed.has(conflictKey));
+      sim.world.proposals.push({ tick: proposal.tick, agentId: proposal.agentId,
+        intent: { ...proposal.intent }, priority: proposal.priority, accepted,
+        reason: !valid ? 'invalid-world-reference' : accepted ? 'selected-by-priority-and-stable-id' : 'conflict-lost' });
+      if (accepted) {
+        if (conflictKey) claimed.add(conflictKey);
+        applyIntent(sim, sim.agents.find(agent => agent.id === proposal.agentId), proposal.intent, proposal.previousGoal);
+      } else {
+        const agent = sim.agents.find(item => item.id === proposal.agentId);
+        applyIntent(sim, agent, { type: 'observe-and-replan' }, proposal.previousGoal);
+      }
     }
   }
   const { random, ...serializable } = sim;
@@ -174,13 +206,19 @@ assert.ok(a.agents.some(agent => agent.goalChanges > 0), 'agents should adapt go
 assert.ok(a.world.ecology.length === a.tick, 'ecological feedback should run every tick');
 assert.ok(a.world.ecology.some(e => e.totalEnergy > 0), 'ecosystem feedback should affect organism energy');
 assert.ok(a.world.messages.length > 0, 'agents should exchange observations and needs');
+assert.ok(a.world.proposals.length === a.tick * a.agents.length, 'every agent should submit one proposal per tick');
+assert.ok(a.world.proposals.every(p => a.agents.some(agent => agent.id === p.agentId)), 'every proposal must have provenance');
+assert.ok(a.world.proposals.some(p => !p.accepted), 'conflicting proposals should be rejected deterministically');
+assert.ok(a.world.proposals.every(p => ['selected-by-priority-and-stable-id', 'conflict-lost', 'invalid-world-reference'].includes(p.reason)), 'every proposal must have a resolution reason');
 assert.ok(a.world.messages.every(m => a.agents.some(agent => agent.id === m.from) && a.agents.some(agent => agent.id === m.to)), 'messages must have valid sender and recipient');
 assert.ok(a.agents.some(agent => agent.inbox.length > 0), 'agents should receive peer signals');
 assert.ok(a.agents.every(agent => agent.energy >= 0 && agent.energy <= 16), 'agent energy must remain bounded');
 console.log(JSON.stringify({
   result: 'PASS', prototype: 'autonomous-genesis-sandbox', seed: a.seed, ticks: a.tick,
   agents: a.agents.length, terrain: a.world.terrain.length, biomes: a.world.biomes.length,
-  organisms: a.world.organisms.length, decisions: a.world.events.length,
+  organisms: a.world.organisms.length, decisions: a.world.events.length, proposals: a.world.proposals.length,
+  acceptedProposals: a.world.proposals.filter(proposal => proposal.accepted).length,
+  rejectedProposals: a.world.proposals.filter(proposal => !proposal.accepted).length,
   goalChanges: a.agents.reduce((sum, agent) => sum + agent.goalChanges, 0),
   messages: a.world.messages.length,
   agentsReceivingMessages: a.agents.filter(agent => agent.inbox.length > 0).length,
