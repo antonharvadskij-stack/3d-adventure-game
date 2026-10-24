@@ -166,9 +166,7 @@ function applyEcologicalFeedback(sim) {
   sim.world.ecology.push({ tick: sim.tick, organisms: sim.world.organisms.length, totalEnergy });
 }
 
-function run(seed = 0xA10A, ticks = 80) {
-  const sim = createSimulation(seed);
-  for (let tick = 1; tick <= ticks; tick++) {
+function stepSimulation(sim, tick) {
     sim.tick = tick;
     applyEcologicalFeedback(sim);
     // Rotate starting agent each tick to avoid array-order privilege.
@@ -212,24 +210,26 @@ function run(seed = 0xA10A, ticks = 80) {
         const agent = sim.agents.find(item => item.id === proposal.agentId);
         applyIntent(sim, agent, { type: 'observe-and-replan' }, proposal.previousGoal);
       }
-    }
-  }
+    
+}
+
+function run(seed = 0xA10A, ticks = 80) {
+  const sim = createSimulation(seed);
+  for (let tick = 1; tick <= ticks; tick++) stepSimulation(sim, tick);
   const { random, ...serializable } = sim;
   return serializable;
 }
 
 const checkpointProbe = createSimulation(20261024);
+for (let tick = 1; tick <= 12; tick++) stepSimulation(checkpointProbe, tick);
 const checkpoint = createCheckpoint(checkpointProbe);
-checkpointProbe.tick = 99;
-checkpointProbe.world.terrain.push({ id: 'mutation-after-checkpoint', kind: 'invalid' });
-checkpointProbe.agents[0].energy = 0;
-checkpointProbe.random();
+for (let tick = 13; tick <= 24; tick++) stepSimulation(checkpointProbe, tick);
+const uninterruptedAfterCheckpoint = checkpointState(checkpointProbe);
 restoreCheckpoint(checkpointProbe, checkpoint);
 assert.deepEqual(checkpointState(checkpointProbe), checkpoint, 'checkpoint must restore the exact simulation state');
-// Confirm restoration includes the RNG stream as well as mutable world and agent state.
-const restoredRandomValue = checkpointProbe.random();
-const replayProbe = createSimulation(20261024);
-assert.equal(restoredRandomValue, replayProbe.random(), 'checkpoint must restore RNG position');
+for (let tick = 13; tick <= 24; tick++) stepSimulation(checkpointProbe, tick);
+assert.deepEqual(checkpointState(checkpointProbe), uninterruptedAfterCheckpoint,
+  'resuming from checkpoint must match uninterrupted execution exactly');
 
 const a = run(20261024, 80);
 const b = run(20261024, 80);
@@ -262,6 +262,6 @@ console.log(JSON.stringify({
   messages: a.world.messages.length,
   agentsReceivingMessages: a.agents.filter(agent => agent.inbox.length > 0).length,
   ecologicalFeedbackTicks: a.world.ecology.length,
-  checkpointRestore: 'PASS',
+  checkpointRestore: 'PASS', midRunReplay: 'PASS',
   deterministicReplay: true, persistence: 'disabled', network: 'disabled', productionChanges: 'none',
 }, null, 2));
