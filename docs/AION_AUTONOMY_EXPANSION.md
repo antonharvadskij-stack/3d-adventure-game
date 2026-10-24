@@ -23,12 +23,15 @@ Current prototype:
 - exchanges bounded peer messages carrying world-state signals between agents of different roles;
 - collects one structured intent proposal per agent before mutating the world;
 - validates world references, then resolves same-type world-change conflicts by explicit priority and stable agent ID;
-- journals each proposal with provenance, priority, acceptance status, and a deterministic resolution reason;
+- journals each proposal with provenance, priority, resource cost, acceptance status, and a deterministic resolution reason;
+- gives each agent a bounded resource budget (0–8 units), regenerates one unit per tick, and charges resources only for accepted world-changing intents;
+- records an explicit acknowledgement for every proposal, including accepted/rejected status, reason, and before/after resource balance;
+- tests resource bounds, acknowledgement coverage, and deterministic resource-budget rejection accounting;
 - lets received peer signals influence goal selection (e.g. biome needs, life needs, ecosystem stress);
 - records the agent, tick, intent, and outcome for every decision;
 - builds terrain, biomes, and organisms incrementally;
 - uses a seeded RNG and asserts that two identical runs produce the same trace;
-- checks identity uniqueness, event provenance, organism-to-biome references, goal adaptation, bounded agent energy, ecological-feedback execution, valid communication sender/recipient identities, proposal accounting/resolution, and exact checkpoint restoration plus deterministic mid-run replay;
+- checks identity uniqueness, event provenance, organism-to-biome references, goal adaptation, bounded agent energy and resource budgets, ecological-feedback execution, valid communication sender/recipient identities, proposal/acknowledgement accounting, resolution reasons, and exact checkpoint restoration plus deterministic mid-run replay;
 - reports goal-change and ecology-tick counts in its test output;
 - has no network, persistence, production imports, or external side effects.
 
@@ -84,7 +87,7 @@ These boundaries keep experiments reversible; they do not constrain what agents 
 ## Next implementation steps
 
 1. Introduce a typed action schema for movement, world generation, resource use, communication, and policy proposals.
-2. Extend proposal arbitration with agent acknowledgements, multi-step negotiation, and explicit resource budgets; the current prototype only resolves simple same-type conflicts deterministically.
+2. Extend proposal arbitration from deterministic same-type conflict resolution to multi-step negotiation, dependency-aware plans, and resource budgets shared across agents.
 3. Extend checkpoint coverage to long-running simulations and injected failures, then verify restoration and deterministic replay.
 4. Add a scheduler for goal evaluation, action selection, rationale, and metrics.
 5. Add generated terrain geometry and climate/ecosystem simulation.
