@@ -41,6 +41,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Run isolated autonomous Genesis sandbox regression
+        working-directory: .
+        run: node qa/autonomous_genesis_sandbox.mjs
       - name: Install browser QA dependencies
         working-directory: qa
         run: npm install
