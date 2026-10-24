@@ -210,7 +210,7 @@ function stepSimulation(sim, tick) {
         const agent = sim.agents.find(item => item.id === proposal.agentId);
         applyIntent(sim, agent, { type: 'observe-and-replan' }, proposal.previousGoal);
       }
-    
+    }
 }
 
 function run(seed = 0xA10A, ticks = 80) {
