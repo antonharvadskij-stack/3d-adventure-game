@@ -17,7 +17,7 @@ function createSimulation(seed = 0xA10A, agentCount = 8) {
   const random = rng(seed);
   return {
     seed, tick: 0,
-    world: { terrain: [], biomes: [], organisms: [], events: [], ecology: [], messages: [], proposals: [], acknowledgements: [] },
+    world: { terrain: [], biomes: [], organisms: [], events: [], ecology: [], messages: [], proposals: [], acknowledgements: [], negotiations: [] }, 
     agents: Array.from({ length: agentCount }, (_, i) => ({
       id: `genesis-agent-${String(i + 1).padStart(3, '0')}`,
       role: ['geologist', 'climatologist', 'botanist', 'ecologist'][i % 4],
@@ -201,9 +201,23 @@ function stepSimulation(sim, tick) {
       proposals.push({ tick: sim.tick, agentId: agent.id, role: agent.role, goal: agent.goal,
         intent, previousGoal: oldGoal, priority, observation, resourceCost: intentResourceCost(intent) });
     }
-    // One winning world mutation per intent class per tick. Priority resolves
-    // competing needs; stable agent ID breaks ties and makes replay deterministic.
-    proposals.sort((x, y) => y.priority - x.priority || x.agentId.localeCompare(y.agentId));
+    // Negotiation phase: agents endorse proposals that match signals in their inbox.
+    // Endorsements are bounded, inspectable, and cannot bypass validation or budgets.
+    const signalForIntent = { 'create-biome': 'need-biomes', 'create-organism': 'need-life', 'restore-ecosystem': 'ecosystem-stress' };
+    for (const proposal of proposals) {
+      const signal = signalForIntent[proposal.intent.type];
+      const endorsements = signal ? sim.agents
+        .filter(agent => agent.id !== proposal.agentId && agent.inbox.slice(-4).some(message => message.signal === signal))
+        .map(agent => agent.id).sort() : [];
+      proposal.endorsements = endorsements;
+      proposal.negotiatedPriority = proposal.priority + Math.min(endorsements.length, 3) * 5;
+      sim.world.negotiations.push({ tick: proposal.tick, agentId: proposal.agentId,
+        intent: proposal.intent.type, endorsements, basePriority: proposal.priority,
+        negotiatedPriority: proposal.negotiatedPriority, phase: 'endorsement-complete' });
+    }
+    // One winning world mutation per intent class per tick. Negotiated priority
+    // ranks compatible proposals; stable agent ID breaks ties deterministically.
+    proposals.sort((x, y) => y.negotiatedPriority - x.negotiatedPriority || x.agentId.localeCompare(y.agentId));
     const claimed = new Set();
     for (const proposal of proposals) {
       const worldMutation = ['create-terrain', 'create-biome', 'create-organism', 'restore-ecosystem'].includes(proposal.intent.type);
@@ -219,7 +233,8 @@ function stepSimulation(sim, tick) {
         : accepted ? 'selected-by-priority-and-stable-id' : 'conflict-lost';
       const resourcesBefore = agent.resources;
       sim.world.proposals.push({ tick: proposal.tick, agentId: proposal.agentId,
-        intent: { ...proposal.intent }, priority: proposal.priority, resourceCost: proposal.resourceCost, accepted, reason });
+        intent: { ...proposal.intent }, priority: proposal.priority, negotiatedPriority: proposal.negotiatedPriority,
+        endorsements: [...proposal.endorsements], resourceCost: proposal.resourceCost, accepted, reason });
       if (accepted) {
         if (conflictKey) claimed.add(conflictKey);
         agent.resources -= proposal.resourceCost;
@@ -273,6 +288,8 @@ assert.ok(a.world.proposals.every(p => a.agents.some(agent => agent.id === p.age
 assert.ok(a.world.proposals.some(p => !p.accepted), 'conflicting proposals should be rejected deterministically');
 assert.ok(a.world.proposals.every(p => ['selected-by-priority-and-stable-id', 'conflict-lost', 'invalid-world-reference', 'resource-budget-exhausted'].includes(p.reason)), 'every proposal must have a resolution reason');
 assert.equal(a.world.acknowledgements.length, a.world.proposals.length, 'every proposal must receive an explicit acknowledgement');
+assert.equal(a.world.negotiations.length, a.world.proposals.length, 'every proposal must pass through the negotiation phase');
+assert.ok(a.world.negotiations.every(n => n.negotiatedPriority >= n.basePriority && n.endorsements.every(id => a.agents.some(agent => agent.id === id))), 'negotiation endorsements and priorities must be valid');
 assert.ok(a.world.acknowledgements.every(ack => a.agents.some(agent => agent.id === ack.agentId)), 'acknowledgements must identify the responsible agent');
 assert.ok(a.world.acknowledgements.every(ack => ack.resourcesAfter >= 0 && ack.resourcesAfter <= 8), 'acknowledged resource balances must stay bounded');
 assert.ok(a.agents.every(agent => agent.resources >= 0 && agent.resources <= 8), 'agent resource budgets must remain bounded');
@@ -284,6 +301,8 @@ console.log(JSON.stringify({
   result: 'PASS', prototype: 'autonomous-genesis-sandbox', seed: a.seed, ticks: a.tick,
   agents: a.agents.length, terrain: a.world.terrain.length, biomes: a.world.biomes.length,
   organisms: a.world.organisms.length, decisions: a.world.events.length, proposals: a.world.proposals.length, acknowledgements: a.world.acknowledgements.length,
+  negotiatedProposals: a.world.negotiations.length,
+  totalEndorsements: a.world.negotiations.reduce((sum, item) => sum + item.endorsements.length, 0),
   totalResourcesSpent: a.agents.reduce((sum, agent) => sum + agent.resourcesSpent, 0),
   resourceBudgetRejections: a.world.proposals.filter(proposal => proposal.reason === 'resource-budget-exhausted').length,
   acceptedProposals: a.world.proposals.filter(proposal => proposal.accepted).length,
