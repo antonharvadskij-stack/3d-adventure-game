@@ -2,77 +2,99 @@
 
 ## Purpose
 
-Expand AION from a fixed demo into an agent-driven Genesis simulation. Agents should be able to propose goals, make decisions, build and alter a world, observe consequences, and improve their own strategies. This document is a design contract for an isolated development branch; it does not claim these capabilities are already implemented.
+Expand AION from a fixed demo into an agent-driven Genesis simulation. Agents should make decisions from observations, build and alter a world, observe consequences, and eventually improve their own strategies. Work is isolated on this branch; the live browser simulation is unchanged.
+
+## Implemented prototype
+
+File: `qa/autonomous_genesis_sandbox.mjs`
+
+Run with Node.js:
+
+```sh
+node qa/autonomous_genesis_sandbox.mjs
+```
+
+Current prototype:
+- starts with an empty in-memory world;
+- runs 8 stable-ID agents with distinct roles across 80 ticks;
+- lets role-aware policies choose terrain, biome, organism, or observe/replan intents from current world observations;
+- records the agent, tick, intent, and outcome for every decision;
+- builds terrain, biomes, and organisms incrementally;
+- uses a seeded RNG and asserts that two identical runs produce the same trace;
+- checks identity uniqueness, event provenance, and organism-to-biome references;
+- has no network, persistence, production imports, or external side effects.
+
+**Important limitation:** this is a deterministic role-policy prototype, not yet an LLM-driven agent society, a full 3D terrain generator, or a self-modifying code system. Its passing test demonstrates deterministic Genesis intent processing only.
 
 ## Autonomy model
 
 ### Phase 1 — self-directed decisions inside a disposable simulation
 
-- Agents choose goals and actions without a hard-coded global action script.
-- Each agent maintains a small, inspectable state: identity, goals, observations, resources, action history, and current plan.
-- Agents can propose terrain, climate, vegetation, organisms, and social rules through explicit world-change intents.
-- A deterministic simulation loop applies accepted intents and records before/after state.
-- Agents can revise plans from observed outcomes and bounded feedback.
-- Randomness is seeded and replayable so a run can be reproduced.
+- Replace the initial role heuristics with agents that evaluate goals and competing actions from observations.
+- Give each agent inspectable state: identity, goals, observations, resources, action history, and current plan.
+- Support terrain, climate, vegetation, organisms, and social-rule proposals through explicit world-change intents.
+- Apply intents through a deterministic simulation loop and record before/after state.
+- Allow plans to change based on outcomes and bounded feedback.
+- Keep randomness seeded and replayable.
 
 ### Phase 2 — world construction
 
-- Start with an empty world state, then let the Genesis coordinator and agents propose world features.
-- Build terrain, water, climate, ecosystems, and organisms incrementally instead of replacing the entire world in one unobservable operation.
-- Every generated feature has provenance: creator agent, input state, seed, tick, and resulting change.
-- World changes are reversible within the sandbox through checkpoints and event history.
-- The existing browser scene is a renderer, not the source of truth for simulation state.
+- Start from an empty world state and let the Genesis coordinator and agents propose features.
+- Build terrain, water, climate, ecosystems, and organisms incrementally.
+- Record provenance for every feature: creator, input state, seed, tick, and resulting change.
+- Support checkpoints and event replay so sandbox changes are reversible.
+- Treat the browser scene as a renderer, not the source of truth for simulation state.
 
 ### Phase 3 — bounded self-improvement
 
-- Agents may propose edits to their own policies, prompts, parameters, and tools in a separate candidate version.
-- Candidate versions run against deterministic regression suites and resource budgets.
-- Compare candidate vs. baseline using explicit metrics: task success, stability, diversity, compute/time cost, and regression count.
-- Promote a candidate only when it passes tests and has a measurable benefit; otherwise retain the baseline.
-- No agent can silently rewrite the evaluator or remove the checks that decide whether its own candidate passes.
+- Let agents propose edits to their policies, prompts, parameters, and tools in candidate versions.
+- Run candidates against deterministic regression suites and resource budgets.
+- Compare candidates with baseline on task success, stability, diversity, compute/time cost, and regression count.
+- Promote only a candidate that passes tests and provides a measurable benefit; otherwise keep the baseline.
+- Do not allow an agent to silently rewrite the evaluator used to judge its own candidate.
 
 ## Capability boundaries
 
-The intent is to remove unnecessary fixed behavior inside the simulation, not to make the development environment unobservable or irreversible.
+The goal is to remove unnecessary fixed behavior inside the simulation, not to make the development environment unobservable or irreversible.
 
 Allowed by default in this branch:
-- arbitrary simulated world changes inside a disposable in-memory world;
-- autonomous agent decisions and role formation;
-- agent-proposed code/config changes as candidate patches;
-- repeated seeded experiments and automatic rollback of failed candidates;
-- increasing population and simulation complexity within configurable compute budgets.
+- simulated world changes inside a disposable in-memory world;
+- autonomous decision policies and role formation;
+- candidate code/config changes in the isolated branch;
+- repeated seeded experiments and rollback of failed candidates;
+- increasing simulated population and complexity within configurable compute budgets.
 
 Require a separate explicit operator decision:
 - writes to shared or production databases;
-- deployment to production or changes to external infrastructure;
+- production deployment or changes to external infrastructure;
 - deletion or replacement of persistent worlds/data;
 - publishing or merging changes to protected branches;
 - granting agents external credentials or unrestricted network access.
 
-These boundaries are not simulation restrictions: they keep experiments reversible and prevent a test agent from destroying the environment used to evaluate it.
+These boundaries keep experiments reversible; they do not constrain what agents can create inside the sandbox.
 
-## Implementation sequence
+## Next implementation steps
 
-1. Add a pure simulation core with a seeded RNG, stable agent IDs, world state, and a tick loop.
-2. Define a typed action/intent schema for movement, world generation, resource use, communication, and policy proposals.
-3. Add an event log and checkpoints; make each tick replayable.
-4. Implement an agent scheduler that gathers observations, evaluates goals, chooses actions, and records rationale/metrics.
-5. Add Genesis world-generation intents and incremental terrain/ecosystem construction.
-6. Add a candidate-policy sandbox and automated baseline-vs-candidate evaluation.
-7. Add browser visualisation as a read-only view of the simulation and keep browser QA as a separate signal.
-8. Only after deterministic tests and repeatable browser runs, consider integration into the live service.
+1. Introduce a typed action schema for movement, world generation, resource use, communication, and policy proposals.
+2. Add resource/ecology feedback so agents respond to consequences rather than only feature counts.
+3. Add checkpoints and exact state restoration.
+4. Add a scheduler for goal evaluation, action selection, rationale, and metrics.
+5. Add generated terrain geometry and climate/ecosystem simulation.
+6. Add candidate-policy execution in a separate process with time, memory, and filesystem limits.
+7. Add baseline-vs-candidate evaluation and automatic rollback on regression.
+8. Connect the browser only as a read-only view after simulation tests are stable.
 
 ## Acceptance criteria
 
-- Same seed and same inputs produce the same simulation trace.
+- Same seed and same inputs produce an identical simulation trace.
 - Every agent has a stable identity independent of array order.
-- A simulation can start from an empty world and generate world features through agent intents.
-- Agents can alter goals and plans based on outcomes without editing the evaluator.
-- Candidate self-modifications are isolated, measurable, and automatically discarded on regression.
-- A checkpoint restores the exact prior simulation state.
-- Physics and lifecycle regression tests pass repeatedly.
-- No production, shared database, or external infrastructure changes are performed by sandbox tests.
+- An empty world can gain terrain, biomes, and organisms through agent intents.
+- Every world event has provenance and valid references.
+- Agents can change goals/plans from observed outcomes without changing their evaluator.
+- A checkpoint restores the exact prior state.
+- Candidate self-modifications are isolated, measurable, and discarded on regression.
+- Physics and lifecycle QA pass repeatedly before any integration into the live service.
 
 ## Current evidence and limitations
 
-The browser trace diagnostics branch currently passes its latest physics and visual QA runs, but the previous large displacement has not been reproduced and its root cause remains unconfirmed. The existing isolated Genesis prototype is a deterministic physics detector test, not a complete autonomous world-generation system. This plan must not be described as already implemented until the code and tests exist.
+The browser trace diagnostics branch passed its latest physics and visual QA runs, but the earlier large displacement has not been reproduced and its root cause remains unconfirmed. The new Genesis sandbox prototype is an initial autonomous-world construction experiment; it does not replace the existing browser simulation and has not been deployed. No shared database or production infrastructure was changed.
