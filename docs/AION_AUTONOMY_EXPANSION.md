@@ -17,14 +17,17 @@ node qa/autonomous_genesis_sandbox.mjs
 Current prototype:
 - starts with an empty in-memory world;
 - runs 8 stable-ID agents with distinct roles across 80 ticks;
-- lets role-aware policies choose terrain, biome, organism, or observe/replan intents from current world observations;
+- recalculates agent goals from current observations, role, and energy (including recovery and world-stabilization goals);
+- lets role-aware policies choose terrain, biome, organism, ecosystem-restoration, or observe/replan intents from current world observations;
+- applies bounded ecological feedback every tick: organisms gain energy in fertile biomes and lose energy otherwise;
 - records the agent, tick, intent, and outcome for every decision;
 - builds terrain, biomes, and organisms incrementally;
 - uses a seeded RNG and asserts that two identical runs produce the same trace;
-- checks identity uniqueness, event provenance, and organism-to-biome references;
+- checks identity uniqueness, event provenance, organism-to-biome references, goal adaptation, bounded agent energy, and ecological-feedback execution;
+- reports goal-change and ecology-tick counts in its test output;
 - has no network, persistence, production imports, or external side effects.
 
-**Important limitation:** this is a deterministic role-policy prototype, not yet an LLM-driven agent society, a full 3D terrain generator, or a self-modifying code system. Its passing test demonstrates deterministic Genesis intent processing only.
+**Important limitation:** this is still a deterministic heuristic/role-policy prototype, not yet an LLM-driven agent society, a full 3D terrain generator, or a self-modifying code system. Dynamic goals and ecological feedback are deliberately simplified; the passing test demonstrates deterministic sandbox behavior, not open-ended intelligence.
 
 ## Autonomy model
 
