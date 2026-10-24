@@ -7,7 +7,10 @@ import assert from 'node:assert/strict';
 
 function rng(seed) {
   let s = seed >>> 0;
-  return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 0x100000000);
+  const next = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 0x100000000);
+  next.getState = () => s;
+  next.setState = state => { s = state >>> 0; };
+  return next;
 }
 
 function createSimulation(seed = 0xA10A, agentCount = 8) {
@@ -27,6 +30,29 @@ function createSimulation(seed = 0xA10A, agentCount = 8) {
     })),
     random,
   };
+}
+
+function createCheckpoint(sim) {
+  return {
+    seed: sim.seed,
+    tick: sim.tick,
+    world: structuredClone(sim.world),
+    agents: structuredClone(sim.agents),
+    randomState: sim.random.getState(),
+  };
+}
+
+function restoreCheckpoint(sim, checkpoint) {
+  sim.seed = checkpoint.seed;
+  sim.tick = checkpoint.tick;
+  sim.world = structuredClone(checkpoint.world);
+  sim.agents = structuredClone(checkpoint.agents);
+  sim.random.setState(checkpoint.randomState);
+}
+
+function checkpointState(sim) {
+  const { random, ...state } = sim;
+  return { ...structuredClone(state), randomState: random.getState() };
 }
 
 function observe(sim, agent) {
@@ -192,6 +218,19 @@ function run(seed = 0xA10A, ticks = 80) {
   return serializable;
 }
 
+const checkpointProbe = createSimulation(20261024);
+const checkpoint = createCheckpoint(checkpointProbe);
+checkpointProbe.tick = 99;
+checkpointProbe.world.terrain.push({ id: 'mutation-after-checkpoint', kind: 'invalid' });
+checkpointProbe.agents[0].energy = 0;
+checkpointProbe.random();
+restoreCheckpoint(checkpointProbe, checkpoint);
+assert.deepEqual(checkpointState(checkpointProbe), { ...checkpoint, random: undefined });
+// Confirm restoration includes the RNG stream as well as mutable world and agent state.
+const restoredRandomValue = checkpointProbe.random();
+const replayProbe = createSimulation(20261024);
+assert.equal(restoredRandomValue, replayProbe.random(), 'checkpoint must restore RNG position');
+
 const a = run(20261024, 80);
 const b = run(20261024, 80);
 assert.deepEqual(a, b, 'same seed must produce an identical trace');
@@ -223,5 +262,6 @@ console.log(JSON.stringify({
   messages: a.world.messages.length,
   agentsReceivingMessages: a.agents.filter(agent => agent.inbox.length > 0).length,
   ecologicalFeedbackTicks: a.world.ecology.length,
+  checkpointRestore: 'PASS',
   deterministicReplay: true, persistence: 'disabled', network: 'disabled', productionChanges: 'none',
 }, null, 2));
