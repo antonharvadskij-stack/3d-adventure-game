@@ -28,7 +28,7 @@ Current prototype:
 - records the agent, tick, intent, and outcome for every decision;
 - builds terrain, biomes, and organisms incrementally;
 - uses a seeded RNG and asserts that two identical runs produce the same trace;
-- checks identity uniqueness, event provenance, organism-to-biome references, goal adaptation, bounded agent energy, ecological-feedback execution, valid communication sender/recipient identities, and proposal accounting/resolution;
+- checks identity uniqueness, event provenance, organism-to-biome references, goal adaptation, bounded agent energy, ecological-feedback execution, valid communication sender/recipient identities, proposal accounting/resolution, and exact checkpoint restoration;
 - reports goal-change and ecology-tick counts in its test output;
 - has no network, persistence, production imports, or external side effects.
 
@@ -85,7 +85,7 @@ These boundaries keep experiments reversible; they do not constrain what agents 
 
 1. Introduce a typed action schema for movement, world generation, resource use, communication, and policy proposals.
 2. Extend proposal arbitration with agent acknowledgements, multi-step negotiation, and explicit resource budgets; the current prototype only resolves simple same-type conflicts deterministically.
-3. Add checkpoints and exact state restoration.
+3. Extend checkpoint tests to restore mid-run and verify that continued execution exactly matches uninterrupted execution.
 4. Add a scheduler for goal evaluation, action selection, rationale, and metrics.
 5. Add generated terrain geometry and climate/ecosystem simulation.
 6. Add candidate-policy execution in a separate process with time, memory, and filesystem limits.
