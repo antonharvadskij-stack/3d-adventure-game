@@ -252,11 +252,8 @@ function stepSimulation(sim, tick) {
         endorsements: [...proposal.endorsements], resourceCost: proposal.resourceCost, accepted, reason });
       if (accepted) {
         if (conflictKey) claimed.add(conflictKey);
-        if (proposal.intent.type === 'create-terrain' && proposal.planStep === 0
-          || proposal.intent.type === 'create-biome' && proposal.planStep === 1
-          || proposal.intent.type === 'create-organism' && proposal.planStep === 2) {
-          agent.planStep = Math.max(agent.planStep, proposal.planStep + 1);
-        }
+        // Plan progress is observation-driven at the next tick; one accepted
+        // action is not enough to complete a stage's world-wide target.
         agent.resources -= proposal.resourceCost;
         agent.resourcesSpent += proposal.resourceCost;
         applyIntent(sim, agent, proposal.intent, proposal.previousGoal);
