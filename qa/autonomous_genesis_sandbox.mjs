@@ -17,7 +17,7 @@ function createSimulation(seed = 0xA10A, agentCount = 8) {
   const random = rng(seed);
   return {
     seed, tick: 0,
-    world: { terrain: [], biomes: [], organisms: [], events: [], ecology: [], messages: [], proposals: [], acknowledgements: [], negotiations: [] }, 
+    world: { terrain: [], biomes: [], organisms: [], events: [], ecology: [], messages: [], proposals: [], acknowledgements: [], negotiations: [], qualityMetrics: [] }, 
     agents: Array.from({ length: agentCount }, (_, i) => ({
       id: `genesis-agent-${String(i + 1).padStart(3, '0')}`,
       role: ['geologist', 'climatologist', 'botanist', 'ecologist'][i % 4],
@@ -32,6 +32,9 @@ function createSimulation(seed = 0xA10A, agentCount = 8) {
       acknowledgements: 0,
       planStep: 0,
       planCompletions: 0,
+      planRetries: 0,
+      planBlockReasons: {},
+      lastPlanBlockReason: null,
     })), 
     random,
   };
@@ -183,6 +186,24 @@ function applyEcologicalFeedback(sim) {
   sim.world.ecology.push({ tick: sim.tick, organisms: sim.world.organisms.length, totalEnergy });
 }
 
+function recordWorldQuality(sim) {
+  const organisms = sim.world.organisms;
+  const totalEnergy = organisms.reduce((sum, organism) => sum + organism.energy, 0);
+  const living = organisms.filter(organism => organism.energy > 0).length;
+  const uniqueBiomeKinds = new Set(sim.world.biomes.map(biome => biome.kind)).size;
+  sim.world.qualityMetrics.push({
+    tick: sim.tick,
+    terrainCount: sim.world.terrain.length,
+    biomeCount: sim.world.biomes.length,
+    biomeKindDiversity: uniqueBiomeKinds,
+    organismCount: organisms.length,
+    livingOrganismRatio: organisms.length ? living / organisms.length : 0,
+    meanOrganismEnergy: organisms.length ? totalEnergy / organisms.length : 0,
+    dependencyIntegrity: organisms.every(organism => sim.world.biomes.some(biome => biome.id === organism.biomeRef))
+      && sim.world.biomes.every(biome => sim.world.terrain.some(terrain => terrain.id === biome.terrainRef)),
+  });
+}
+
 function intentResourceCost(intent) {
   if (intent.type === 'create-terrain') return 3;
   if (intent.type === 'create-biome' || intent.type === 'create-organism') return 2;
@@ -195,6 +216,7 @@ function stepSimulation(sim, tick) {
     // Small per-tick regeneration makes resources bounded but recoverable.
     for (const agent of sim.agents) agent.resources = Math.min(8, agent.resources + 1);
     applyEcologicalFeedback(sim);
+    recordWorldQuality(sim);
     // Rotate starting agent each tick to avoid array-order privilege.
     const offset = (tick - 1) % sim.agents.length;
     const proposals = [];
@@ -249,7 +271,12 @@ function stepSimulation(sim, tick) {
       const resourcesBefore = agent.resources;
       sim.world.proposals.push({ tick: proposal.tick, agentId: proposal.agentId,
         intent: { ...proposal.intent }, priority: proposal.priority, negotiatedPriority: proposal.negotiatedPriority,
-        endorsements: [...proposal.endorsements], resourceCost: proposal.resourceCost, accepted, reason });
+        endorsements: [...proposal.endorsements], resourceCost: proposal.resourceCost, planStep: proposal.planStep, accepted, reason });
+      if (!accepted && proposal.planStep < 3 && ['create-terrain', 'create-biome', 'create-organism'].includes(proposal.intent.type)) {
+        agent.planRetries++;
+        agent.lastPlanBlockReason = reason;
+        agent.planBlockReasons[reason] = (agent.planBlockReasons[reason] || 0) + 1;
+      }
       if (accepted) {
         if (conflictKey) claimed.add(conflictKey);
         // Plan progress is observation-driven at the next tick; one accepted
@@ -298,6 +325,10 @@ assert.ok(a.world.events.every(e => a.agents.some(agent => agent.id === e.agentI
 assert.ok(a.world.organisms.every(o => a.world.biomes.some(biome => biome.id === o.biomeRef)), 'organisms must reference existing biomes');
 assert.ok(a.agents.some(agent => agent.goalChanges > 0), 'agents should adapt goals as observations change');
 assert.ok(a.world.ecology.length === a.tick, 'ecological feedback should run every tick');
+assert.equal(a.world.qualityMetrics.length, a.tick, 'world quality metrics must be recorded every tick');
+assert.ok(a.world.qualityMetrics.every(m => m.biomeKindDiversity >= 0 && m.biomeKindDiversity <= m.biomeCount), 'biome diversity must be bounded by biome count');
+assert.ok(a.world.qualityMetrics.every(m => m.livingOrganismRatio >= 0 && m.livingOrganismRatio <= 1), 'living-organism ratio must remain bounded');
+assert.ok(a.world.qualityMetrics.every(m => m.dependencyIntegrity), 'all recorded world snapshots must preserve terrain/biome/organism references');
 assert.ok(a.world.ecology.some(e => e.totalEnergy > 0), 'ecosystem feedback should affect organism energy');
 assert.ok(a.world.messages.length > 0, 'agents should exchange observations and needs');
 assert.ok(a.world.proposals.length === a.tick * a.agents.length, 'every agent should submit one proposal per tick');
@@ -312,6 +343,7 @@ assert.ok(a.world.acknowledgements.every(ack => ack.resourcesAfter >= 0 && ack.r
 assert.ok(a.agents.every(agent => agent.resources >= 0 && agent.resources <= 8), 'agent resource budgets must remain bounded');
 assert.ok(a.agents.every(agent => agent.planStep >= 0 && agent.planStep <= 3), 'dependency-aware plan step must remain within bounds');
 assert.ok(a.agents.every(agent => agent.planCompletions >= 0), 'plan completion counters must remain nonnegative');
+assert.ok(a.agents.every(agent => agent.planRetries >= 0 && Object.values(agent.planBlockReasons).reduce((sum, count) => sum + count, 0) === agent.planRetries), 'plan retries must be accounted for by block reason');
 assert.ok(a.world.proposals.every(p => p.planStep >= 0 && p.planStep <= 3), 'every proposal must record its plan step');
 assert.ok(a.agents.every(agent => agent.acknowledgements > 0), 'every agent should receive proposal-resolution acknowledgements');
 assert.ok(a.world.messages.every(m => a.agents.some(agent => agent.id === m.from) && a.agents.some(agent => agent.id === m.to)), 'messages must have valid sender and recipient');
@@ -333,6 +365,15 @@ console.log(JSON.stringify({
   messages: a.world.messages.length,
   agentsReceivingMessages: a.agents.filter(agent => agent.inbox.length > 0).length,
   ecologicalFeedbackTicks: a.world.ecology.length,
+  worldQualitySnapshots: a.world.qualityMetrics.length,
+  finalBiomeKindDiversity: a.world.qualityMetrics.at(-1).biomeKindDiversity,
+  finalLivingOrganismRatio: a.world.qualityMetrics.at(-1).livingOrganismRatio,
+  dependencyIntegrity: a.world.qualityMetrics.every(metric => metric.dependencyIntegrity),
+  totalPlanRetries: a.agents.reduce((sum, agent) => sum + agent.planRetries, 0),
+  planBlockReasons: a.agents.reduce((summary, agent) => {
+    for (const [reason, count] of Object.entries(agent.planBlockReasons)) summary[reason] = (summary[reason] || 0) + count;
+    return summary;
+  }, {}),
   checkpointRestore: 'PASS', midRunReplay: 'PASS',
   deterministicReplay: true, persistence: 'disabled', network: 'disabled', productionChanges: 'none',
 }, null, 2));
