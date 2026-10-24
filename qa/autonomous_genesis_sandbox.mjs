@@ -16,7 +16,7 @@ function createSimulation(seed = 0xA10A, agentCount = 8) {
     seed, tick: 0,
     world: { terrain: [], biomes: [], organisms: [], events: [], ecology: [] },
     agents: Array.from({ length: agentCount }, (_, i) => ({
-      id: \`genesis-agent-\${String(i + 1).padStart(3, '0')}\`,
+      id: `genesis-agent-${String(i + 1).padStart(3, '0')}`,
       role: ['geologist', 'climatologist', 'botanist', 'ecologist'][i % 4],
       energy: 10 + Math.floor(random() * 6),
       goal: 'survey-empty-world',
@@ -70,7 +70,7 @@ function chooseIntent(sim, agent, observation) {
 }
 
 function applyIntent(sim, agent, intent, previousGoal) {
-  const id = \`feature-\${String(sim.world.events.length + 1).padStart(4, '0')}\`;
+  const id = `feature-${String(sim.world.events.length + 1).padStart(4, '0')}`;
   let outcome = 'plan-revised';
   if (intent.type === 'create-terrain') {
     sim.world.terrain.push({ id, kind: intent.kind, x: Math.floor(sim.random() * 101) - 50, z: Math.floor(sim.random() * 101) - 50 });
