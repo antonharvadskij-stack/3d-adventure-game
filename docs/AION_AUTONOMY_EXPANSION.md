@@ -30,6 +30,8 @@ Current prototype:
 - gives each agent a dependency-aware Genesis plan with stages for terrain, then biomes, then organisms; stages advance only when the observed world meets the stage target;
 - records each proposal's plan step and exposes per-agent plan-stage advancement metrics;
 - counts plan retries by explicit rejection reason (conflict, resource exhaustion, or invalid world reference), making blocked work inspectable;
+- after repeated plan blocks, proposes a different currently valid and affordable action (when available), excluding the last blocked action type; alternatives still pass the normal reference validation, conflict arbitration, and resource charging path;
+- counts fallback actions per agent so recovery behavior can be measured in deterministic runs;
 - records a post-resolution world-quality snapshot each tick with terrain/biome/organism counts, biome-kind diversity, living-organism ratio, mean organism energy, a bounded ecosystem-stability score, and dependency integrity;
 - uses observed low organism survival or ecosystem-stress messages to prioritize restoration actions;
 - records endorsements and negotiated priorities, caps the influence of endorsements, and uses stable agent IDs for deterministic tie-breaking; negotiation cannot bypass world validation or resource budgets;
@@ -98,7 +100,7 @@ These boundaries keep experiments reversible; they do not constrain what agents 
 2. Extend proposal arbitration to multi-round negotiation, dependency-aware multi-step plans, and shared-resource coordination; current endorsements are a bounded first negotiation phase, not full deliberation.
 3. Extend checkpoint coverage to long-running simulations and injected failures, then verify restoration and deterministic replay.
 4. Upgrade the current sequential world targets into explicit dependency graphs with plan completion criteria; retry accounting and blocked-step reasons are recorded, while dependency scheduling remains a simple ordered sequence.
-5. Add controlled alternative actions for repeated conflicts and compare recovery strategies against a baseline using the quality metrics.
+5. Compare the new bounded alternative-action recovery against the baseline using seeded runs, plan completion, rejection reasons, world-quality metrics, and resource costs.
 6. Add a scheduler for goal evaluation, action selection, rationale, and metrics.
 7. Add generated terrain geometry and climate/ecosystem simulation.
 8. Add candidate-policy execution in a separate process with time, memory, and filesystem limits.
