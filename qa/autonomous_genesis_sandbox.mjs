@@ -439,6 +439,7 @@ console.log(JSON.stringify({
   totalPlanRetries: a.agents.reduce((sum, agent) => sum + agent.planRetries, 0),
   alternativeActions: a.agents.reduce((sum, agent) => sum + agent.alternativeActions, 0),
   pairedExperiment: experimentSummary,
+  pairedExperimentPerSeed: experiment,
   planBlockReasons: a.agents.reduce((summary, agent) => {
     for (const [reason, count] of Object.entries(agent.planBlockReasons)) summary[reason] = (summary[reason] || 0) + count;
     return summary;
