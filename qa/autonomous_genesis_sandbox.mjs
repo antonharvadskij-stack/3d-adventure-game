@@ -13,10 +13,10 @@ function rng(seed) {
   return next;
 }
 
-function createSimulation(seed = 0xA10A, agentCount = 8) {
+function createSimulation(seed = 0xA10A, agentCount = 8, recoveryEnabled = true) {
   const random = rng(seed);
   return {
-    seed, tick: 0,
+    seed, tick: 0, recoveryEnabled,
     world: { terrain: [], biomes: [], organisms: [], events: [], ecology: [], messages: [], proposals: [], acknowledgements: [], negotiations: [], qualityMetrics: [] }, 
     agents: Array.from({ length: agentCount }, (_, i) => ({
       id: `genesis-agent-${String(i + 1).padStart(3, '0')}`,
@@ -116,7 +116,7 @@ function chooseIntent(sim, agent, observation) {
   // Repeatedly blocked plans try a different currently valid action. This is
   // a bounded policy fallback, not a bypass: prerequisites and resource costs
   // are checked before an alternative is proposed.
-  if (agent.planRetries >= 2 && agent.lastBlockedIntentType) {
+  if (sim.recoveryEnabled && agent.planRetries >= 2 && agent.lastBlockedIntentType) {
     const alternatives = [];
     if (observation.terrainCount > 0 && observation.terrainCount < 6 && agent.lastBlockedIntentType !== 'create-terrain') {
       alternatives.push({ type: 'create-terrain', kind: ['plain', 'hill', 'valley', 'ridge'][Math.floor(sim.random() * 4)] });
@@ -326,8 +326,8 @@ function stepSimulation(sim, tick) {
     recordWorldQuality(sim);
 }
 
-function run(seed = 0xA10A, ticks = 80) {
-  const sim = createSimulation(seed);
+function run(seed = 0xA10A, ticks = 80, recoveryEnabled = true) {
+  const sim = createSimulation(seed, 8, recoveryEnabled);
   for (let tick = 1; tick <= ticks; tick++) stepSimulation(sim, tick);
   const { random, ...serializable } = sim;
   return serializable;
@@ -344,9 +344,9 @@ for (let tick = 13; tick <= 24; tick++) stepSimulation(checkpointProbe, tick);
 assert.deepEqual(checkpointState(checkpointProbe), uninterruptedAfterCheckpoint,
   'resuming from checkpoint must match uninterrupted execution exactly');
 
-const a = run(20261024, 80);
-const b = run(20261024, 80);
-assert.deepEqual(a, b, 'same seed must produce an identical trace');
+const a = run(20261024, 80, true);
+const b = run(20261024, 80, true);
+assert.deepEqual(a, b, 'same seed and policy must produce an identical trace');
 assert.equal(a.agents.length, 8);
 assert.equal(new Set(a.agents.map(x => x.id)).size, a.agents.length, 'agent identities must be unique');
 assert.ok(a.world.terrain.length > 0, 'Genesis should create terrain from an empty world');
@@ -379,6 +379,35 @@ assert.ok(a.agents.every(agent => agent.planCompletions >= 0), 'plan completion 
 assert.ok(a.agents.every(agent => agent.planRetries >= 0 && Object.values(agent.planBlockReasons).reduce((sum, count) => sum + count, 0) === agent.planRetries), 'plan retries must be accounted for by block reason');
 assert.ok(a.agents.every(agent => agent.alternativeActions >= 0), 'alternative action counters must remain nonnegative');
 assert.ok(a.agents.every(agent => agent.alternativeActions === 0 || agent.planRetries >= 2), 'alternative actions must only activate after repeated blocks');
+
+// Paired seeded experiment: baseline and recovery share seed/ticks; only the
+// recovery policy flag differs. This is an ablation of the same implementation.
+const experimentSeeds = [101, 202, 303, 404, 505, 606, 707, 808, 909, 1010];
+const experiment = experimentSeeds.map(seed => {
+  const baseline = run(seed, 80, false);
+  const recovery = run(seed, 80, true);
+  const summarize = result => ({
+    seed, terrain: result.world.terrain.length, biomes: result.world.biomes.length,
+    organisms: result.world.organisms.length,
+    livingOrganismRatio: result.world.qualityMetrics.at(-1).livingOrganismRatio,
+    stability: result.world.qualityMetrics.at(-1).ecosystemStabilityScore,
+    completedPlans: result.agents.filter(agent => agent.planStep === 3).length,
+    retries: result.agents.reduce((sum, agent) => sum + agent.planRetries, 0),
+    alternativeActions: result.agents.reduce((sum, agent) => sum + agent.alternativeActions, 0),
+    resourcesSpent: result.agents.reduce((sum, agent) => sum + agent.resourcesSpent, 0),
+  });
+  return { baseline: summarize(baseline), recovery: summarize(recovery) };
+});
+const mean = rows => Number((rows.reduce((sum, row) => sum + row, 0) / rows.length).toFixed(4));
+const experimentSummary = {
+  seeds: experimentSeeds, ticksPerRun: 80, pairedRuns: experiment.length,
+  baseline: Object.fromEntries(['terrain','biomes','organisms','livingOrganismRatio','stability','completedPlans','retries','alternativeActions','resourcesSpent'].map(key => [key, mean(experiment.map(row => row.baseline[key]))])),
+  recovery: Object.fromEntries(['terrain','biomes','organisms','livingOrganismRatio','stability','completedPlans','retries','alternativeActions','resourcesSpent'].map(key => [key, mean(experiment.map(row => row.recovery[key]))])),
+};
+assert.ok(experiment.every(row => row.baseline.seed === row.recovery.seed), 'paired runs must use identical seeds');
+assert.ok(experiment.every(row => row.baseline.alternativeActions === 0), 'baseline policy must not activate recovery');
+assert.ok(experiment.every(row => row.recovery.alternativeActions >= 0), 'recovery counts must be nonnegative');
+
 assert.ok(a.world.proposals.every(p => p.planStep >= 0 && p.planStep <= 3), 'every proposal must record its plan step');
 assert.ok(a.agents.every(agent => agent.acknowledgements > 0), 'every agent should receive proposal-resolution acknowledgements');
 assert.ok(a.world.messages.every(m => a.agents.some(agent => agent.id === m.from) && a.agents.some(agent => agent.id === m.to)), 'messages must have valid sender and recipient');
@@ -407,6 +436,7 @@ console.log(JSON.stringify({
   dependencyIntegrity: a.world.qualityMetrics.every(metric => metric.dependencyIntegrity),
   totalPlanRetries: a.agents.reduce((sum, agent) => sum + agent.planRetries, 0),
   alternativeActions: a.agents.reduce((sum, agent) => sum + agent.alternativeActions, 0),
+  pairedExperiment: experimentSummary,
   planBlockReasons: a.agents.reduce((summary, agent) => {
     for (const [reason, count] of Object.entries(agent.planBlockReasons)) summary[reason] = (summary[reason] || 0) + count;
     return summary;
