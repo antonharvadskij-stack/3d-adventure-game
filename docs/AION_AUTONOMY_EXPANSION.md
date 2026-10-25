@@ -32,7 +32,7 @@ Current prototype:
 - counts plan retries by explicit rejection reason (conflict, resource exhaustion, or invalid world reference), making blocked work inspectable;
 - after repeated plan blocks, proposes a different currently valid and affordable action (when available), excluding the last blocked action type; alternatives still pass the normal reference validation, conflict arbitration, and resource charging path;
 - counts fallback actions per agent so recovery behavior can be measured in deterministic runs;
-- runs a paired baseline-versus-recovery ablation over 10 fixed seeds and summarizes outcomes for world growth, survival, the heuristic stability score, plan completion, retries, fallback use, and resource expenditure;
+- runs a paired baseline-versus-recovery ablation over 10 fixed seeds and reports both aggregate means and per-seed outcomes for world growth, survival, the heuristic stability score, plan completion, retries, fallback use, and resource expenditure;
 - records a post-resolution world-quality snapshot each tick with terrain/biome/organism counts, biome-kind diversity, living-organism ratio, mean organism energy, a bounded ecosystem-stability score, and dependency integrity;
 - uses observed low organism survival or ecosystem-stress messages to prioritize restoration actions;
 - records endorsements and negotiated priorities, caps the influence of endorsements, and uses stable agent IDs for deterministic tie-breaking; negotiation cannot bypass world validation or resource budgets;
