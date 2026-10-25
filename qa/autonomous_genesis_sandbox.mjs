@@ -35,6 +35,8 @@ function createSimulation(seed = 0xA10A, agentCount = 8) {
       planRetries: 0,
       planBlockReasons: {},
       lastPlanBlockReason: null,
+      lastBlockedIntentType: null,
+      alternativeActions: 0,
     })), 
     random,
   };
@@ -110,6 +112,29 @@ function chooseIntent(sim, agent, observation) {
   while (agent.planStep < stages.length && stages[agent.planStep].complete) {
     agent.planStep++;
     agent.planCompletions++;
+  }
+  // Repeatedly blocked plans try a different currently valid action. This is
+  // a bounded policy fallback, not a bypass: prerequisites and resource costs
+  // are checked before an alternative is proposed.
+  if (agent.planRetries >= 2 && agent.lastBlockedIntentType) {
+    const alternatives = [];
+    if (observation.terrainCount > 0 && observation.terrainCount < 6 && agent.lastBlockedIntentType !== 'create-terrain') {
+      alternatives.push({ type: 'create-terrain', kind: ['plain', 'hill', 'valley', 'ridge'][Math.floor(sim.random() * 4)] });
+    }
+    if (observation.terrainCount >= 2 && observation.biomeCount < 5 && agent.lastBlockedIntentType !== 'create-biome') {
+      alternatives.push({ type: 'create-biome', kind: ['temperate', 'wetland', 'dryland', 'boreal'][Math.floor(sim.random() * 4)] });
+    }
+    if (observation.biomeCount > 0 && observation.organismCount < 12 && agent.lastBlockedIntentType !== 'create-organism') {
+      alternatives.push({ type: 'create-organism', kind: ['moss', 'grass', 'shrub', 'grazer', 'pollinator'][Math.floor(sim.random() * 5)] });
+    }
+    if (observation.organismCount > 0 && agent.lastBlockedIntentType !== 'restore-ecosystem') {
+      alternatives.push({ type: 'restore-ecosystem' });
+    }
+    const affordable = alternatives.filter(intent => intentResourceCost(intent) <= agent.resources);
+    if (affordable.length) {
+      agent.alternativeActions++;
+      return affordable[(agent.planRetries - 2) % affordable.length];
+    }
   }
   if (agent.planStep < stages.length) return stages[agent.planStep].intent();
   if (observation.terrainCount < 6 && (agent.role === 'geologist' || sim.random() < 0.18)) {
@@ -278,6 +303,7 @@ function stepSimulation(sim, tick) {
       if (!accepted && proposal.planStep < 3 && ['create-terrain', 'create-biome', 'create-organism'].includes(proposal.intent.type)) {
         agent.planRetries++;
         agent.lastPlanBlockReason = reason;
+        agent.lastBlockedIntentType = proposal.intent.type;
         agent.planBlockReasons[reason] = (agent.planBlockReasons[reason] || 0) + 1;
       }
       if (accepted) {
@@ -351,6 +377,8 @@ assert.ok(a.agents.every(agent => agent.resources >= 0 && agent.resources <= 8),
 assert.ok(a.agents.every(agent => agent.planStep >= 0 && agent.planStep <= 3), 'dependency-aware plan step must remain within bounds');
 assert.ok(a.agents.every(agent => agent.planCompletions >= 0), 'plan completion counters must remain nonnegative');
 assert.ok(a.agents.every(agent => agent.planRetries >= 0 && Object.values(agent.planBlockReasons).reduce((sum, count) => sum + count, 0) === agent.planRetries), 'plan retries must be accounted for by block reason');
+assert.ok(a.agents.every(agent => agent.alternativeActions >= 0), 'alternative action counters must remain nonnegative');
+assert.ok(a.agents.every(agent => agent.alternativeActions === 0 || agent.planRetries >= 2), 'alternative actions must only activate after repeated blocks');
 assert.ok(a.world.proposals.every(p => p.planStep >= 0 && p.planStep <= 3), 'every proposal must record its plan step');
 assert.ok(a.agents.every(agent => agent.acknowledgements > 0), 'every agent should receive proposal-resolution acknowledgements');
 assert.ok(a.world.messages.every(m => a.agents.some(agent => agent.id === m.from) && a.agents.some(agent => agent.id === m.to)), 'messages must have valid sender and recipient');
@@ -378,6 +406,7 @@ console.log(JSON.stringify({
   finalEcosystemStabilityScore: a.world.qualityMetrics.at(-1).ecosystemStabilityScore,
   dependencyIntegrity: a.world.qualityMetrics.every(metric => metric.dependencyIntegrity),
   totalPlanRetries: a.agents.reduce((sum, agent) => sum + agent.planRetries, 0),
+  alternativeActions: a.agents.reduce((sum, agent) => sum + agent.alternativeActions, 0),
   planBlockReasons: a.agents.reduce((summary, agent) => {
     for (const [reason, count] of Object.entries(agent.planBlockReasons)) summary[reason] = (summary[reason] || 0) + count;
     return summary;
