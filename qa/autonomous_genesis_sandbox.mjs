@@ -46,6 +46,7 @@ function createCheckpoint(sim) {
   return {
     seed: sim.seed,
     tick: sim.tick,
+    recoveryEnabled: sim.recoveryEnabled,
     world: structuredClone(sim.world),
     agents: structuredClone(sim.agents),
     randomState: sim.random.getState(),
@@ -55,6 +56,7 @@ function createCheckpoint(sim) {
 function restoreCheckpoint(sim, checkpoint) {
   sim.seed = checkpoint.seed;
   sim.tick = checkpoint.tick;
+  sim.recoveryEnabled = checkpoint.recoveryEnabled;
   sim.world = structuredClone(checkpoint.world);
   sim.agents = structuredClone(checkpoint.agents);
   sim.random.setState(checkpoint.randomState);
