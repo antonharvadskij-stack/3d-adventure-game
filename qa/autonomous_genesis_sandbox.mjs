@@ -36,6 +36,7 @@ function createSimulation(seed = 0xA10A, agentCount = 8, recoveryEnabled = true)
       planBlockReasons: {},
       lastPlanBlockReason: null,
       lastBlockedIntentType: null,
+      recoveryCooldownUntil: 0,
       alternativeActions: 0,
     })), 
     random,
@@ -118,7 +119,8 @@ function chooseIntent(sim, agent, observation) {
   // Repeatedly blocked plans try a different currently valid action. This is
   // a bounded policy fallback, not a bypass: prerequisites and resource costs
   // are checked before an alternative is proposed.
-  if (sim.recoveryEnabled && agent.planRetries >= 2 && agent.lastBlockedIntentType) {
+  if (sim.recoveryEnabled && agent.planRetries >= 2 && agent.lastBlockedIntentType
+    && agent.lastPlanBlockReason === 'conflict-lost' && sim.tick >= agent.recoveryCooldownUntil) {
     const alternatives = [];
     if (observation.terrainCount > 0 && observation.terrainCount < 6 && agent.lastBlockedIntentType !== 'create-terrain') {
       alternatives.push({ type: 'create-terrain', kind: ['plain', 'hill', 'valley', 'ridge'][Math.floor(sim.random() * 4)] });
@@ -129,12 +131,10 @@ function chooseIntent(sim, agent, observation) {
     if (observation.biomeCount > 0 && observation.organismCount < 12 && agent.lastBlockedIntentType !== 'create-organism') {
       alternatives.push({ type: 'create-organism', kind: ['moss', 'grass', 'shrub', 'grazer', 'pollinator'][Math.floor(sim.random() * 5)] });
     }
-    if (observation.organismCount > 0 && agent.lastBlockedIntentType !== 'restore-ecosystem') {
-      alternatives.push({ type: 'restore-ecosystem' });
-    }
     const affordable = alternatives.filter(intent => intentResourceCost(intent) <= agent.resources);
     if (affordable.length) {
       agent.alternativeActions++;
+      agent.recoveryCooldownUntil = sim.tick + 4;
       return affordable[(agent.planRetries - 2) % affordable.length];
     }
   }
@@ -381,6 +381,7 @@ assert.ok(a.agents.every(agent => agent.planCompletions >= 0), 'plan completion 
 assert.ok(a.agents.every(agent => agent.planRetries >= 0 && Object.values(agent.planBlockReasons).reduce((sum, count) => sum + count, 0) === agent.planRetries), 'plan retries must be accounted for by block reason');
 assert.ok(a.agents.every(agent => agent.alternativeActions >= 0), 'alternative action counters must remain nonnegative');
 assert.ok(a.agents.every(agent => agent.alternativeActions === 0 || agent.planRetries >= 2), 'alternative actions must only activate after repeated blocks');
+assert.ok(a.agents.every(agent => agent.recoveryCooldownUntil >= 0), 'recovery cooldown must remain bounded below');
 
 // Paired seeded experiment: baseline and recovery share seed/ticks; only the
 // recovery policy flag differs. This is an ablation of the same implementation.
