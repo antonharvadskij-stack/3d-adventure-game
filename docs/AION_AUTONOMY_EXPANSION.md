@@ -30,8 +30,8 @@ Current prototype:
 - gives each agent a dependency-aware Genesis plan with stages for terrain, then biomes, then organisms; stages advance only when the observed world meets the stage target;
 - records each proposal's plan step and exposes per-agent plan-stage advancement metrics;
 - counts plan retries by explicit rejection reason (conflict, resource exhaustion, or invalid world reference), making blocked work inspectable;
-- after repeated plan blocks, proposes a different currently valid and affordable action (when available), excluding the last blocked action type; alternatives still pass the normal reference validation, conflict arbitration, and resource charging path;
-- counts fallback actions per agent so recovery behavior can be measured in deterministic runs;
+- after repeated conflict losses, proposes a different currently valid and affordable build action no more than once per five ticks per agent; resource-budget failures do not trigger fallback, and ecosystem restoration is excluded from fallback to avoid repeated resource-consuming restoration loops;
+- counts fallback actions and tracks each agent's recovery cooldown so recovery behavior can be measured in deterministic runs;
 - runs a paired baseline-versus-recovery ablation over 10 fixed seeds and reports both aggregate means and per-seed outcomes for world growth, survival, the heuristic stability score, plan completion, retries, fallback use, and resource expenditure;
 - records a post-resolution world-quality snapshot each tick with terrain/biome/organism counts, biome-kind diversity, living-organism ratio, mean organism energy, a bounded ecosystem-stability score, and dependency integrity;
 - uses observed low organism survival or ecosystem-stress messages to prioritize restoration actions;
