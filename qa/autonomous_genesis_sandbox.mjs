@@ -122,6 +122,12 @@ function chooseIntent(sim, agent, observation) {
   if (sim.recoveryEnabled && agent.planRetries >= 2 && agent.lastBlockedIntentType
     && agent.lastPlanBlockReason === 'conflict-lost' && sim.tick >= agent.recoveryCooldownUntil) {
     const alternatives = [];
+    // Prefer ecological stabilization when the living world is under stress;
+    // this remains subject to the same resource-budget and conflict validation.
+    if (observation.organismCount > 0
+      && (observation.livingOrganismRatio < 0.8 || observation.meanOrganismEnergy < 2)) {
+      alternatives.push({ type: 'restore-ecosystem' });
+    }
     if (observation.terrainCount > 0 && observation.terrainCount < 6 && agent.lastBlockedIntentType !== 'create-terrain') {
       alternatives.push({ type: 'create-terrain', kind: ['plain', 'hill', 'valley', 'ridge'][Math.floor(sim.random() * 4)] });
     }
