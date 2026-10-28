@@ -122,6 +122,11 @@ function chooseIntent(sim, agent, observation) {
   if (sim.recoveryEnabled && agent.planRetries >= 2 && agent.lastBlockedIntentType
     && agent.lastPlanBlockReason === 'conflict-lost' && sim.tick >= agent.recoveryCooldownUntil) {
     const alternatives = [];
+    // When recovery is triggered during measurable ecosystem stress, stabilize
+    // existing life before spending the fallback on more world construction.
+    const ecologicalStress = observation.organismCount > 0
+      && (observation.livingOrganismRatio < 0.6 || observation.meanOrganismEnergy < 2);
+    if (ecologicalStress) alternatives.push({ type: 'restore-ecosystem' });
     if (observation.terrainCount > 0 && observation.terrainCount < 6 && agent.lastBlockedIntentType !== 'create-terrain') {
       alternatives.push({ type: 'create-terrain', kind: ['plain', 'hill', 'valley', 'ridge'][Math.floor(sim.random() * 4)] });
     }
@@ -132,6 +137,12 @@ function chooseIntent(sim, agent, observation) {
       alternatives.push({ type: 'create-organism', kind: ['moss', 'grass', 'shrub', 'grazer', 'pollinator'][Math.floor(sim.random() * 5)] });
     }
     const affordable = alternatives.filter(intent => intentResourceCost(intent) <= agent.resources);
+    const ecologicalRecovery = ecologicalStress ? affordable.find(intent => intent.type === 'restore-ecosystem') : null;
+    if (ecologicalRecovery) {
+      agent.alternativeActions++;
+      agent.recoveryCooldownUntil = sim.tick + 4;
+      return ecologicalRecovery;
+    }
     if (affordable.length) {
       agent.alternativeActions++;
       agent.recoveryCooldownUntil = sim.tick + 4;
