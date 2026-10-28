@@ -402,14 +402,23 @@ const experiment = experimentSeeds.map(seed => {
   return { baseline: summarize(baseline), recovery: summarize(recovery) };
 });
 const mean = rows => Number((rows.reduce((sum, row) => sum + row, 0) / rows.length).toFixed(4));
+const experimentMetrics = ['terrain','biomes','organisms','livingOrganismRatio','stability','completedPlans','retries','alternativeActions','resourcesSpent'];
 const experimentSummary = {
   seeds: experimentSeeds, ticksPerRun: 80, pairedRuns: experiment.length,
-  baseline: Object.fromEntries(['terrain','biomes','organisms','livingOrganismRatio','stability','completedPlans','retries','alternativeActions','resourcesSpent'].map(key => [key, mean(experiment.map(row => row.baseline[key]))])),
-  recovery: Object.fromEntries(['terrain','biomes','organisms','livingOrganismRatio','stability','completedPlans','retries','alternativeActions','resourcesSpent'].map(key => [key, mean(experiment.map(row => row.recovery[key]))])),
+  baseline: Object.fromEntries(experimentMetrics.map(key => [key, mean(experiment.map(row => row.baseline[key]))])),
+  recovery: Object.fromEntries(experimentMetrics.map(key => [key, mean(experiment.map(row => row.recovery[key]))])),
+  pairedDelta: Object.fromEntries(experimentMetrics.map(key => [key, {
+    mean: mean(experiment.map(row => row.recovery[key] - row.baseline[key])),
+    improved: experiment.filter(row => row.recovery[key] > row.baseline[key]).length,
+    unchanged: experiment.filter(row => row.recovery[key] === row.baseline[key]).length,
+    regressed: experiment.filter(row => row.recovery[key] < row.baseline[key]).length,
+  }])),
 };
 assert.ok(experiment.every(row => row.baseline.seed === row.recovery.seed), 'paired runs must use identical seeds');
 assert.ok(experiment.every(row => row.baseline.alternativeActions === 0), 'baseline policy must not activate recovery');
 assert.ok(experiment.every(row => row.recovery.alternativeActions >= 0), 'recovery counts must be nonnegative');
+assert.ok(experiment.every(row => row.recovery.organisms >= row.baseline.organisms), 'recovery must not reduce final organism count on tested seeds');
+assert.ok(experiment.every(row => row.recovery.completedPlans >= row.baseline.completedPlans), 'recovery must not reduce completed plans on tested seeds');
 
 assert.ok(a.world.proposals.every(p => p.planStep >= 0 && p.planStep <= 3), 'every proposal must record its plan step');
 assert.ok(a.agents.every(agent => agent.acknowledgements > 0), 'every agent should receive proposal-resolution acknowledgements');
